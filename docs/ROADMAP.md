@@ -33,3 +33,7 @@
 ## v7.2 진행
 - Site Management Core 추가
 - 현장형태/타설계획/자재반입/장비운영 기반 자동 업무생성
+
+## v7.3 진행
+- Knowledge DB Foundation 추가
+- 다음 단계: KOSHA 사고사례와 공종 DB 연결, 포스터형 사고 브리핑 고도화

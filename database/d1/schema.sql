@@ -63,3 +63,15 @@ CREATE TABLE daily_work_items (
   created_at TEXT NOT NULL,
   FOREIGN KEY(site_id) REFERENCES sites(id)
 );
+
+DROP TABLE IF EXISTS trade_knowledge;
+
+CREATE TABLE trade_knowledge (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  trade_id TEXT UNIQUE NOT NULL,
+  trade_name TEXT NOT NULL,
+  category TEXT,
+  summary TEXT,
+  payload TEXT NOT NULL,
+  updated_at TEXT NOT NULL
+);
