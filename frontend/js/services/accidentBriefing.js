@@ -1,0 +1,132 @@
+export const ACCIDENT_BRIEFINGS = [
+  {
+    "id": "fall-opening",
+    "title": "개구부 주변 작업 중 추락",
+    "occurredAt": "공식 API 연동 예정",
+    "region": "전국",
+    "trade": "철근공사",
+    "type": "추락",
+    "severity": "긴급",
+    "cause": "개구부 덮개 미고정, 안전대 미체결, 작업발판 관리 미흡",
+    "siteChecks": [
+      "개구부 덮개 고정",
+      "난간·발끝막이판 확인",
+      "안전대 체결",
+      "상하동시작업 통제",
+      "TBM에서 추락사례 공유"
+    ],
+    "relatedTrades": [
+      "철근공사",
+      "거푸집공사",
+      "콘크리트 타설"
+    ],
+    "tbm": "개구부 주변 작업은 짧은 이동 중에도 추락이 발생합니다. 덮개 고정, 난간, 안전대 체결을 먼저 확인합니다.",
+    "posterStyle": "red"
+  },
+  {
+    "id": "pumpcar-overturn",
+    "title": "펌프카 타설 중 전도 위험",
+    "occurredAt": "공식 API 연동 예정",
+    "region": "전국",
+    "trade": "콘크리트 타설",
+    "type": "전도",
+    "severity": "위험",
+    "cause": "아웃트리거 받침 부족, 지반 지지력 확인 미흡, 작업반경 통제 미흡",
+    "siteChecks": [
+      "아웃트리거 받침판 설치",
+      "주차부 지반 확인",
+      "레미콘 차량 동선 분리",
+      "붐대 작업반경 통제",
+      "강풍 시 작업 재검토"
+    ],
+    "relatedTrades": [
+      "콘크리트 타설",
+      "장비운영"
+    ],
+    "tbm": "펌프카 작업은 아웃트리거와 지반이 핵심입니다. 주차부 토질, 받침판, 작업반경 통제를 확인합니다.",
+    "posterStyle": "orange"
+  },
+  {
+    "id": "forklift-collision",
+    "title": "지게차 하역 중 충돌·협착",
+    "occurredAt": "공식 API 연동 예정",
+    "region": "전국",
+    "trade": "지게차하역작업",
+    "type": "끼임·충돌",
+    "severity": "위험",
+    "cause": "보행자 동선 분리 미흡, 후진동선 통제 미흡, 신호수 부재",
+    "siteChecks": [
+      "하역구역 출입통제",
+      "후진동선 분리",
+      "신호수 배치",
+      "팔레트 파손 확인",
+      "정격하중 준수"
+    ],
+    "relatedTrades": [
+      "자재반입",
+      "지게차하역작업"
+    ],
+    "tbm": "지게차 하역은 보행자와 장비동선을 분리해야 합니다. 후진동선, 신호수, 하역구역 통제를 확인합니다.",
+    "posterStyle": "orange"
+  },
+  {
+    "id": "crane-load-drop",
+    "title": "크레인 인양물 낙하",
+    "occurredAt": "공식 API 연동 예정",
+    "region": "전국",
+    "trade": "크레인작업",
+    "type": "낙하",
+    "severity": "긴급",
+    "cause": "줄걸이 불량, 신호 불일치, 인양물 하부 출입",
+    "siteChecks": [
+      "줄걸이·샤클 점검",
+      "신호수 배치",
+      "하부 출입금지",
+      "풍속 확인",
+      "작업계획서 확인"
+    ],
+    "relatedTrades": [
+      "크레인작업",
+      "철골공사",
+      "자재반입"
+    ],
+    "tbm": "크레인 작업은 낙하와 전도가 핵심입니다. 줄걸이, 신호수, 하부 출입금지, 풍속을 확인합니다.",
+    "posterStyle": "red"
+  }
+];
+
+export const CONSTRUCTION_NEWS = [
+  {
+    "category": "법령",
+    "title": "건설안전 관련 법령·고시 개정사항 확인 필요",
+    "summary": "매월 초 산업안전보건기준, KCS, 지침 개정 여부를 확인합니다."
+  },
+  {
+    "category": "신공법",
+    "title": "스마트 안전장비·AI 영상분석 적용 확대",
+    "summary": "추락·협착 위험 구역에 영상감지와 출입통제 시스템을 연계하는 현장이 증가하고 있습니다."
+  },
+  {
+    "category": "품질",
+    "title": "폭염·강우 시 콘크리트 품질관리 중요",
+    "summary": "강우 보양, 슬럼프, 공시체, 양생 기록을 누락하지 않도록 관리합니다."
+  }
+];
+
+export function searchAccidents(query = "") {
+  const q = query.trim().toLowerCase();
+  if(!q) return ACCIDENT_BRIEFINGS;
+  return ACCIDENT_BRIEFINGS.filter(a =>
+    [a.title, a.trade, a.type, a.cause, ...(a.siteChecks||[])].join(" ").toLowerCase().includes(q)
+  );
+}
+
+export function getAccidentById(id) {
+  return ACCIDENT_BRIEFINGS.find(a => a.id === id) || ACCIDENT_BRIEFINGS[0];
+}
+
+export function buildAccidentTbm(ids = []) {
+  const items = ids.map(getAccidentById).filter(Boolean);
+  if(!items.length) return "사고사례를 선택하면 TBM 문구가 생성됩니다.";
+  return items.map(a => `■ ${a.type} · ${a.title}\n${a.tbm}\n확인: ${a.siteChecks.slice(0,3).join(" / ")}`).join("\n\n");
+}

@@ -37,3 +37,7 @@
 ## v7.3 진행
 - Knowledge DB Foundation 추가
 - 다음 단계: KOSHA 사고사례와 공종 DB 연결, 포스터형 사고 브리핑 고도화
+
+## v7.4 진행
+- Accident & News Briefing Foundation 추가
+- 다음 단계: KOSHA API 실제 연결, 첨부 포스터 자동 표시, 관련 공종 DB 자동 연결

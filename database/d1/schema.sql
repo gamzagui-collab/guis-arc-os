@@ -75,3 +75,30 @@ CREATE TABLE trade_knowledge (
   payload TEXT NOT NULL,
   updated_at TEXT NOT NULL
 );
+
+DROP TABLE IF EXISTS accident_briefings;
+DROP TABLE IF EXISTS construction_news;
+
+CREATE TABLE accident_briefings (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  accident_id TEXT UNIQUE NOT NULL,
+  title TEXT NOT NULL,
+  accident_type TEXT,
+  trade TEXT,
+  occurred_at TEXT,
+  region TEXT,
+  severity TEXT,
+  payload TEXT NOT NULL,
+  created_at TEXT NOT NULL
+);
+
+CREATE TABLE construction_news (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  category TEXT,
+  title TEXT NOT NULL,
+  summary TEXT,
+  source_url TEXT,
+  published_at TEXT,
+  payload TEXT,
+  created_at TEXT NOT NULL
+);

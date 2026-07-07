@@ -58,3 +58,42 @@
 .tbm-box{white-space:pre-wrap;background:#0f172a;color:#fff;border-radius:18px;padding:18px;font-size:17px;line-height:1.7}
 .summary-card ul{padding-left:22px;margin-bottom:0}
 @media(max-width:900px){.trade-grid{grid-template-columns:1fr}}
+
+/* v7.4 Accident Briefing */
+.poster-grid{
+  display:grid;
+  grid-template-columns:repeat(4,minmax(0,1fr));
+  gap:14px;
+  margin:16px 0;
+}
+.accident-poster{
+  min-height:260px;
+  border-radius:24px;
+  padding:20px;
+  color:#fff;
+  box-shadow:var(--shadow);
+  cursor:pointer;
+  position:relative;
+  overflow:hidden;
+  display:flex;
+  flex-direction:column;
+  justify-content:space-between;
+}
+.poster-red{background:linear-gradient(145deg,#7f1d1d,#dc2626)}
+.poster-orange{background:linear-gradient(145deg,#7c2d12,#ea580c)}
+.poster-top{display:flex;justify-content:space-between;align-items:center;font-weight:1000}
+.poster-top span{background:rgba(255,255,255,.18);padding:7px 10px;border-radius:999px}
+.accident-poster h3{font-size:24px;line-height:1.25;margin:12px 0}
+.poster-symbol{
+  position:absolute;
+  right:18px;
+  bottom:10px;
+  font-size:86px;
+  font-weight:1000;
+  opacity:.18;
+}
+.accident-poster small{font-weight:800;line-height:1.5}
+.accident-detail-card{margin-top:16px}
+.news-card{margin-top:16px}
+@media(max-width:1100px){.poster-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media(max-width:700px){.poster-grid{grid-template-columns:1fr}.accident-poster{min-height:220px}}
