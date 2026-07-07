@@ -18,14 +18,14 @@ git init
 git add .
 git commit -m "Initial GUI's Arc Enterprise v7"
 git branch -M main
-git remote add origin https://github.com/gamzagui-collab/guis-arc-enterprise.git
+git remote add origin https://github.com/gamzagui-collab/guis-arc-os.git
 git push -u origin main
 ```
 
 ## 3. Cloudflare D1 생성
 
 ```bash
-npx wrangler d1 create guis_arc_enterprise
+npx wrangler d1 create guis_arc_os
 ```
 
 출력된 database_id를 `wrangler.toml`에 입력합니다.

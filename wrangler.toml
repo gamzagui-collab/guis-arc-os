@@ -4,12 +4,8 @@ compatibility_date = "2026-07-07"
 
 [[d1_databases]]
 binding = "DB"
-database_name = "guis_arc_enterprise"
-database_id = "REPLACE_WITH_D1_DATABASE_ID"
-
-[[kv_namespaces]]
-binding = "CACHE"
-id = "REPLACE_WITH_KV_NAMESPACE_ID"
+database_name = "guis_arc_os"
+database_id = "a3401472-178f-454d-84d9-d25b7515aadb"
 
 [vars]
 APP_VERSION = "7.0.0"
