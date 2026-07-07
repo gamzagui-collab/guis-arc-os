@@ -45,3 +45,7 @@
 ## v7.5 진행
 - Rule-based AI Field Assistant 추가
 - 다음 단계: D1 현장데이터 저장 연동 및 실제 KOSHA/Weather API와 통합
+
+## v7.6 진행
+- D1 Site Sync 추가
+- 다음 단계: 실제 Worker 주소 자동 설정, 현장 생성 UI 고도화, 데이터 백업/복원

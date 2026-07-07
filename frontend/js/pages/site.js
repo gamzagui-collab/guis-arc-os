@@ -1,5 +1,6 @@
 import { state, saveLocal } from "../core/state.js";
 import { getSitePreset } from "../services/siteManagement.js";
+import { createSite, saveSiteProfile } from "../services/api.js";
 
 export function renderSite(root){
   const profile = state.siteProfile || {};
@@ -52,7 +53,7 @@ export function renderSite(root){
     renderSite(root);
   });
 
-  root.querySelector("#saveSiteProfileBtn").addEventListener("click", () => {
+  root.querySelector("#saveSiteProfileBtn").addEventListener("click", async () => {
     state.siteProfile = {
       siteName: root.querySelector("#siteNameField").value.trim(),
       siteCode: root.querySelector("#siteCodeField").value.trim(),
@@ -66,6 +67,13 @@ export function renderSite(root){
     };
     state.site = {siteName: state.siteProfile.siteName || "현장", siteType: state.siteProfile.siteType};
     saveLocal();
+    try{
+      if(state.siteProfile.siteCode && state.siteProfile.pin && state.mode === "site"){
+        await saveSiteProfile(state.siteProfile.siteCode, state.siteProfile.pin, state.siteProfile);
+      }
+    }catch(error){
+      console.warn("D1 저장 실패, 로컬 저장 유지:", error);
+    }
     alert("현장정보를 저장했습니다.");
     renderSite(root);
   });

@@ -1,4 +1,12 @@
 import { state, saveLocal } from "../core/state.js";
+import { saveSchedule as saveScheduleApi } from "../services/api.js";
+async function persistSchedule(item){
+  if(state.mode === "site" && state.site?.siteCode && state.site?.pin){
+    try{ await saveScheduleApi(state.site.siteCode, state.site.pin, item); }
+    catch(error){ console.warn("D1 일정 저장 실패, 로컬 저장 유지:", error); }
+  }
+}
+
 export function renderSchedule(root){
   const today = new Date();
   const days = Array.from({length:14},(_,i)=>{const d=new Date(today); d.setDate(today.getDate()+i); return d;});
@@ -7,19 +15,16 @@ export function renderSchedule(root){
   
   root.querySelector("#addMaterialPlanBtn").addEventListener("click", ()=>{
     const title = prompt("반입 자재를 입력하세요. 예: 철근 D13 20Ton"); if(!title) return;
-    state.schedules.push({id:Date.now(), type:"자재", title, date:new Date().toISOString().slice(0,10), checklist:{method:"지게차", signal:false, storage:"미입력"}});
-    saveLocal(); renderSchedule(root);
+    const item={id:Date.now(), type:"자재", title, date:new Date().toISOString().slice(0,10), checklist:{method:"지게차", signal:false, storage:"미입력"}}; state.schedules.push(item); persistSchedule(item); saveLocal(); renderSchedule(root);
   });
 
   root.querySelector("#addEquipmentPlanBtn").addEventListener("click", ()=>{
     const title = prompt("운영 장비를 입력하세요. 예: 25톤 크레인"); if(!title) return;
-    state.schedules.push({id:Date.now(), type:"장비", title, date:new Date().toISOString().slice(0,10), checklist:{radius:"미입력", signal:false, windCheck:false}});
-    saveLocal(); renderSchedule(root);
+    const item={id:Date.now(), type:"장비", title, date:new Date().toISOString().slice(0,10), checklist:{radius:"미입력", signal:false, windCheck:false}}; state.schedules.push(item); persistSchedule(item); saveLocal(); renderSchedule(root);
   });
 
   root.querySelector("#addConcretePlanBtn").addEventListener("click", ()=>{
     const title = prompt("타설 구간을 입력하세요. 예: 3층 슬래브"); if(!title) return;
-    state.schedules.push({id:Date.now(), type:"타설", title, date:new Date().toISOString().slice(0,10), checklist:{pumpSize:"미입력", readySpace:false, roadClear:false, outrigger:false, soilType:"미입력"}});
-    saveLocal(); renderSchedule(root);
+    const item={id:Date.now(), type:"타설", title, date:new Date().toISOString().slice(0,10), checklist:{pumpSize:"미입력", readySpace:false, roadClear:false, outrigger:false, soilType:"미입력"}}; state.schedules.push(item); persistSchedule(item); saveLocal(); renderSchedule(root);
   });
 }

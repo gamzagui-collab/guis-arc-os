@@ -46,3 +46,9 @@
 - 일정·공종·날씨·사고사례 기반 사고위험 TOP5 / 품질 TOP3 / 감리지적 TOP3 자동 요약
 - 역할별 오늘 할 일 자동 분리
 - TBM 자동 문구 복사/출력
+
+## v7.6 D1 Site Sync
+- 현장코드+PIN D1 로그인 강화
+- 현장 기본정보/일정 서버 저장 기반 추가
+- /site/create, /site/profile, /site/bundle, /daily-work API 추가
+- 로컬 저장 + D1 저장 병행 구조
