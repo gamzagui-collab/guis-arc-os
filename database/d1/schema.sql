@@ -102,3 +102,14 @@ CREATE TABLE construction_news (
   payload TEXT,
   created_at TEXT NOT NULL
 );
+
+DROP TABLE IF EXISTS ai_briefings;
+
+CREATE TABLE ai_briefings (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  site_id INTEGER,
+  briefing_date TEXT NOT NULL,
+  input_payload TEXT,
+  output_payload TEXT NOT NULL,
+  created_at TEXT NOT NULL
+);

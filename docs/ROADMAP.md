@@ -41,3 +41,7 @@
 ## v7.4 진행
 - Accident & News Briefing Foundation 추가
 - 다음 단계: KOSHA API 실제 연결, 첨부 포스터 자동 표시, 관련 공종 DB 자동 연결
+
+## v7.5 진행
+- Rule-based AI Field Assistant 추가
+- 다음 단계: D1 현장데이터 저장 연동 및 실제 KOSHA/Weather API와 통합

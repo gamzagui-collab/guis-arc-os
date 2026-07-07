@@ -97,3 +97,19 @@
 .news-card{margin-top:16px}
 @media(max-width:1100px){.poster-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
 @media(max-width:700px){.poster-grid{grid-template-columns:1fr}.accident-poster{min-height:220px}}
+
+/* v7.5 AI Field Assistant */
+.ai-main-card{border-left:8px solid var(--purple)}
+.role-grid{
+  display:grid;
+  grid-template-columns:repeat(3,minmax(0,1fr));
+  gap:14px;
+}
+.role-box{
+  background:#f8fbff;
+  border:1px solid var(--line);
+  border-radius:18px;
+  padding:16px;
+}
+.role-box h4{font-size:20px;margin:0 0 10px;color:#0f172a}
+@media(max-width:1000px){.role-grid{grid-template-columns:1fr}}
