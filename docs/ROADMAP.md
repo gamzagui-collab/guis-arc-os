@@ -29,3 +29,7 @@
 ## v7.1 진행
 - Weather Intelligence 페이지 기반 추가
 - 다음 단계: v6.4 KMA/ECMWF/GFS/JMA API 이관
+
+## v7.2 진행
+- Site Management Core 추가
+- 현장형태/타설계획/자재반입/장비운영 기반 자동 업무생성
