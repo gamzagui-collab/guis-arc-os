@@ -1,4 +1,4 @@
-# GUI's Arc Enterprise v7 Starter
+# GUI's Arc OS v7 Starter
 
 건설현장 운영 OS를 목표로 한 차세대 GUI's Arc 프로젝트입니다.
 

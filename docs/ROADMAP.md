@@ -1,4 +1,4 @@
-# GUI's Arc Enterprise v7 Roadmap
+# GUI's Arc OS v7 Roadmap
 
 ## v7.0
 - 게스트 / 현장코드+PIN 구조
