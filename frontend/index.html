@@ -1,0 +1,67 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>GUI's Arc Enterprise v7</title>
+  <link rel="stylesheet" href="./css/design-system.css">
+  <link rel="stylesheet" href="./css/app.css">
+</head>
+<body>
+  <header class="topbar">
+    <div class="brand-mark">GA</div>
+    <div>
+      <h1>GUI's Arc Enterprise</h1>
+      <p>Construction Field Operating System · v7.0</p>
+    </div>
+  </header>
+
+  <main id="app" class="app-shell">
+    <section id="loginPage" class="page active">
+      <div class="hero-card">
+        <span class="eyebrow">건설현장 운영 OS</span>
+        <h2>오늘 현장에서 해야 할 일을 한눈에</h2>
+        <p>날씨·공정·자재·장비·사고사례·법령·KCS를 연결해 관리자별 업무를 요약합니다.</p>
+      </div>
+
+      <div class="login-grid">
+        <article class="big-card">
+          <h3>게스트 시작</h3>
+          <p>PC에 임시 저장합니다. 테스트나 개인 사용에 적합합니다.</p>
+          <button id="guestStartBtn" class="primary-btn">게스트로 시작</button>
+        </article>
+
+        <article class="big-card">
+          <h3>현장 접속</h3>
+          <p>현장코드 + PIN으로 D1 서버 DB의 현장 데이터를 불러옵니다.</p>
+          <label>현장코드<input id="siteCodeInput" placeholder="예: GIMJE-SCHOOL-001"></label>
+          <label>PIN<input id="sitePinInput" type="password" placeholder="예: 1234"></label>
+          <button id="siteLoginBtn" class="primary-btn">현장 접속</button>
+          <button id="createDemoSiteBtn" class="secondary-btn">샘플 현장 만들기</button>
+        </article>
+      </div>
+    </section>
+
+    <section id="homePage" class="page">
+      <nav class="main-tabs">
+        <button data-page="dashboardPage" class="tab active">대시보드</button>
+        <button data-page="weatherPage" class="tab">예보비교</button>
+        <button data-page="schedulePage" class="tab">현장일정</button>
+        <button data-page="guidePage" class="tab">업무가이드</button>
+        <button data-page="dbPage" class="tab">공종DB</button>
+        <button data-page="briefingPage" class="tab">사고·뉴스</button>
+        <button data-page="chatPage" class="tab">현장채팅</button>
+      </nav>
+      <div id="dashboardPage" class="subpage active"></div>
+      <div id="weatherPage" class="subpage"></div>
+      <div id="schedulePage" class="subpage"></div>
+      <div id="guidePage" class="subpage"></div>
+      <div id="dbPage" class="subpage"></div>
+      <div id="briefingPage" class="subpage"></div>
+      <div id="chatPage" class="subpage"></div>
+    </section>
+  </main>
+
+  <script type="module" src="./js/core/app.js"></script>
+</body>
+</html>
