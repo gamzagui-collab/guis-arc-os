@@ -17,3 +17,9 @@
 - DB: Cloudflare D1
 - Cache: Cloudflare KV
 - File/PDF/Image: Cloudflare R2 추후
+
+## v7.1 Weather Intelligence Foundation
+- 예보비교 페이지를 현장 의사결정 카드형으로 재구성
+- 07~17시 작업시간 기준 체감온도/강수/풍속 요약
+- 콘크리트 타설 판단 카드 초안
+- v6.4 예보엔진 이관 준비

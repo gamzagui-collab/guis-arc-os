@@ -1,0 +1,89 @@
+{
+  "version": "7.1-seed",
+  "workHours": {
+    "start": 7,
+    "end": 17
+  },
+  "rainfall": [
+    {
+      "level": "low",
+      "label": "정상",
+      "maxMm3h": 1,
+      "concrete": "타설 가능. 단, 표면 빗물 유입 확인.",
+      "color": "blue"
+    },
+    {
+      "level": "watch",
+      "label": "주의",
+      "maxMm3h": 5,
+      "concrete": "타설 전 보양재·배수로·감리 협의 필요.",
+      "color": "yellow"
+    },
+    {
+      "level": "risk",
+      "label": "위험",
+      "maxMm3h": 15,
+      "concrete": "타설 연기 검토. 부득이한 경우 품질관리계획 보강.",
+      "color": "orange"
+    },
+    {
+      "level": "stop",
+      "label": "중지검토",
+      "maxMm3h": 999,
+      "concrete": "타설 중지 또는 연기 권장. 레미콘·감리·공정 조정.",
+      "color": "red"
+    }
+  ],
+  "wind": [
+    {
+      "level": "low",
+      "label": "정상",
+      "maxMs": 5,
+      "action": "일반 작업 가능."
+    },
+    {
+      "level": "watch",
+      "label": "주의",
+      "maxMs": 8,
+      "action": "양중·고소작업 신호수와 작업반경 확인."
+    },
+    {
+      "level": "risk",
+      "label": "위험",
+      "maxMs": 12,
+      "action": "크레인·갱폼·외부작업 작업계획 재검토."
+    },
+    {
+      "level": "stop",
+      "label": "중지검토",
+      "maxMs": 999,
+      "action": "양중·고소·갱폼 작업 중지 검토."
+    }
+  ],
+  "heat": [
+    {
+      "level": "low",
+      "label": "정상",
+      "maxApparent": 28,
+      "action": "수분 섭취 안내."
+    },
+    {
+      "level": "watch",
+      "label": "주의",
+      "maxApparent": 32,
+      "action": "수분·그늘 휴식·관리자 순회."
+    },
+    {
+      "level": "risk",
+      "label": "위험",
+      "maxApparent": 35,
+      "action": "휴식시간 확대, 온열질환 증상 확인."
+    },
+    {
+      "level": "stop",
+      "label": "중지검토",
+      "maxApparent": 999,
+      "action": "고강도 옥외작업 중지 검토."
+    }
+  ]
+}

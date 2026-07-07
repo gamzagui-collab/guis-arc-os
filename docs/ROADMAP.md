@@ -25,3 +25,7 @@
 - 현장소장 지시사항/채팅
 - 읽음확인
 - 역할별 업무 흐름
+
+## v7.1 진행
+- Weather Intelligence 페이지 기반 추가
+- 다음 단계: v6.4 KMA/ECMWF/GFS/JMA API 이관

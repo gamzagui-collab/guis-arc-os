@@ -7,3 +7,31 @@
 .chip{display:block;margin-top:6px;padding:6px 8px;border-radius:12px;background:#dbeafe;color:#1e3a8a;font-weight:900;font-size:13px}
 .detail-link{font-weight:900;color:var(--blue);cursor:pointer}.export-row{display:flex;gap:10px;flex-wrap:wrap;margin-top:14px}
 @media(max-width:900px){.kpi-row{grid-template-columns:1fr 1fr}.calendar-grid{grid-template-columns:1fr 1fr}}
+
+/* v7.1 Weather Intelligence */
+.weather-chart-card{margin-top:18px}
+.weather-bars{
+  display:flex;
+  align-items:flex-end;
+  gap:10px;
+  min-height:170px;
+  padding:18px 8px 8px;
+  border-radius:18px;
+  background:linear-gradient(180deg,#f8fbff,#eef6ff);
+  overflow-x:auto;
+}
+.weather-bar-wrap{
+  min-width:54px;
+  display:grid;
+  justify-items:center;
+  gap:8px;
+  font-weight:900;
+  color:#334155;
+}
+.weather-bar{
+  width:30px;
+  border-radius:12px 12px 4px 4px;
+  background:linear-gradient(180deg,#ef4444,#f97316,#2563eb);
+  box-shadow:0 8px 16px rgba(239,68,68,.18);
+}
+.chart-note{margin:12px 0 0;color:var(--muted);font-weight:800}
