@@ -127,3 +127,15 @@
   background:#e8eef8;color:#172033;cursor:pointer;margin:0
 }
 .help-text{color:var(--muted);font-weight:800}
+
+/* v8.0 Core OS Dashboard */
+.os-hero{display:flex;justify-content:space-between;gap:18px;align-items:stretch;padding:28px;margin-bottom:18px;border-radius:28px;color:white;background:linear-gradient(135deg,#0f172a,#2563eb 58%,#7c3aed);box-shadow:var(--shadow)}
+.os-hero h2{font-size:34px;margin:10px 0 4px}.os-hero p{font-weight:800;opacity:.92}
+.os-risk{min-width:180px;border-radius:24px;background:rgba(255,255,255,.14);padding:18px;display:grid;align-content:center;text-align:center}
+.os-risk span{font-weight:900;opacity:.9}.os-risk strong{font-size:38px;line-height:1.15}
+.os-command-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:14px;margin-bottom:18px}
+.command-card{min-height:170px;border-radius:24px;padding:20px;color:white;box-shadow:var(--shadow)}
+.command-card span{display:block;font-weight:900;opacity:.88;margin-bottom:10px}.command-card strong{display:block;font-size:25px;line-height:1.25;margin-bottom:8px}.command-card p{font-weight:800;opacity:.93}
+.command-red{background:linear-gradient(145deg,#7f1d1d,#dc2626)}.command-blue{background:linear-gradient(145deg,#1e3a8a,#2563eb)}.command-orange{background:linear-gradient(145deg,#7c2d12,#ea580c)}.command-green{background:linear-gradient(145deg,#14532d,#16a34a)}
+@media(max-width:1000px){.os-hero{display:block}.os-risk{margin-top:14px}.os-command-grid{grid-template-columns:1fr 1fr}}
+@media(max-width:650px){.os-command-grid{grid-template-columns:1fr}.os-hero h2{font-size:28px}}
