@@ -49,3 +49,11 @@
 ## v7.6 진행
 - D1 Site Sync 추가
 - 다음 단계: 실제 Worker 주소 자동 설정, 현장 생성 UI 고도화, 데이터 백업/복원
+
+## v7.7 진행
+- Admin Settings & Backup 추가
+- 다음 단계: v6.4 실제 날씨 API 이관 및 KOSHA 실제 API 연결
+
+## v7.8 진행
+- DevOps Toolkit 추가
+- 다음 단계: 실제 v6.4 Weather API 이관, KOSHA API 실제 연결

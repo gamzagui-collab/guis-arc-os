@@ -4,14 +4,14 @@
 
 - 공식명: **GUI's Arc OS**
 - 설명: **Construction Site Operating System**
-- GitHub 저장소: `guis-arc-OS-enterprise`
-- Cloudflare Pages 프로젝트명: `guis-arc-os-enterprise`
+- GitHub 저장소: `guis-arc-os`
+- Cloudflare Pages 프로젝트명: `guis-arc-os`
 - Worker 권장 이름: `guis-arc-os-api`
 - D1 DB 권장 이름: `guis_arc_os`
 
 ## 적용
 
-현재 `guis-arc-OS-enterprise` 폴더에서 이 ZIP 내용을 덮어쓴 뒤:
+현재 `guis-arc-os` 폴더에서 이 ZIP 내용을 덮어쓴 뒤:
 
 ```powershell
 git add .
@@ -22,7 +22,7 @@ git push
 Pages 수동 배포:
 
 ```powershell
-wrangler pages deploy frontend --project-name=guis-arc-os-enterprise
+wrangler pages deploy frontend --project-name=guis-arc-os
 ```
 
 Worker 배포:

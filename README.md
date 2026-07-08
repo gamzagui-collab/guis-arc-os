@@ -52,3 +52,16 @@
 - 현장 기본정보/일정 서버 저장 기반 추가
 - /site/create, /site/profile, /site/bundle, /daily-work API 추가
 - 로컬 저장 + D1 저장 병행 구조
+
+## v7.7 Admin Settings & Backup
+- 설정 탭 추가
+- Worker API 주소 테스트/저장
+- 글자크기·고대비·화면밀도 설정
+- 게스트 데이터 JSON 백업/복원
+- /admin/status Worker route 추가
+
+## v7.8 DevOps Toolkit
+- 회사/집 PC 공통 작업용 install/update/deploy 배치파일 추가
+- Pages 프로젝트명 `guis-arc-os` 기준 정리
+- GitHub Actions 예시 추가
+- 저장소 정리 문서 추가

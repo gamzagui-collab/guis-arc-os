@@ -7,18 +7,18 @@
 추천 이름:
 
 ```text
-guis-arc-os-enterprise
+guis-arc-os
 ```
 
 ## 2. 로컬에서 업로드
 
 ```bash
-cd guis-arc-os-enterprise-v7-starter
+cd guis-arc-os-v7-starter
 git init
 git add .
 git commit -m "Initial GUI's Arc OS v7"
 git branch -M main
-git remote add origin https://github.com/gamzagui-collab/guis-arc-os-enterprise.git
+git remote add origin https://github.com/gamzagui-collab/guis-arc-os.git
 git push -u origin main
 ```
 
@@ -45,8 +45,8 @@ npx wrangler deploy backend/src/index.js --name guis-arc-os-api
 
 ## 6. Cloudflare Pages 새 프로젝트
 
-- Project name: `guis-arc-os-enterprise`
-- Repository: `guis-arc-os-enterprise`
+- Project name: `guis-arc-os`
+- Repository: `guis-arc-os`
 - Framework preset: None
 - Build command: 비움
 - Build output directory: `frontend`
@@ -54,7 +54,7 @@ npx wrangler deploy backend/src/index.js --name guis-arc-os-api
 ## 7. 접속
 
 ```text
-https://guis-arc-os-enterprise.pages.dev
+https://guis-arc-os.pages.dev
 ```
 
 ## 8. 기존 v6.4 유지

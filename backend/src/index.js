@@ -2,13 +2,15 @@ import { json, corsHeaders } from "./utils/response.js";
 import { createDemoSite, loginSite, createSite, saveSiteProfile, getSiteBundle } from "./routes/sites.js";
 import { saveSchedule, listSchedule, saveDailyWork } from "./routes/schedules.js";
 import { aiBriefing } from "./routes/assistant.js";
+import { systemStatus } from "./routes/admin.js";
 
 export default {
   async fetch(request, env) {
     if(request.method === "OPTIONS") return new Response(null,{headers:corsHeaders()});
     const url = new URL(request.url);
     try{
-      if(url.pathname === "/health") return json({ok:true, name:"GUI's Arc OS API", version:"7.0.0"});
+      if(url.pathname === "/health") return json({ok:true, name:"GUI\'s Arc OS API", version: env.APP_VERSION || "7.7.0"});
+      if(url.pathname === "/admin/status") return systemStatus(request, env);
       if(url.pathname === "/site/demo" && request.method === "POST") return createDemoSite(request, env);
       if(url.pathname === "/site/create" && request.method === "POST") return createSite(request, env);
       if(url.pathname === "/site/profile" && request.method === "POST") return saveSiteProfile(request, env);

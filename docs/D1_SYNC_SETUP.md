@@ -20,7 +20,7 @@ wrangler deploy backend/src/index.js --name guis-arc-os-api
 ## Pages 배포
 
 ```powershell
-wrangler pages deploy frontend --project-name=guis-arc-os-enterprise
+wrangler pages deploy frontend --project-name=guis-arc-os
 ```
 
 ## 테스트
