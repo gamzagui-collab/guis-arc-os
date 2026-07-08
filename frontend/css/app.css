@@ -139,3 +139,14 @@
 .command-red{background:linear-gradient(145deg,#7f1d1d,#dc2626)}.command-blue{background:linear-gradient(145deg,#1e3a8a,#2563eb)}.command-orange{background:linear-gradient(145deg,#7c2d12,#ea580c)}.command-green{background:linear-gradient(145deg,#14532d,#16a34a)}
 @media(max-width:1000px){.os-hero{display:block}.os-risk{margin-top:14px}.os-command-grid{grid-template-columns:1fr 1fr}}
 @media(max-width:650px){.os-command-grid{grid-template-columns:1fr}.os-hero h2{font-size:28px}}
+
+/* v8.2 Weather Engine */
+.big-recommend{font-size:22px;font-weight:900;color:#0f172a}
+.table-scroll{overflow-x:auto}
+.weather-compare-table{width:100%;border-collapse:separate;border-spacing:0;min-width:760px}
+.weather-compare-table th,.weather-compare-table td{padding:12px;border-bottom:1px solid var(--line);text-align:center}
+.weather-compare-table thead th{position:sticky;top:0;background:#f8fbff;font-weight:1000}
+.weather-compare-table tbody th{background:#fff;font-weight:1000}
+.rain-light{background:#dbeafe}
+.rain-risk{background:#fed7aa;font-weight:900}
+.rain-heavy{background:#dc2626;color:#fff;font-weight:1000}

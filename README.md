@@ -71,3 +71,9 @@
 - `wrangler.worker.toml`, `wrangler.pages.toml` 추가
 - 배치파일을 `guis-arc-os-enterprise` Pages 기준으로 정리
 - 환경 점검용 `scripts/doctor.bat` 추가
+
+## v8.2 Weather Engine
+- 예보처별 3시간 강수 비교 테이블 추가
+- 콘크리트 타설 판단 카드 고도화
+- 07~17시 작업시간 추천
+- Worker `/weather/demo` route 추가

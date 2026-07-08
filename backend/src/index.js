@@ -3,12 +3,14 @@ import { createDemoSite, loginSite, createSite, saveSiteProfile, getSiteBundle }
 import { saveSchedule, listSchedule, saveDailyWork } from "./routes/schedules.js";
 import { aiBriefing } from "./routes/assistant.js";
 import { systemStatus } from "./routes/admin.js";
+import { weatherDemo } from "./routes/weather.js";
 
 export default {
   async fetch(request, env) {
     if(request.method === "OPTIONS") return new Response(null,{headers:corsHeaders()});
     const url = new URL(request.url);
     try{
+      if(url.pathname === "/weather/demo") return weatherDemo(request, env);
       if(url.pathname === "/health") return json({ok:true, name:"GUI\'s Arc OS API", version: env.APP_VERSION || "7.7.0"});
       if(url.pathname === "/admin/status") return systemStatus(request, env);
       if(url.pathname === "/site/demo" && request.method === "POST") return createDemoSite(request, env);

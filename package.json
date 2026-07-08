@@ -1,6 +1,6 @@
 {
   "name": "guis-arc-os-v7",
-  "version": "8.1.0",
+  "version": "8.2.0",
   "type": "module",
   "scripts": {
     "worker:dev": "wrangler dev backend/src/index.js --local",
