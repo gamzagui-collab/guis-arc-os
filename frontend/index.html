@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>GUI's Arc OS v9.0.1</title>
+  <title>GUI's Arc OS v9.1.1</title>
   <link rel="stylesheet" href="./css/design-system.css">
   <link rel="stylesheet" href="./css/app.css">
 </head>
@@ -12,23 +12,23 @@
     <img class="brand-logo" src="./assets/guis-arc-os-logo.svg" alt="GUI's Arc OS logo">
     <div>
       <h1>GUI's Arc OS</h1>
-      <p>Construction Site Operating System · v9.0 OS Core Engines</p>
+      <p>Construction Site Operating System · v9.1 Site + 6-Day Weather Restore</p>
     </div>
   </header>
 
   <main id="app" class="app-shell">
     <section id="loginPage" class="page active">
       <div class="hero-card">
-        <span class="eyebrow">건설현장 운영 OS</span>
-        <h2>오늘 현장에서 해야 할 일을 한눈에</h2>
-        <p>날씨·공정·자재·장비·사고사례·법령·KCS를 연결해 관리자별 업무를 요약합니다.</p>
+        <span class="eyebrow">GUI's Arc OS</span>
+        <h2>현장별로 관리하는 건설현장 운영체계</h2>
+        <p>Guest로 바로 시작하거나, 현장코드 + PIN으로 현장 데이터를 불러오고 저장합니다.</p>
       </div>
 
       <div class="login-grid">
         <article class="big-card">
-          <h3>게스트 시작</h3>
-          <p>PC에 임시 저장합니다. 테스트나 개인 사용에 적합합니다.</p>
-          <button id="guestStartBtn" class="primary-btn">게스트로 시작</button>
+          <h3>Guest 시작</h3>
+          <p>PC 브라우저에 임시 저장합니다. 테스트와 개인 사용에 적합합니다.</p>
+          <button id="guestStartBtn" class="primary-btn">Guest로 시작</button>
         </article>
 
         <article class="big-card">
@@ -37,8 +37,32 @@
           <label>현장코드<input id="siteCodeInput" placeholder="예: GIMJE-SCHOOL-001"></label>
           <label>PIN<input id="sitePinInput" type="password" placeholder="예: 1234"></label>
           <button id="siteLoginBtn" class="primary-btn">현장 접속</button>
-          <button id="createDemoSiteBtn" class="secondary-btn">샘플 현장 만들기</button>
+          <button id="openCreateSiteBtn" class="secondary-btn">새 현장 등록</button>
         </article>
+      </div>
+
+      <div id="createSitePanel" class="big-card create-site-panel" hidden>
+        <h3>새 현장 등록</h3>
+        <div class="form-grid">
+          <label>현장명<input id="newSiteName" placeholder="예: 김제 OO초등학교 신축공사"></label>
+          <label>현장코드<input id="newSiteCode" placeholder="예: GIMJE-SCHOOL-001"></label>
+          <label>PIN<input id="newSitePin" placeholder="예: 1234"></label>
+          <label>현장형태
+            <select id="newSiteType">
+              <option value="school">학교</option>
+              <option value="apartment">아파트</option>
+              <option value="office">오피스·관공서</option>
+              <option value="factory">공장·창고</option>
+              <option value="culture">문화시설·체육관</option>
+              <option value="civil">도로·교량·터널</option>
+            </select>
+          </label>
+          <label>발주처<input id="newClientName" placeholder="예: 전북교육청"></label>
+          <label>시공사<input id="newContractorName" placeholder="예: OO건설"></label>
+          <label>감리사<input id="newSupervisorName" placeholder="예: OO감리"></label>
+          <label>공사규모<input id="newScaleText" placeholder="예: 지하1층/지상4층, 연면적 8,000㎡"></label>
+        </div>
+        <button id="createSiteBtn" class="primary-btn">현장 등록 후 시작</button>
       </div>
     </section>
 

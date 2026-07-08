@@ -1,4 +1,4 @@
-import { state, loadLocal, saveLocal } from "./state.js";
+import {state, loadLocal, saveLocal, setCurrentSiteProfile, startGuestSite } from "./state.js";
 import { loadSettings, saveSettings } from "../services/settings.js";
 import { loginSite, getSiteBundle } from "../services/api.js";
 import { renderDashboard } from "../pages/dashboard.js"; import { renderToday } from "../pages/today.js"; import { renderKnowledge } from "../pages/knowledge.js"; import { renderDirector, renderSafetyRole, renderConstructionRole, renderResourceRole } from "../pages/rolePage.js"; import { renderSite } from "../pages/site.js"; import { renderWeather } from "../pages/weather.js"; import { renderHealth } from "../pages/health.js"; import { renderSchedule } from "../pages/schedule.js"; import { renderGuide } from "../pages/guide.js"; import { renderQuality } from "../pages/quality.js"; import { renderDatabase } from "../pages/database.js"; import { renderBriefing } from "../pages/briefing.js"; import { renderChat } from "../pages/chat.js"; import { renderSettings } from "../pages/settings.js"; import { renderAssistant } from "../pages/assistant.js";

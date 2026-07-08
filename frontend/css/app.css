@@ -213,3 +213,9 @@ summary{font-size:20px;font-weight:1000;cursor:pointer}
 .quality-accordion{background:#fff;border:1px solid var(--line);border-radius:20px;padding:16px;margin:14px 0;box-shadow:var(--shadow)}
 .quality-accordion summary{font-size:22px;font-weight:1000;cursor:pointer}
 .bar-danger{background:#dc2626}.bar-warn{background:#f97316}.bar-watch{background:#60a5fa}.bar-zero{background:#cbd5e1}
+
+/* v9.1 Site + Weather Restore */
+.create-site-panel{margin-top:18px}
+.blue-bar{background:#2563eb}
+.weather-compare-table td[style*="rgba"]{border-radius:6px}
+.weather-compare-table tbody th[rowspan]{background:#eef6ff;font-size:18px;color:#1e3a8a}
