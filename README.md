@@ -65,3 +65,9 @@
 - Pages 프로젝트명 `guis-arc-os` 기준 정리
 - GitHub Actions 예시 추가
 - 저장소 정리 문서 추가
+
+## v8.1 Split Deploy Config
+- Worker와 Pages 배포 설정 분리
+- `wrangler.worker.toml`, `wrangler.pages.toml` 추가
+- 배치파일을 `guis-arc-os-enterprise` Pages 기준으로 정리
+- 환경 점검용 `scripts/doctor.bat` 추가

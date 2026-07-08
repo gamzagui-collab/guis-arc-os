@@ -1,4 +1,6 @@
 @echo off
 chcp 65001 > nul
-wrangler deploy backend/src/index.js --name guis-arc-os-api
+title GUI's Arc OS - Worker Deploy
+echo Deploying Worker: guis-arc-os-api
+wrangler deploy --config wrangler.worker.toml
 pause
