@@ -1,0 +1,89 @@
+{
+  "version": "8.6",
+  "confidenceLevels": [
+    "Verified",
+    "Field Standard",
+    "AI Recommendation",
+    "Needs Verification"
+  ],
+  "nodeTypes": [
+    "trade",
+    "quality",
+    "safety",
+    "construction",
+    "weather",
+    "equipment",
+    "material",
+    "inspection",
+    "law",
+    "kcs",
+    "ks",
+    "photo",
+    "faq",
+    "tbm"
+  ],
+  "sampleNodes": [
+    {
+      "id": "trade.concrete_pouring",
+      "title": "콘크리트 타설",
+      "type": "trade",
+      "summary": "강수·펌프카·레미콘 동선·품질시험·양생을 통합 관리",
+      "confidence": "Field Standard",
+      "links": [
+        "quality.concrete.specimen",
+        "quality.concrete.slump",
+        "safety.pump_car",
+        "weather.rain_concrete",
+        "photo.concrete_pouring"
+      ]
+    },
+    {
+      "id": "quality.concrete.specimen",
+      "title": "콘크리트 공시체",
+      "type": "quality",
+      "summary": "타설량과 시험빈도에 따라 공시체 수량 산정",
+      "confidence": "Verified",
+      "sourceRefs": [
+        "건설공사 품질관리 업무지침",
+        "KCS 14 20 10",
+        "KS F 2403",
+        "KS F 2405"
+      ],
+      "why": "압축강도 품질판정과 탈형강도 확인을 위해 제작",
+      "inputs": [
+        "타설량",
+        "배합",
+        "부재구분"
+      ],
+      "outputs": [
+        "시험빈도",
+        "공시체 개수",
+        "사진기록",
+        "시험일정"
+      ]
+    },
+    {
+      "id": "quality.concrete.crack",
+      "title": "콘크리트 균열관리",
+      "type": "quality",
+      "summary": "초기균열, 건조수축, 온도균열, 구조균열을 구분 관리",
+      "confidence": "Needs Verification",
+      "links": [
+        "weather.heat_curing",
+        "construction.curing",
+        "photo.crack_record"
+      ]
+    },
+    {
+      "id": "quality.earthwork.sheet_pile",
+      "title": "흙막이 가시설 품질관리",
+      "type": "quality",
+      "summary": "말뚝, 버팀보, 어스앵커, 계측관리와 연계",
+      "confidence": "Needs Verification",
+      "links": [
+        "safety.excavation",
+        "inspection.instrumentation"
+      ]
+    }
+  ]
+}

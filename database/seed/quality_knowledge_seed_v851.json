@@ -1,4 +1,4 @@
-export const QUALITY_KNOWLEDGE = {
+{
   "version": "8.5.1",
   "verifiedAt": "2026-07-08",
   "notice": "공식 확인된 내용과 현장 운영 기본안을 구분했습니다. 최종 적용은 현장 품질관리계획서, 특기시방서, 감리 지시, 최신 KCS/KS/품질관리 업무지침을 우선합니다.",
@@ -115,70 +115,4 @@ export const QUALITY_KNOWLEDGE = {
       "타설 후 보양"
     ]
   }
-};
-
-export function getTestSetCount(volumeM3 = 120){
-  const volume = Math.max(0, Number(volumeM3) || 0);
-  if(volume <= 0) return 1;
-  return Math.max(1, Math.ceil(volume / 120));
 }
-
-export function calculateConcreteSpecimens(options = {}){
-  const setCount = getTestSetCount(options.volumeM3 ?? 120);
-  const selected = {
-    vertical_strip: options.verticalStrip ?? true,
-    horizontal_strip: options.horizontalStrip ?? true,
-    standard_28d: options.standard28d ?? true,
-    reserve: options.reserve ?? false,
-    early_strength: options.earlyStrength ?? false
-  };
-
-  const rows = QUALITY_KNOWLEDGE.concrete.specimenGroups
-    .filter(g => selected[g.id])
-    .map(g => {
-      const groupCount = setCount * Number(g.groupsPerSet || 1);
-      const pieces = groupCount * Number(g.piecesPerGroup || 3);
-      return {
-        id: g.id,
-        name: g.name,
-        setCount,
-        groupsPerSet: g.groupsPerSet,
-        groupCount,
-        piecesPerGroup: g.piecesPerGroup,
-        pieces,
-        basis: g.basis,
-        confidence: g.confidence
-      };
-    });
-
-  return {
-    volumeM3: Number(options.volumeM3 ?? 120),
-    setCount,
-    rows,
-    totalGroups: rows.reduce((sum, r) => sum + r.groupCount, 0),
-    totalPieces: rows.reduce((sum, r) => sum + r.pieces, 0)
-  };
-}
-
-export function buildConcreteQualityBrief(options = {}){
-  const specimen = calculateConcreteSpecimens(options);
-  return [
-    "■ 콘크리트 타설 공시체 산정",
-    `타설량: ${specimen.volumeM3}㎥`,
-    `시험빈도: ${specimen.setCount}회`,
-    `공시체 합계: ${specimen.totalGroups}조 / ${specimen.totalPieces}개`,
-    "",
-    ...specimen.rows.map(r => `- ${r.name}: ${r.groupCount}조 × ${r.piecesPerGroup}개 = ${r.pieces}개 (${r.confidence})`),
-    "",
-    "기본 해석:",
-    "- 28일 압축강도: 시험빈도당 3조(9개) 기본",
-    "- 수직/수평 탈형강도: 현장양생공시체 각 1조(3개) 기본안",
-    "",
-    "주의: 현장 특기시방서, 품질관리계획서, 감리 지시, 최신 KCS/KS/품질관리 업무지침을 우선 확인하세요."
-  ].join("\n");
-}
-
-export function getConcreteQualityChecklist(){ return QUALITY_KNOWLEDGE.concrete.qualityChecklist; }
-export function getConcretePhotoPoints(){ return QUALITY_KNOWLEDGE.concrete.photoPoints; }
-export function getConfirmedRules(){ return QUALITY_KNOWLEDGE.concrete.confirmedRules; }
-export function getFieldOperationDefaults(){ return QUALITY_KNOWLEDGE.concrete.fieldOperationDefaults; }

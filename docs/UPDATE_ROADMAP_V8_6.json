@@ -1,0 +1,58 @@
+{
+  "version": "8.6",
+  "engines": [
+    {
+      "name": "Quality Engine",
+      "priority": 1,
+      "status": "started",
+      "next": [
+        "콘크리트 품질",
+        "균열",
+        "재료분리",
+        "파일",
+        "토공"
+      ]
+    },
+    {
+      "name": "Safety Engine",
+      "priority": 2,
+      "status": "planned",
+      "next": [
+        "추락",
+        "양중",
+        "장비",
+        "굴착",
+        "폭염"
+      ]
+    },
+    {
+      "name": "Weather Engine",
+      "priority": 3,
+      "status": "started",
+      "next": [
+        "실제 KMA API",
+        "강수위험",
+        "풍속위험",
+        "CSI 연동"
+      ]
+    },
+    {
+      "name": "Schedule Engine",
+      "priority": 4,
+      "status": "started",
+      "next": [
+        "일정 입력 → 지식 노드 호출"
+      ]
+    },
+    {
+      "name": "AI Engine",
+      "priority": 5,
+      "status": "planned",
+      "next": [
+        "TBM",
+        "역할별 할 일",
+        "질문응답"
+      ]
+    }
+  ]
+}
