@@ -189,3 +189,22 @@
 details{background:#f8fbff;border:1px solid var(--line);border-radius:16px;padding:14px;margin:12px 0}
 summary{font-size:20px;font-weight:1000;cursor:pointer}
 @media(max-width:900px){.today-hero{display:block}.today-input-grid,.knowledge-grid{grid-template-columns:1fr}}
+
+/* v8.8 Role Separated OS */
+.role-hero{display:flex;justify-content:space-between;gap:18px;align-items:center;padding:26px;border-radius:28px;color:white;box-shadow:var(--shadow);margin-bottom:16px}
+.role-hero h2{font-size:36px;margin:8px 0}.role-hero span{font-weight:1000;opacity:.9}
+.role-director{background:linear-gradient(135deg,#0f172a,#2563eb)}
+.role-safety{background:linear-gradient(135deg,#7f1d1d,#dc2626)}
+.role-quality{background:linear-gradient(135deg,#1e3a8a,#0ea5e9)}
+.role-construction{background:linear-gradient(135deg,#7c2d12,#f97316)}
+.role-resource{background:linear-gradient(135deg,#14532d,#16a34a)}
+.role-menu-grid{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:12px;margin:16px 0}
+.role-menu-card{background:white;border:1px solid var(--line);border-radius:20px;padding:16px;box-shadow:var(--shadow)}
+.role-menu-card h3{font-size:22px;margin:0 0 6px}
+.knowledge-section-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
+.rain-svg-chart{display:flex;align-items:end;gap:10px;min-height:190px;padding:18px;border-radius:20px;background:#f8fbff;overflow-x:auto}
+.rain-graph-col{display:grid;grid-template-rows:1fr auto auto;align-items:end;justify-items:center;min-width:46px;height:160px}
+.rain-graph-bar{width:26px;border-radius:10px 10px 0 0;background:#2563eb}
+.rain-graph-col b{font-size:13px;margin-top:6px}.rain-graph-col span{font-weight:900;color:var(--muted)}
+@media(max-width:1100px){.role-menu-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.knowledge-section-grid{grid-template-columns:1fr}}
+@media(max-width:700px){.role-hero{display:block}.role-menu-grid{grid-template-columns:1fr}}

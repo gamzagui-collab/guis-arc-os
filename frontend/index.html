@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>GUI's Arc OS v8.7.1</title>
+  <title>GUI's Arc OS v8.8.1</title>
   <link rel="stylesheet" href="./css/design-system.css">
   <link rel="stylesheet" href="./css/app.css">
 </head>
@@ -12,7 +12,7 @@
     <img class="brand-logo" src="./assets/guis-arc-os-logo.svg" alt="GUI's Arc OS logo">
     <div>
       <h1>GUI's Arc OS</h1>
-      <p>Construction Site Operating System · v8.7 Today Work OS</p>
+      <p>Construction Site Operating System · v8.8 Role Separated OS</p>
     </div>
   </header>
 
@@ -45,17 +45,25 @@
     <section id="homePage" class="page">
       <nav class="main-tabs">
         <button data-page="dashboardPage" class="tab active">HOME</button>
-        <button data-page="todayPage" class="tab">TODAY</button>
-        <button data-page="knowledgePage" class="tab">KNOWLEDGE</button>
-        <button data-page="schedulePage" class="tab">SCHEDULE</button>
-        <button data-page="weatherPage" class="tab">WEATHER</button>
-        <button data-page="briefingPage" class="tab">NEWS</button>
-        <button data-page="chatPage" class="tab">CHAT</button>
-        <button data-page="settingsPage" class="tab">SETTINGS</button>
+        <button data-page="todayPage" class="tab">오늘업무</button>
+        <button data-page="directorPage" class="tab">현장소장</button>
+        <button data-page="safetyPage" class="tab">안전관리</button>
+        <button data-page="qualityPage" class="tab">품질관리</button>
+        <button data-page="constructionPage" class="tab">공사관리</button>
+        <button data-page="resourcePage" class="tab">자재·장비</button>
+        <button data-page="knowledgePage" class="tab">DB</button>
+        <button data-page="schedulePage" class="tab">일정</button>
+        <button data-page="weatherPage" class="tab">날씨</button>
+        <button data-page="briefingPage" class="tab">사고·뉴스</button>
+        <button data-page="settingsPage" class="tab">설정</button>
       </nav>
 
       <div id="dashboardPage" class="subpage active"></div>
       <div id="todayPage" class="subpage"></div>
+      <div id="directorPage" class="subpage"></div>
+      <div id="safetyPage" class="subpage"></div>
+      <div id="constructionPage" class="subpage"></div>
+      <div id="resourcePage" class="subpage"></div>
       <div id="knowledgePage" class="subpage"></div>
       <div id="sitePage" class="subpage"></div>
       <div id="weatherPage" class="subpage"></div>

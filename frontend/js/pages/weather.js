@@ -75,6 +75,14 @@ export function renderWeather(root){
     </section>
 
     <section class="card weather-chart-card">
+      <h3>3시간 강수 그래프</h3>
+      <div class="rain-svg-chart">
+        ${w.hourly.map(h=>`<div class="rain-graph-col"><div class="rain-graph-bar" style="height:${Math.max(6, h.maxRain3h * 10)}px"></div><b>${h.maxRain3h.toFixed(1)}</b><span>${h.hour}시</span></div>`).join("")}
+      </div>
+      <p class="chart-note">예보처 최대 강수량 기준입니다. 실제 API 연결 후 KMA/ECMWF/GFS/JMA 값이 자동 반영됩니다.</p>
+    </section>
+
+    <section class="card weather-chart-card">
       <h3>07~17시 체감온도 흐름</h3>
       <div class="weather-bars">
         ${w.hourly.map(x=>bar(x.apparent, 42, x.hour)).join("")}
