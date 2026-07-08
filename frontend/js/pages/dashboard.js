@@ -18,6 +18,14 @@ export function renderDashboard(root){
       </div>
     </section>
 
+    
+    ${(!state.siteProfile?.siteName && !state.site?.siteName) ? `
+      <section class="card risk-yellow">
+        <h3>현장정보를 먼저 등록하세요</h3>
+        <p>현장관리 탭에서 현장명, 현장형태, 공사규모를 입력하면 공종·위험·품질관리 항목이 자동 구성됩니다.</p>
+      </section>
+    ` : ""}
+
     <section class="os-command-grid">
       <article class="command-card command-red"><span>AI 브리핑</span><strong>${d.ai.accidentTop5[0] || "기본 안전관리"}</strong><p>${d.ai.qualityTop3[0] || "품질 중점사항을 확인하세요."}</p></article>
       <article class="command-card command-blue"><span>날씨</span><strong>체감 ${d.weather.maxApparent.toFixed(1)}℃</strong><p>강수 ${d.weather.maxRain.toFixed(1)}mm · 풍속 ${d.weather.maxWind.toFixed(1)}m/s</p></article>

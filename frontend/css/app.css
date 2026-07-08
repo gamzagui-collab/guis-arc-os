@@ -150,3 +150,11 @@
 .rain-light{background:#dbeafe}
 .rain-risk{background:#fed7aa;font-weight:900}
 .rain-heavy{background:#dc2626;color:#fff;font-weight:1000}
+
+/* v8.3 Site Creation System */
+.wizard-card{border-left:8px solid var(--blue)}
+.auto-plan-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px}
+.auto-plan-box{background:#fff;border:1px solid var(--line);border-radius:20px;padding:18px}
+.auto-plan-box b{display:block;font-size:20px;margin-bottom:12px}
+.plan-chip{display:inline-flex;margin:4px;padding:7px 10px;border-radius:999px;background:#eef6ff;color:#1e3a8a;font-weight:900}
+@media(max-width:900px){.auto-plan-grid{grid-template-columns:1fr}}
