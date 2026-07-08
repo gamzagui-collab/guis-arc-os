@@ -65,9 +65,3 @@
 - Pages 프로젝트명 `guis-arc-os` 기준 정리
 - GitHub Actions 예시 추가
 - 저장소 정리 문서 추가
-
-## v8.0 Core OS UI
-- 대시보드를 현장 OS 홈 화면으로 개편
-- 오늘 위험도 / 날씨 / 일정 / AI 브리핑 / 기본 체크를 카드형으로 구성
-- wrangler.toml KV placeholder 제거
-- 배치파일 한글 깨짐 방지 개선

@@ -1,7 +1,6 @@
 name = "guis-arc-os-api"
 main = "backend/src/index.js"
 compatibility_date = "2026-07-07"
-pages_build_output_dir = "frontend"
 
 [[d1_databases]]
 binding = "DB"
@@ -9,5 +8,5 @@ database_name = "guis_arc_os"
 database_id = "a3401472-178f-454d-84d9-d25b7515aadb"
 
 [vars]
-APP_VERSION = "8.0.0"
+APP_VERSION = "8.0.1"
 APP_NAME = "GUI's Arc OS"

@@ -22,12 +22,6 @@ export function buildOsDashboard(){
     ai,
     todaySchedules,
     critical,
-    quickTasks: [
-      "TBM 실시 및 참석자 확인",
-      "오늘 공정별 위험요소 공유",
-      "장비·자재 반입 동선 확인",
-      "품질 검측·사진 기록 확인",
-      "기상 위험 시간대 순회 계획"
-    ]
+    quickTasks: ["TBM 실시 및 참석자 확인","오늘 공정별 위험요소 공유","장비·자재 반입 동선 확인","품질 검측·사진 기록 확인","기상 위험 시간대 순회 계획"]
   };
 }

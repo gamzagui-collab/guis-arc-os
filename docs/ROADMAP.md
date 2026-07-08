@@ -57,7 +57,3 @@
 ## v7.8 진행
 - DevOps Toolkit 추가
 - 다음 단계: 실제 v6.4 Weather API 이관, KOSHA API 실제 연결
-
-## v8.0 진행
-- Core OS Dashboard 추가
-- 다음 단계: 실제 v6.4 Weather API 이관, 현장 생성/저장 UI 고도화
