@@ -5,6 +5,7 @@ import { aiBriefing } from "./routes/assistant.js";
 import { systemStatus } from "./routes/admin.js";
 import { weatherDemo } from "./routes/weather.js";
 import { csiInfo } from "./routes/csi.js";
+import { qualityInfo } from "./routes/quality.js";
 
 export default {
   async fetch(request, env) {
@@ -13,6 +14,7 @@ export default {
     try{
       if(url.pathname === "/weather/demo") return weatherDemo(request, env);
       if(url.pathname === "/csi/info") return csiInfo(request, env);
+      if(url.pathname === "/quality/info") return qualityInfo(request, env);
       if(url.pathname === "/health") return json({ok:true, name:"GUI\'s Arc OS API", version: env.APP_VERSION || "7.7.0"});
       if(url.pathname === "/admin/status") return systemStatus(request, env);
       if(url.pathname === "/site/demo" && request.method === "POST") return createDemoSite(request, env);

@@ -166,3 +166,14 @@
 .csi-temp strong{font-size:34px;display:block}
 .csi-hero.risk-red{border-left-color:var(--red)}.csi-hero.risk-orange{border-left-color:var(--orange)}.csi-hero.risk-yellow{border-left-color:var(--yellow)}.csi-hero.risk-blue{border-left-color:var(--blue)}
 @media(max-width:800px){.csi-hero{display:block}.csi-temp{margin-top:14px}}
+
+/* v8.5 Quality Knowledge Engine */
+.quality-option-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;margin:14px 0}
+.quality-check{display:flex;gap:10px;align-items:center;background:#f8fbff;border:1px solid var(--line);border-radius:16px;padding:14px;font-weight:900}
+.quality-check input{width:22px;height:22px}
+.quality-table{width:100%;border-collapse:separate;border-spacing:0;min-width:720px;margin-top:14px}
+.quality-table th,.quality-table td{padding:12px;border-bottom:1px solid var(--line);text-align:center}
+.quality-table thead th{background:#f8fbff;font-weight:1000}
+.quality-table tbody th{text-align:left}
+.quality-table tfoot th,.quality-table tfoot td{background:#fff7ed;font-weight:1000}
+@media(max-width:800px){.quality-option-grid{grid-template-columns:1fr}}
