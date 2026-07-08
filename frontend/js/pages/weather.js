@@ -1,14 +1,18 @@
 import { getDemoWeatherSummary, riskClass } from "../services/weatherEngine.js";
 import { WEATHER_MODELS } from "../services/weatherModels.js";
 
-function bar(value, max, label){
-  const height = Math.max(8, Math.round((value / max) * 120));
-  return `<div class="weather-bar-wrap"><div class="weather-bar" style="height:${height}px"></div><span>${label}</span></div>`;
+function rainCell(value){
+  const cls = value >= 5 ? "rain-heavy" : value >= 2 ? "rain-risk" : value > 0 ? "rain-light" : "";
+  return `<td class="${cls}">${value.toFixed(1)}</td>`;
 }
 
-function rainCell(value){
-  const cls = value >= 10 ? "rain-heavy" : value >= 5 ? "rain-risk" : value > 0 ? "rain-light" : "";
-  return `<td class="${cls}">${value.toFixed(1)}</td>`;
+function graphBars(rows){
+  const max = Math.max(1, ...rows.map(h=>h.rain1h));
+  return rows.map(h => {
+    const height = Math.max(6, Math.round((h.rain1h / max) * 140));
+    const cls = h.rain1h >= 5 ? "bar-danger" : h.rain1h >= 2 ? "bar-warn" : h.rain1h > 0 ? "bar-watch" : "bar-zero";
+    return `<div class="rain-graph-col"><div class="rain-graph-bar ${cls}" style="height:${height}px"></div><b>${h.rain1h.toFixed(1)}</b><span>${h.hour}시</span></div>`;
+  }).join("");
 }
 
 export function renderWeather(root){
@@ -16,89 +20,46 @@ export function renderWeather(root){
   root.innerHTML = `
     <div class="section-head">
       <div>
-        <h2>예보처 비교 · Weather Intelligence v8.2</h2>
-        <p>KMA / ECMWF / GFS / JMA 예보를 비교해 콘크리트 타설과 현장 작업 판단에 사용합니다.</p>
+        <h2>WEATHER · 1시간 강수 비교</h2>
+        <p>KMA / ECMWF / GFS / JMA를 1시간 강수 기준으로 비교합니다.</p>
       </div>
       <button class="secondary-btn" onclick="window.print()">출력</button>
     </div>
 
     <div class="kpi-row">
-      <div class="kpi"><span>타설 판단</span><strong>${w.concrete.overall}</strong><small>예보처 최대값 기준</small></div>
+      <div class="kpi"><span>타설 판단</span><strong>${w.concrete.overall}</strong><small>1시간 최대강수 기준</small></div>
+      <div class="kpi"><span>1시간 강수</span><strong>${w.maxRain.toFixed(1)}mm</strong><small>${w.peakRain.hour}시</small></div>
       <div class="kpi"><span>체감 최고</span><strong>${w.maxApparent.toFixed(1)}℃</strong><small>${w.peakHeat.hour}시</small></div>
-      <div class="kpi"><span>3시간 강수</span><strong>${w.maxRain.toFixed(1)}mm</strong><small>${w.peakRain.hour}시</small></div>
       <div class="kpi"><span>풍속 최고</span><strong>${w.maxWind.toFixed(1)}m/s</strong><small>${w.peakWind.hour}시</small></div>
-      <div class="kpi"><span>작업추천</span><strong>자동</strong><small>07~17 기준</small></div>
     </div>
 
+    <section class="card weather-chart-card">
+      <h3>1시간 강수 그래프</h3>
+      <div class="rain-svg-chart">${graphBars(w.hourly)}</div>
+      <p class="chart-note">막대값은 예보처별 1시간 강수량 중 최대값입니다.</p>
+    </section>
+
     <section class="card">
-      <h3>오늘 작업시간 추천</h3>
+      <h3>작업시간 추천</h3>
       <p class="big-recommend">${w.workWindow}</p>
     </section>
 
     <section class="card">
       <h3>콘크리트 타설 판단</h3>
       <div class="summary-grid">
-        ${w.concrete.checks.map(d=>`
-          <article class="summary-card ${riskClass(d.level)}">
-            <div class="label">${d.title}</div>
-            <p>${d.text}</p>
-          </article>
-        `).join("")}
+        ${w.concrete.checks.map(d=>`<article class="summary-card ${riskClass(d.level)}"><div class="label">${d.title}</div><p>${d.text}</p></article>`).join("")}
       </div>
     </section>
 
     <section class="card">
-      <h3>예보처별 3시간 강수 비교</h3>
+      <h3>예보처별 1시간 강수 비교</h3>
       <div class="table-scroll">
         <table class="weather-compare-table">
-          <thead>
-            <tr>
-              <th>시간</th>
-              ${WEATHER_MODELS.map(m=>`<th>${m.name}<br><small>${m.label}</small></th>`).join("")}
-              <th>평균</th>
-              <th>최대</th>
-            </tr>
-          </thead>
+          <thead><tr><th>시간</th>${WEATHER_MODELS.map(m=>`<th>${m.name}<br><small>${m.label}</small></th>`).join("")}<th>평균</th><th>최대</th></tr></thead>
           <tbody>
-            ${w.hourly.map(h=>`
-              <tr>
-                <th>${h.hour}시</th>
-                ${WEATHER_MODELS.map(m=>rainCell(h.modelRain[m.id] || 0)).join("")}
-                ${rainCell(h.avgRain3h)}
-                ${rainCell(h.maxRain3h)}
-              </tr>
-            `).join("")}
+            ${w.hourly.map(h=>`<tr><th>${h.hour}시</th>${WEATHER_MODELS.map(m=>rainCell(h.modelRain[m.id] || 0)).join("")}${rainCell(h.avgRain1h)}${rainCell(h.rain1h)}</tr>`).join("")}
           </tbody>
         </table>
-      </div>
-      <p class="chart-note">현재는 v8.2 데모 비교값입니다. 다음 단계에서 기존 v6.4의 실제 API 호출부를 이 구조에 연결합니다.</p>
-    </section>
-
-    <section class="card weather-chart-card">
-      <h3>3시간 강수 그래프</h3>
-      <div class="rain-svg-chart">
-        ${w.hourly.map(h=>`<div class="rain-graph-col"><div class="rain-graph-bar" style="height:${Math.max(6, h.maxRain3h * 10)}px"></div><b>${h.maxRain3h.toFixed(1)}</b><span>${h.hour}시</span></div>`).join("")}
-      </div>
-      <p class="chart-note">예보처 최대 강수량 기준입니다. 실제 API 연결 후 KMA/ECMWF/GFS/JMA 값이 자동 반영됩니다.</p>
-    </section>
-
-    <section class="card weather-chart-card">
-      <h3>07~17시 체감온도 흐름</h3>
-      <div class="weather-bars">
-        ${w.hourly.map(x=>bar(x.apparent, 42, x.hour)).join("")}
-      </div>
-    </section>
-
-    <section class="card">
-      <h3>예보처 연결 상태</h3>
-      <div class="summary-grid">
-        ${WEATHER_MODELS.map(m=>`
-          <div class="summary-card risk-blue">
-            <div class="label">${m.name}</div>
-            <div class="value">${m.status === "demo" ? "준비" : "예정"}</div>
-            <p>${m.desc}</p>
-          </div>
-        `).join("")}
       </div>
     </section>
   `;
