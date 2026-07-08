@@ -28,7 +28,7 @@ export function renderDashboard(root){
 
     <section class="os-command-grid">
       <article class="command-card command-red"><span>AI 브리핑</span><strong>${d.ai.accidentTop5[0] || "기본 안전관리"}</strong><p>${d.ai.qualityTop3[0] || "품질 중점사항을 확인하세요."}</p></article>
-      <article class="command-card command-blue"><span>날씨</span><strong>체감 ${d.weather.maxApparent.toFixed(1)}℃</strong><p>강수 ${d.weather.maxRain.toFixed(1)}mm · 풍속 ${d.weather.maxWind.toFixed(1)}m/s</p></article>
+      <article class="command-card command-blue"><span>날씨 · 작업 체감위험</span><strong>체감 ${d.weather.maxApparent.toFixed(1)}℃</strong><p>강수 ${d.weather.maxRain.toFixed(1)}mm · 풍속 ${d.weather.maxWind.toFixed(1)}m/s</p></article>
       <article class="command-card command-orange"><span>오늘 일정</span><strong>${d.todaySchedules.length}건</strong><p>${d.todaySchedules.map(x=>x.type + " " + x.title).join(" · ") || "오늘 등록된 일정 없음"}</p></article>
       <article class="command-card command-green"><span>선택 공정</span><strong>${(state.selectedTrades || []).length}건</strong><p>${(state.selectedTrades || []).join(" · ") || "공정을 선택하세요."}</p></article>
     </section>
