@@ -177,3 +177,15 @@
 .quality-table tbody th{text-align:left}
 .quality-table tfoot th,.quality-table tfoot td{background:#fff7ed;font-weight:1000}
 @media(max-width:800px){.quality-option-grid{grid-template-columns:1fr}}
+
+/* v8.7 Today Knowledge UI */
+.today-hero{display:flex;justify-content:space-between;gap:18px;align-items:end;padding:24px;border-radius:26px;background:linear-gradient(135deg,#0f172a,#1d4ed8);color:white;box-shadow:var(--shadow);margin-bottom:16px}
+.today-hero h2{font-size:34px;margin:8px 0}.today-hero label{color:white;font-weight:900}.today-hero select{min-width:180px}
+.today-input-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px;margin-bottom:16px}
+.form-grid.one{grid-template-columns:1fr}.chip-line{margin-top:12px}.role-selected{outline:4px solid #2563eb}
+.knowledge-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px;margin:16px 0}
+.knowledge-card{background:white;border:1px solid var(--line);border-radius:20px;padding:18px;box-shadow:var(--shadow);cursor:pointer}
+.knowledge-card h3{font-size:23px;margin:8px 0}.knowledge-card b{color:#1d4ed8}
+details{background:#f8fbff;border:1px solid var(--line);border-radius:16px;padding:14px;margin:12px 0}
+summary{font-size:20px;font-weight:1000;cursor:pointer}
+@media(max-width:900px){.today-hero{display:block}.today-input-grid,.knowledge-grid{grid-template-columns:1fr}}
