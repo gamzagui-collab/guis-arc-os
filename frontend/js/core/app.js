@@ -1,9 +1,125 @@
-import {state, loadLocal, saveLocal, setCurrentSiteProfile, startGuestSite } from "./state.js";
-import { loadSettings, saveSettings } from "../services/settings.js";
-import { loginSite, getSiteBundle } from "../services/api.js";
-import { renderDashboard } from "../pages/dashboard.js"; import { renderToday } from "../pages/today.js"; import { renderKnowledge } from "../pages/knowledge.js"; import { renderDirector, renderSafetyRole, renderConstructionRole, renderResourceRole } from "../pages/rolePage.js"; import { renderSite } from "../pages/site.js"; import { renderWeather } from "../pages/weather.js"; import { renderHealth } from "../pages/health.js"; import { renderSchedule } from "../pages/schedule.js"; import { renderGuide } from "../pages/guide.js"; import { renderQuality } from "../pages/quality.js"; import { renderDatabase } from "../pages/database.js"; import { renderBriefing } from "../pages/briefing.js"; import { renderChat } from "../pages/chat.js"; import { renderSettings } from "../pages/settings.js"; import { renderAssistant } from "../pages/assistant.js";
-const pages={dashboardPage:renderDashboard,todayPage:renderToday,knowledgePage:renderKnowledge,directorPage:renderDirector,safetyPage:renderSafetyRole,constructionPage:renderConstructionRole,resourcePage:renderResourceRole,sitePage:renderSite,weatherPage:renderWeather,healthPage:renderHealth,schedulePage:renderSchedule,guidePage:renderGuide,qualityPage:renderQuality,dbPage:renderDatabase,briefingPage:renderBriefing,assistantPage:renderAssistant,chatPage:renderChat,settingsPage:renderSettings};
-function showMain(){document.getElementById("loginPage").classList.remove("active");document.getElementById("homePage").classList.add("active");activateSubpage("dashboardPage");}
-function activateSubpage(id){document.querySelectorAll(".subpage").forEach(p=>p.classList.remove("active"));document.querySelectorAll(".tab").forEach(b=>b.classList.remove("active"));document.getElementById(id).classList.add("active");document.querySelector(`[data-page="${id}"]`)?.classList.add("active");pages[id]?.(document.getElementById(id));}
-function init(){loadLocal(); saveSettings(loadSettings());document.getElementById("guestStartBtn").addEventListener("click",()=>{state.mode="guest";state.site={siteName:"게스트 현장",siteType:"임시"};saveLocal();showMain();});document.getElementById("createDemoSiteBtn").addEventListener("click",()=>{state.mode="site";state.site={siteCode:"DEMO-001",pin:"1234",siteName:"김제 샘플현장",siteType:"학교"};saveLocal();alert("샘플 현장: DEMO-001 / PIN: 1234");showMain();});document.getElementById("siteLoginBtn").addEventListener("click",async()=>{const siteCode=document.getElementById("siteCodeInput").value.trim();const pin=document.getElementById("sitePinInput").value.trim();if(!siteCode||!pin){alert("현장코드와 PIN을 입력하세요.");return;}try{const login=await loginSite(siteCode,pin);const bundle=await getSiteBundle(siteCode,pin);state.mode="site";state.site={...login.site,pin};state.siteProfile={...(bundle.profile?.payload||{}),siteCode,pin,siteName:login.site.siteName,siteType:login.site.siteType};state.schedules=(bundle.schedules||[]).map(x=>x.payload&&Object.keys(x.payload).length?x.payload:x);saveLocal();showMain();}catch(error){alert("서버 현장 접속 실패: "+error.message+"\n게스트 방식으로 임시 접속합니다.");state.mode="site";state.site={siteCode,pin,siteName:siteCode,siteType:"미지정"};saveLocal();showMain();}});document.querySelectorAll(".tab").forEach(btn=>btn.addEventListener("click",()=>activateSubpage(btn.dataset.page)));}
-init();
+import { state, loadLocal, setCurrentSiteProfile, startGuestSite } from "./state.js";
+import { renderDashboard } from "../pages/dashboard.js";
+import { renderToday } from "../pages/today.js";
+import { renderKnowledge } from "../pages/knowledge.js";
+import { renderWeather } from "../pages/weather.js";
+import { renderSite } from "../pages/site.js";
+import { renderQuality } from "../pages/quality.js";
+import { renderSchedule } from "../pages/schedule.js";
+import { renderBriefing } from "../pages/briefing.js";
+import { renderChat } from "../pages/chat.js";
+import { renderSettings } from "../pages/settings.js";
+import { renderDirector, renderSafetyRole, renderConstructionRole, renderResourceRole } from "../pages/rolePage.js";
+
+const PAGE_RENDERERS = {
+  dashboardPage: renderDashboard,
+  todayPage: renderToday,
+  directorPage: renderDirector,
+  safetyPage: renderSafetyRole,
+  qualityPage: renderQuality,
+  constructionPage: renderConstructionRole,
+  resourcePage: renderResourceRole,
+  knowledgePage: renderKnowledge,
+  sitePage: renderSite,
+  schedulePage: renderSchedule,
+  weatherPage: renderWeather,
+  briefingPage: renderBriefing,
+  chatPage: renderChat,
+  settingsPage: renderSettings
+};
+
+function renderError(root, pageId, error){
+  root.innerHTML = `<section class="card risk-red">
+    <h2>화면 로딩 오류</h2>
+    <p>${pageId} 화면을 불러오는 중 오류가 발생했습니다.</p>
+    <pre class="tbm-box">${error.message}</pre>
+  </section>`;
+}
+
+export function renderPage(pageId){
+  const root = document.getElementById(pageId);
+  const renderer = PAGE_RENDERERS[pageId];
+  if(!root || !renderer) return;
+  try{ renderer(root); }catch(error){ console.error(error); renderError(root, pageId, error); }
+}
+
+export function renderActivePage(){
+  const active = document.querySelector("#homePage .subpage.active") || document.querySelector("#dashboardPage");
+  if(active) renderPage(active.id);
+}
+
+function showHome(){
+  document.querySelector("#loginPage")?.classList.remove("active");
+  document.querySelector("#homePage")?.classList.add("active");
+  renderActivePage();
+}
+
+function bindLogin(){
+  document.querySelector("#guestStartBtn")?.addEventListener("click", () => {
+    startGuestSite();
+    showHome();
+  });
+
+  document.querySelector("#openCreateSiteBtn")?.addEventListener("click", () => {
+    const panel = document.querySelector("#createSitePanel");
+    if(panel) panel.hidden = !panel.hidden;
+  });
+
+  document.querySelector("#createSiteBtn")?.addEventListener("click", () => {
+    const profile = {
+      mode: "local-site",
+      siteName: document.querySelector("#newSiteName")?.value || "새 현장",
+      siteCode: (document.querySelector("#newSiteCode")?.value || "SITE-" + Date.now()).toUpperCase(),
+      pin: document.querySelector("#newSitePin")?.value || "1234",
+      siteType: document.querySelector("#newSiteType")?.value || "school",
+      clientName: document.querySelector("#newClientName")?.value || "",
+      contractorName: document.querySelector("#newContractorName")?.value || "",
+      supervisorName: document.querySelector("#newSupervisorName")?.value || "",
+      scaleText: document.querySelector("#newScaleText")?.value || "",
+      createdAt: new Date().toISOString()
+    };
+    setCurrentSiteProfile(profile);
+    showHome();
+  });
+
+  document.querySelector("#siteLoginBtn")?.addEventListener("click", () => {
+    const siteCode = (document.querySelector("#siteCodeInput")?.value || "").trim().toUpperCase();
+    const pin = document.querySelector("#sitePinInput")?.value || "";
+    setCurrentSiteProfile({mode:"site-login", siteName:siteCode || "현장", siteCode:siteCode || "SITE", pin, siteType:"school"});
+    showHome();
+  });
+}
+
+function bindTabs(){
+  const tabs = [...document.querySelectorAll(".main-tabs .tab")];
+  tabs.forEach(tab => {
+    tab.addEventListener("click", () => {
+      const pageId = tab.dataset.page;
+      if(!pageId) return;
+      tabs.forEach(t => t.classList.remove("active"));
+      tab.classList.add("active");
+      document.querySelectorAll("#homePage .subpage").forEach(page => {
+        page.classList.toggle("active", page.id === pageId);
+      });
+      renderPage(pageId);
+      window.scrollTo({top:0, behavior:"smooth"});
+    });
+  });
+}
+
+function ensureInitialRoute(){
+  const activeTab = document.querySelector(".main-tabs .tab.active") || document.querySelector(".main-tabs .tab");
+  if(!activeTab) return;
+  const pageId = activeTab.dataset.page;
+  document.querySelectorAll(".main-tabs .tab").forEach(t => t.classList.toggle("active", t === activeTab));
+  document.querySelectorAll("#homePage .subpage").forEach(p => p.classList.toggle("active", p.id === pageId));
+}
+
+document.addEventListener("DOMContentLoaded", () => {
+  loadLocal();
+  bindLogin();
+  bindTabs();
+  ensureInitialRoute();
+  if(state.siteProfile || state.site?.siteCode) showHome();
+  else renderActivePage();
+});

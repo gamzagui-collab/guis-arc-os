@@ -219,3 +219,11 @@ summary{font-size:20px;font-weight:1000;cursor:pointer}
 .blue-bar{background:#2563eb}
 .weather-compare-table td[style*="rgba"]{border-radius:6px}
 .weather-compare-table tbody th[rowspan]{background:#eef6ff;font-size:18px;color:#1e3a8a}
+
+/* v9.2 Stable Navigation Patch */
+.page{display:none}
+.page.active{display:block}
+.subpage{display:none}
+.subpage.active{display:block}
+.main-tabs .tab{cursor:pointer}
+.main-tabs .tab.active{outline:3px solid rgba(37,99,235,.35)}
