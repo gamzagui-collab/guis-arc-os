@@ -1,4 +1,4 @@
-import { state, loadLocal, setCurrentSiteProfile, startGuestSite } from "./state.js";
+import { state, loadLocal, saveLocal, setCurrentSiteProfile, startGuestSite } from "./state.js";
 import { renderDashboard } from "../pages/dashboard.js";
 import { renderToday } from "../pages/today.js";
 import { renderKnowledge } from "../pages/knowledge.js";
@@ -48,6 +48,16 @@ export function renderActivePage(){
   if(active) renderPage(active.id);
 }
 
+
+function showLogin(){
+  document.querySelector("#homePage")?.classList.remove("active");
+  document.querySelector("#loginPage")?.classList.add("active");
+  document.querySelectorAll(".main-tabs .tab").forEach((t, i) => t.classList.toggle("active", i === 0));
+  document.querySelectorAll("#homePage .subpage").forEach((p, i) => p.classList.toggle("active", i === 0));
+  updateHeaderSite();
+  window.scrollTo({top:0, behavior:"smooth"});
+}
+
 function showHome(){
   document.querySelector("#loginPage")?.classList.remove("active");
   document.querySelector("#homePage")?.classList.add("active");
@@ -88,9 +98,16 @@ function bindLogin(){
     setCurrentSiteProfile({mode:"site-login", siteName:siteCode || "현장", siteCode:siteCode || "SITE", pin, siteType:"school"});
     showHome();
   });
+
+  document.querySelector("#resetLoginBtn")?.addEventListener("click", () => {
+    delete state.siteProfile;
+    delete state.site;
+    saveLocal();
+    showLogin();
+  });
 }
 
-function updateHeaderSite(){const el=document.querySelector("#headerSiteName");if(el)el.textContent=state.site?.siteName||state.siteProfile?.siteName||"Guest";}
+function updateHeaderSite(){const el=document.querySelector("#headerSiteName");if(el)el.textContent=state.site?.siteName||state.siteProfile?.siteName||"Guest";const chip=document.querySelector(".user-chip");if(chip)chip.textContent=state.site?.siteCode||state.siteProfile?.siteCode||"Guest";}
 function bindMobileMenu(){const btn=document.querySelector("#mobileMenuBtn");const tabs=document.querySelector(".header-tabs");btn?.addEventListener("click",()=>tabs?.classList.toggle("open"));}
 function bindTabs(){
   const tabs = [...document.querySelectorAll(".main-tabs .tab")];
@@ -126,5 +143,5 @@ document.addEventListener("DOMContentLoaded", () => {
   updateHeaderSite();
   ensureInitialRoute();
   if(state.siteProfile || state.site?.siteCode) showHome();
-  else renderActivePage();
+  else showLogin();
 });

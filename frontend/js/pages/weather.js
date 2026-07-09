@@ -37,6 +37,10 @@ function graphBars(rows){
 function tempLevel(v){ if(v>=38) return "danger"; if(v>=35) return "warn"; if(v<=0) return "cold"; return "safe"; }
 function windLevel(v){ if(v>=14) return "danger"; if(v>=10) return "warn"; if(v>=7) return "watch"; return "safe"; }
 function workHourRows(rows){ return rows.filter(h => Number(h.hour) >= 6 && Number(h.hour) <= 18); }
+function chartPointsAttr(points){
+  return encodeURIComponent(JSON.stringify(points.map(p => ({x:p.x, y:p.y, hour:p.hour, dateLabel:p.dateLabel, value:p.value}))));
+}
+
 function dailyPeakMap(rows, key){
   const peaks = new Map();
   for(const h of rows){
@@ -79,14 +83,16 @@ function weeklyLineGraph(rows, key, type){
   });
   const cls = type === "wind" ? "weekly-line-wind" : "weekly-line-temp";
   return `<div class="weekly-line-scroll ${cls}">
-    <svg class="weekly-line-svg" viewBox="0 0 ${width} ${height}" role="img" aria-label="일주일 ${label} 시간별 흐름">
+    <svg class="weekly-line-svg" viewBox="0 0 ${width} ${height}" role="img" aria-label="일주일 ${label} 시간별 흐름" data-label="${label}" data-unit="${unit}" data-points="${chartPointsAttr(points)}">
       <line class="chart-axis" x1="${pad.left}" y1="${height-pad.bottom}" x2="${width-pad.right}" y2="${height-pad.bottom}"></line>
       <line class="chart-axis" x1="${pad.left}" y1="${pad.top}" x2="${pad.left}" y2="${height-pad.bottom}"></line>
       ${yTicks.map(t=>`<g class="y-tick"><line class="chart-grid" x1="${pad.left}" y1="${t.y.toFixed(1)}" x2="${width-pad.right}" y2="${t.y.toFixed(1)}"></line><text x="${pad.left-10}" y="${(t.y+4).toFixed(1)}">${t.value.toFixed(1)}${unit}</text></g>`).join("")}
       <path class="weekly-line-path" d="${path}"></path>
+      <path class="weekly-line-hit-path" d="${path}"></path>
+      <g class="weekly-hover-marker" hidden><line class="weekly-hover-line" y1="${pad.top}" y2="${height-pad.bottom}"></line><circle class="weekly-hover-dot" r="5.5"></circle></g>
       ${hourLabels.map(p=>`<g class="hour-tick"><line x1="${p.x.toFixed(1)}" y1="${height-pad.bottom}" x2="${p.x.toFixed(1)}" y2="${height-pad.bottom+5}"></line><text x="${p.x.toFixed(1)}" y="${(height-28)}">${String(p.hour).padStart(2,"0")}시</text></g>`).join("")}
       ${points.filter((_,i)=>i%3===0).map(p=>`<circle class="line-dot-soft" cx="${p.x.toFixed(1)}" cy="${p.y.toFixed(1)}" r="2"></circle>`).join("")}
-      ${points.map(p=>`<circle class="line-hit-dot" cx="${p.x.toFixed(1)}" cy="${p.y.toFixed(1)}" r="7"><title>${p.dateLabel} ${String(p.hour).padStart(2,"0")}시 · ${label} ${p.value.toFixed(1)}${unit}</title></circle>`).join("")}
+      ${points.map(p=>`<circle class="line-hit-dot" cx="${p.x.toFixed(1)}" cy="${p.y.toFixed(1)}" r="7" data-time="${p.dateLabel} ${String(p.hour).padStart(2,"0")}시" data-value="${p.value.toFixed(1)}${unit}"></circle>`).join("")}
       ${peakPoints.map(p=>`<g class="peak-callout peak-callout-modern" transform="translate(${p.x.toFixed(1)},${p.y.toFixed(1)})"><circle class="peak-dot" r="4.8"></circle><line class="peak-stem" x1="0" y1="-7" x2="0" y2="-20"></line><rect x="-40" y="-48" width="80" height="24" rx="12"></rect><text x="0" y="-32">최고치[${Number(p.hour)}시]</text></g>`).join("")}
       ${dateLabels.map(p=>`<text class="date-tick" x="${p.x.toFixed(1)}" y="${height-7}">${p.dateLabel}</text>`).join("")}
     </svg>
@@ -171,6 +177,52 @@ function bindLeafletMap(){
     updateWindy(newLat, newLon);
   });
 }
+
+function bindWeeklyLineTooltips(root){
+  let tip = document.querySelector(".weekly-instant-tooltip");
+  if(!tip){
+    tip = document.createElement("div");
+    tip.className = "weekly-instant-tooltip";
+    document.body.appendChild(tip);
+  }
+  root.querySelectorAll(".weekly-line-svg").forEach(svg => {
+    let points = [];
+    try{ points = JSON.parse(decodeURIComponent(svg.dataset.points || "[]")); }catch{ points = []; }
+    const marker = svg.querySelector(".weekly-hover-marker");
+    const markerLine = marker?.querySelector(".weekly-hover-line");
+    const markerDot = marker?.querySelector(".weekly-hover-dot");
+    function nearest(evt){
+      if(!points.length) return null;
+      const rect = svg.getBoundingClientRect();
+      const vb = svg.viewBox.baseVal;
+      const x = vb.x + ((evt.clientX - rect.left) / Math.max(1, rect.width)) * vb.width;
+      return points.reduce((best, p) => Math.abs(p.x - x) < Math.abs(best.x - x) ? p : best, points[0]);
+    }
+    svg.addEventListener("pointermove", evt => {
+      const p = nearest(evt);
+      if(!p) return;
+      const hour = String(Number(p.hour)).padStart(2,"0");
+      const label = svg.dataset.label || "값";
+      const unit = svg.dataset.unit || "";
+      tip.innerHTML = `<strong>${p.dateLabel} ${hour}시</strong><span>${label} ${Number(p.value).toFixed(1)}${unit}</span>`;
+      tip.style.left = `${evt.clientX + 14}px`;
+      tip.style.top = `${evt.clientY - 38}px`;
+      tip.classList.add("visible");
+      if(marker && markerLine && markerDot){
+        marker.hidden = false;
+        marker.setAttribute("transform", `translate(${p.x},0)`);
+        markerDot.setAttribute("cy", p.y);
+        markerLine.setAttribute("x1", "0");
+        markerLine.setAttribute("x2", "0");
+      }
+    });
+    svg.addEventListener("pointerleave", () => {
+      tip.classList.remove("visible");
+      if(marker) marker.hidden = true;
+    });
+  });
+}
+
 export function renderWeather(root){
   const w = getDemoWeatherSummary();
   const todayRows = w.todayRows;
@@ -302,4 +354,5 @@ export function renderWeather(root){
     </section>
   `;
   setTimeout(bindLeafletMap, 0);
+  bindWeeklyLineTooltips(root);
 }

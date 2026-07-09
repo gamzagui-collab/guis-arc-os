@@ -8,5 +8,5 @@ database_name = "guis_arc_os"
 database_id = "a3401472-178f-454d-84d9-d25b7515aadb"
 
 [vars]
-APP_VERSION = "9.3.4"
+APP_VERSION = "9.3.9"
 APP_NAME = "GUI's Arc OS"
