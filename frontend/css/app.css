@@ -244,3 +244,117 @@ summary{font-size:20px;font-weight:1000;cursor:pointer}
 .windy-frame{background:#0f172a}
 .weather-top-grid{align-items:stretch}
 @media(max-width:900px){.ai-wide-card .ai-lines{grid-template-columns:1fr}.ai-wide-card .ai-lines p{font-size:15px}}
+
+/* v9.3.3 Weather Decision Patch (kept as baseline) */
+.weather-kpi{grid-template-columns:repeat(5,minmax(0,1fr))}
+.sticky-weather-wrap{max-height:860px;overflow:auto;position:relative}
+.climate-table-wrap{max-height:760px}
+.weather-v932 thead th,.weather-v933 thead th{position:sticky;top:0;z-index:5}
+.weather-v932 thead .sticky-col-date,.weather-v933 thead .sticky-col-date{z-index:9;background:#f8fbff!important}
+.weather-v932 thead .sticky-col-hour,.weather-v933 thead .sticky-col-hour{z-index:9;background:#f8fbff!important}
+.star-cell.star-score-1,.star-cell.star-score-2{color:#dc2626!important;background:#fff1f2!important}
+.star-cell.star-score-3{color:#ea580c!important;background:#fff7ed!important}
+.star-cell.star-score-4,.star-cell.star-score-5{color:#15803d!important;background:#f0fdf4!important}
+.climate-card h3{margin-bottom:10px}.temp-graph,.wind-graph{height:285px}.metric-hour-col{min-width:42px;grid-template-rows:154px 22px 34px}.metric-bar-slot{height:154px}.metric-graph-bar{width:20px}.temp-bar{background:#fb923c}.temp-level-safe{background:#fed7aa!important;color:#7c2d12!important}.temp-level-warn{background:#f97316!important;color:white!important}.temp-level-danger{background:#c2410c!important;color:white!important}.temp-level-cold{background:#38bdf8!important;color:#082f49!important}.wind-bar{background:#86efac}.wind-level-safe{background:#bbf7d0!important;color:#14532d!important}.wind-level-watch{background:#86efac!important;color:#14532d!important}.wind-level-warn{background:#22c55e!important;color:white!important}.wind-level-danger{background:#166534!important;color:white!important}.climate-compare-table td:last-child{min-width:420px;text-align:left;line-height:1.55}.climate-compare-table th,.climate-compare-table td{vertical-align:middle}.ai-weather-card .ai-lines p{padding:8px 10px;border-radius:12px;background:rgba(255,255,255,.62)}
+@media(max-width:1200px){.weather-kpi{grid-template-columns:repeat(3,minmax(0,1fr))}.sticky-weather-wrap{max-height:760px}}
+@media(max-width:700px){.weather-kpi{grid-template-columns:1fr 1fr}.sticky-weather-wrap{max-height:680px}.climate-compare-table td:last-child{min-width:300px}.metric-hour-col{min-width:38px}}
+
+/* v9.3.4 Weather Information Architecture Patch */
+.rain-first-card{margin-bottom:14px}
+.rain-compare-card{margin-bottom:14px}
+.rain-table-wrap{max-height:860px}
+.today-action-wrap{max-height:560px;overflow:auto;border:1px solid var(--line);border-radius:16px;background:#fff}
+.weather-v934{width:100%;border-collapse:separate;border-spacing:0}
+.weather-v934 thead th{position:sticky;top:0;z-index:5;background:#f8fbff!important;color:#0f172a!important}
+.weather-v934 th,.weather-v934 td{vertical-align:middle;line-height:1.55}
+.weather-v934 td:last-child{text-align:left;min-width:460px;font-weight:760;word-break:keep-all;overflow-wrap:break-word}
+.today-decision-card{margin-bottom:14px}
+.decision-badge{display:inline-flex;align-items:center;justify-content:center;border-radius:999px;padding:6px 10px;font-weight:1000;white-space:nowrap;font-size:13px}
+.temp-decision-danger,.wind-decision-danger{background:#fee2e2;color:#991b1b;border:1px solid #fecaca}
+.temp-decision-warn{background:#ffedd5;color:#9a3412;border:1px solid #fed7aa}
+.temp-decision-watch,.wind-decision-watch{background:#fef9c3;color:#854d0e;border:1px solid #fde68a}
+.temp-decision-safe,.wind-decision-safe{background:#dcfce7;color:#166534;border:1px solid #bbf7d0}
+.wind-decision-warn{background:#dcfce7;color:#166534;border:1px solid #86efac}
+.decision-keyword{display:inline-block;margin:0 1px;padding:0 4px;border-radius:6px;background:#fff7ed;color:#c2410c;font-weight:1000;box-shadow:inset 0 -2px 0 rgba(251,146,60,.35)}
+.wind-decision-card .decision-keyword{background:#ecfdf5;color:#047857;box-shadow:inset 0 -2px 0 rgba(34,197,94,.35)}
+.weekly-metric-graph{height:310px;justify-content:flex-start;gap:18px;padding-left:18px}
+.weekly-metric-col{min-width:96px;grid-template-rows:174px 24px 42px}
+.weekly-metric-slot{height:174px}.weekly-metric-bar{width:34px;border-radius:12px 12px 0 0}
+.star-score-1,.star-score-2{color:#dc2626!important;background:#fff1f2!important}
+.star-score-3{color:#ea580c!important;background:#fff7ed!important}
+.star-score-4,.star-score-5{color:#15803d!important;background:#f0fdf4!important}
+@media(max-width:700px){.weather-v934 td:last-child{min-width:320px}.weekly-metric-col{min-width:82px}.today-action-wrap{max-height:520px}}
+
+
+/* v9.3.5 Weather Visual Decision Polish */
+/* v9.3.6 Weekly Peak Callout Patch */
+.compact-head h2{letter-spacing:-.02em}
+.card{position:relative;overflow:hidden}
+.card>h3,.mini-head h3{display:flex;align-items:center;gap:8px;color:#0f172a;letter-spacing:-.02em}
+.card>h3::before,.mini-head h3::before{content:"";display:inline-block;width:7px;height:22px;border-radius:999px;background:linear-gradient(180deg,#2563eb,#93c5fd);box-shadow:0 4px 10px rgba(37,99,235,.18)}
+.temp-card>h3::before,.temp-decision-card .mini-head h3::before{background:linear-gradient(180deg,#dc2626,#fb923c)}
+.wind-card>h3::before,.wind-decision-card .mini-head h3::before{background:linear-gradient(180deg,#15803d,#a3e635)}
+.ai-weather-card>h3::before{background:linear-gradient(180deg,#7c3aed,#60a5fa)}
+.map-card>h3::before{background:linear-gradient(180deg,#0ea5e9,#22c55e)}
+.rain-compare-card .mini-head h3::before,.rain-first-card>h3::before{background:linear-gradient(180deg,#1d4ed8,#60a5fa)}
+.ai-weather-card .ai-lines p{border:1px solid rgba(59,130,246,.08);box-shadow:0 8px 24px rgba(15,23,42,.04)}
+.ai-keyword{display:inline-block;margin:0 1px;padding:0 5px;border-radius:7px;background:#eef2ff;color:#3730a3;font-weight:1000;box-shadow:inset 0 -2px 0 rgba(99,102,241,.25)}
+.ai-weather-card .ai-lines p:nth-child(1) .ai-keyword{background:#eff6ff;color:#1d4ed8;box-shadow:inset 0 -2px 0 rgba(37,99,235,.25)}
+.ai-weather-card .ai-lines p:nth-child(2) .ai-keyword{background:#f5f3ff;color:#6d28d9;box-shadow:inset 0 -2px 0 rgba(124,58,237,.22)}
+.rain-graph-fixed{background:linear-gradient(180deg,#f8fbff,#ffffff);box-shadow:inset 0 1px 0 rgba(255,255,255,.9)}
+.rain-hour-modern{min-width:40px;grid-template-rows:152px 20px 24px}
+.modern-rain-slot{height:152px;position:relative;border-radius:12px;background:linear-gradient(180deg,rgba(219,234,254,.55),rgba(255,255,255,0));align-items:flex-end}
+.modern-rain-bar{width:20px;border-radius:999px 999px 6px 6px;background:linear-gradient(180deg,#60a5fa,#1d4ed8);box-shadow:0 8px 18px rgba(37,99,235,.22)}
+.rain-peak-col .modern-rain-bar{background:linear-gradient(180deg,#2563eb,#0f3b9e);box-shadow:0 10px 22px rgba(37,99,235,.34)}
+.peak-sticker{position:absolute;top:-12px;left:50%;transform:translateX(-50%);z-index:2;background:#0f172a;color:white;border-radius:999px;padding:3px 8px;font-size:10px;font-weight:1000;white-space:nowrap;box-shadow:0 8px 16px rgba(15,23,42,.22)}
+.weekly-line-card{height:330px;border:1px solid var(--line);border-radius:16px;background:linear-gradient(180deg,#fff,#f8fafc);overflow:hidden;padding:12px 12px 4px}
+.weekly-line-scroll{width:100%;height:100%;overflow-x:auto;overflow-y:hidden}
+.weekly-line-svg{height:292px;min-width:100%}
+.chart-grid{stroke:#e2e8f0;stroke-width:1;stroke-dasharray:4 6}
+.chart-axis{stroke:#94a3b8;stroke-width:1.2}
+.weekly-line-path{fill:none;stroke-width:3.5;stroke-linecap:round;stroke-linejoin:round;filter:drop-shadow(0 5px 8px rgba(15,23,42,.12))}
+.weekly-line-temp .weekly-line-path{stroke:#dc2626}
+.weekly-line-wind .weekly-line-path{stroke:#65a30d}
+.hour-tick circle{fill:#fff;stroke-width:2.4}.weekly-line-temp .hour-tick circle{stroke:#dc2626}.weekly-line-wind .hour-tick circle{stroke:#65a30d}
+.hour-tick text{font-size:10px;font-weight:900;fill:#475569;text-anchor:middle}.date-tick{font-size:12px;font-weight:1000;fill:#0f172a;text-anchor:start}.y-max-label,.y-min-label{font-size:11px;font-weight:1000;fill:#64748b}
+.today-action-wrap{max-height:620px}.weather-v934 tbody th{font-weight:1000;color:#1e293b;background:#f8fafc}
+@media(max-width:700px){.weekly-line-card{height:310px}.weekly-line-svg{height:272px}.rain-hour-modern{min-width:38px}}
+
+/* v9.3.6 weekly line graph readability */
+.weekly-line-card{height:360px}
+.weekly-line-svg{height:322px}
+.hour-tick line{stroke:#94a3b8;stroke-width:1.1}
+.line-dot-soft{fill:#fff;stroke-width:1.6;opacity:.86}
+.weekly-line-temp .line-dot-soft{stroke:#ef4444}
+.weekly-line-wind .line-dot-soft{stroke:#84cc16}
+.peak-callout circle{fill:#fff;stroke-width:3;filter:drop-shadow(0 6px 10px rgba(15,23,42,.18))}
+.peak-callout path{stroke-width:1.4;filter:drop-shadow(0 8px 14px rgba(15,23,42,.18))}
+.weekly-line-temp .peak-callout circle{stroke:#dc2626}
+.weekly-line-temp .peak-callout path{fill:#fee2e2;stroke:#ef4444}
+.weekly-line-temp .peak-callout text{fill:#991b1b}
+.weekly-line-wind .peak-callout circle{stroke:#65a30d}
+.weekly-line-wind .peak-callout path{fill:#ecfccb;stroke:#84cc16}
+.weekly-line-wind .peak-callout text{fill:#365314}
+.peak-callout text{font-size:11px;font-weight:1000;text-anchor:middle;dominant-baseline:middle}
+@media(max-width:700px){.weekly-line-card{height:340px}.weekly-line-svg{height:302px}}
+
+/* v9.3.7 weekly temperature/wind graph polish */
+.weekly-line-card{height:374px}
+.weekly-line-svg{height:336px}
+.y-tick text{font-size:11px;font-weight:900;fill:#64748b;text-anchor:end}
+.line-hit-dot{fill:transparent;stroke:transparent;cursor:crosshair;pointer-events:all}
+.line-hit-dot:hover{stroke:rgba(15,23,42,.18);stroke-width:2;fill:rgba(255,255,255,.45)}
+.peak-callout-modern{pointer-events:none}
+.peak-callout-modern .peak-dot{fill:#fff;stroke-width:3;filter:drop-shadow(0 4px 8px rgba(15,23,42,.18))}
+.peak-callout-modern .peak-stem{stroke-width:1.5;stroke-linecap:round;opacity:.72}
+.peak-callout-modern rect{stroke-width:1;filter:drop-shadow(0 8px 16px rgba(15,23,42,.16))}
+.peak-callout-modern text{font-size:11px;font-weight:1000;text-anchor:middle;dominant-baseline:middle;letter-spacing:-.02em}
+.weekly-line-temp .peak-callout-modern .peak-dot{stroke:#ef4444}
+.weekly-line-temp .peak-callout-modern .peak-stem{stroke:#ef4444}
+.weekly-line-temp .peak-callout-modern rect{fill:rgba(255,247,237,.96);stroke:rgba(239,68,68,.32)}
+.weekly-line-temp .peak-callout-modern text{fill:#9a3412}
+.weekly-line-wind .peak-callout-modern .peak-dot{stroke:#65a30d}
+.weekly-line-wind .peak-callout-modern .peak-stem{stroke:#65a30d}
+.weekly-line-wind .peak-callout-modern rect{fill:rgba(247,254,231,.96);stroke:rgba(101,163,13,.34)}
+.weekly-line-wind .peak-callout-modern text{fill:#365314}
+@media(max-width:700px){.weekly-line-card{height:354px}.weekly-line-svg{height:316px}.y-tick text{font-size:10px}}
