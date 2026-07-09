@@ -90,6 +90,8 @@ function bindLogin(){
   });
 }
 
+function updateHeaderSite(){const el=document.querySelector("#headerSiteName");if(el)el.textContent=state.site?.siteName||state.siteProfile?.siteName||"Guest";}
+function bindMobileMenu(){const btn=document.querySelector("#mobileMenuBtn");const tabs=document.querySelector(".header-tabs");btn?.addEventListener("click",()=>tabs?.classList.toggle("open"));}
 function bindTabs(){
   const tabs = [...document.querySelectorAll(".main-tabs .tab")];
   tabs.forEach(tab => {
@@ -102,6 +104,7 @@ function bindTabs(){
         page.classList.toggle("active", page.id === pageId);
       });
       renderPage(pageId);
+      document.querySelector(".header-tabs")?.classList.remove("open");
       window.scrollTo({top:0, behavior:"smooth"});
     });
   });
@@ -119,6 +122,8 @@ document.addEventListener("DOMContentLoaded", () => {
   loadLocal();
   bindLogin();
   bindTabs();
+  bindMobileMenu();
+  updateHeaderSite();
   ensureInitialRoute();
   if(state.siteProfile || state.site?.siteCode) showHome();
   else renderActivePage();
