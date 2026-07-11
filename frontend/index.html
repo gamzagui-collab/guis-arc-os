@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>GUI's Arc OS v9.3.9</title>
+  <title>GUI's Arc OS</title>
   <link rel="stylesheet" href="./css/design-system.css">
   <link rel="stylesheet" href="./css/app.css">
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
@@ -13,24 +13,26 @@
   <header class="topbar app-header">
     <div class="app-brand">
       <img class="brand-logo" src="./assets/guis-arc-os-logo.svg" alt="GUI's Arc OS logo">
-      <div><h1>GUI's Arc OS <span class="version-pill">v9.3.9</span></h1><p>Construction Site Operating System</p></div>
+      <div><h1><span data-app-name>GUI's Arc OS</span> <span class="version-pill" data-app-version>v</span></h1><p data-app-subtitle>Construction Site Decision Platform</p></div>
     </div>
     <button id="mobileMenuBtn" class="mobile-menu-btn" aria-label="메뉴 열기">☰</button>
     <nav class="main-tabs header-tabs">
       <button data-page="dashboardPage" class="tab active">HOME</button>
       <button data-page="todayPage" class="tab">오늘업무</button>
+      <button data-page="workHubPage" class="tab">WORK HUB</button>
       <button data-page="directorPage" class="tab">현장소장</button>
       <button data-page="safetyPage" class="tab">안전관리</button>
       <button data-page="qualityPage" class="tab">품질관리</button>
       <button data-page="constructionPage" class="tab">공사관리</button>
       <button data-page="resourcePage" class="tab">자재·장비</button>
+      <button data-page="roleScopePage" class="tab">업무범위</button>
       <button data-page="knowledgePage" class="tab">DB</button>
       <button data-page="schedulePage" class="tab">일정</button>
       <button data-page="weatherPage" class="tab">날씨</button>
       <button data-page="briefingPage" class="tab">사고·뉴스</button>
       <button data-page="settingsPage" class="tab">설정</button>
     </nav>
-    <div class="header-site"><span id="headerSiteName">Guest</span><span class="user-chip">Guest</span><button id="resetLoginBtn" class="header-login-btn">현장선택</button></div>
+    <div class="header-site"><button id="simpleModeBtn" class="simple-mode-btn" type="button" aria-pressed="true">간편화면</button><span id="headerSiteName">Guest</span><span class="user-chip">Guest</span><button id="resetLoginBtn" class="header-login-btn">현장선택</button></div>
   </header>
 
   <main id="app" class="app-shell">
@@ -88,10 +90,12 @@
 
       <div id="dashboardPage" class="subpage active"></div>
       <div id="todayPage" class="subpage"></div>
+      <div id="workHubPage" class="subpage"></div>
       <div id="directorPage" class="subpage"></div>
       <div id="safetyPage" class="subpage"></div>
       <div id="constructionPage" class="subpage"></div>
       <div id="resourcePage" class="subpage"></div>
+      <div id="roleScopePage" class="subpage"></div>
       <div id="knowledgePage" class="subpage"></div>
       <div id="sitePage" class="subpage"></div>
       <div id="weatherPage" class="subpage"></div>

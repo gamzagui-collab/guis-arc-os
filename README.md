@@ -1,3 +1,26 @@
+# GUI's Arc OS
+
+Construction Site Decision Platform · v9.5.0
+
+## v9.5.0
+- Safety Schedule Weather Link
+- 일정·날씨·공종/점검 DB 기반 안전관리 탭
+- 오늘 할 일, AI 안전 점검요약, TBM 전달사항, 안전관리자 정기업무 일정표
+
+# GUI's Arc OS
+
+Current Stable: **v9.4.9**
+
+GUI's Arc OS는 건설현장 운영체제에서 현장 의사결정을 지원하는 운영 플랫폼으로 발전시키는 장기 프로젝트입니다.
+
+## v9.4.9 Stable 기준
+- 일정탭 월간 달력/상세카드/드래그 이동/묶음 이동/선택 삭제 안정화.
+- 일정 유형: 타설 / 점검 / 작업 / 장비 / 자재.
+- 상태 기준: 확정 / 미확정.
+- 버전 표시는 `frontend/js/services/version.js`를 단일 기준으로 사용.
+
+---
+
 # GUI's Arc OS v7 Starter
 
 건설현장 운영 OS를 목표로 한 차세대 GUI's Arc 프로젝트입니다.

@@ -22,6 +22,7 @@ export function generateSpecimenTasks(casting){
       tasks.push({
         id:`${base}-${name}-${i}`,
         castingId:casting.id,
+        workId:casting.workId || null,
         testDate:addDays(casting.castDate, age),
         block:casting.block,
         location:`${casting.floor || ""} ${casting.member || ""}`.trim(),

@@ -1,6 +1,16 @@
 import { state, loadLocal, saveLocal, setCurrentSiteProfile, startGuestSite } from "./state.js";
+import { applyVersionToDocument } from "../services/version.js";
+import { migrateLegacyWorkData } from "../services/workInstanceDatabase.js";
+import { migrateQualityData } from "../services/qualityManagement.js";
+import { migrateConstructionData } from "../services/constructionManagement.js";
+import { migrateRoleSeparatedDataV981 } from "../services/roleDataMigration.js";
+import { migrateResourceData } from "../services/resourceManagement.js";
+import { migrateComplianceData } from "../services/complianceAudit.js";
+import { migrateEvidenceData } from "../services/evidenceManagement.js";
+import { ensureDirectorInstructionState } from "../services/directorInstructions.js";
 import { renderDashboard } from "../pages/dashboard.js";
 import { renderToday } from "../pages/today.js";
+import { renderWorkHub } from "../pages/workHub.js";
 import { renderKnowledge } from "../pages/knowledge.js";
 import { renderWeather } from "../pages/weather.js";
 import { renderSite } from "../pages/site.js";
@@ -9,16 +19,26 @@ import { renderSchedule } from "../pages/schedule.js";
 import { renderBriefing } from "../pages/briefing.js";
 import { renderChat } from "../pages/chat.js";
 import { renderSettings } from "../pages/settings.js";
-import { renderDirector, renderSafetyRole, renderConstructionRole, renderResourceRole } from "../pages/rolePage.js";
+import { renderDirectorDashboard } from "../pages/directorDashboard.js";
+import { renderResource } from "../pages/resource.js";
+import { renderConstruction } from "../pages/construction.js";
+import { renderSafety } from "../pages/safety.js";
+import { renderRoleScope } from "../pages/roleScope.js";
+import { migrateTaskRoleClassification } from "../services/taskRoleClassification.js";
+import { migrateRoleTaskGeneration } from "../services/roleTaskGenerationEngine.js";
+import { migrateWorkStartConditionData } from "../services/workStartConditionEngine.js";
+import { migrateSimpleActionFlow } from "../services/simpleActionFlow.js";
 
 const PAGE_RENDERERS = {
   dashboardPage: renderDashboard,
   todayPage: renderToday,
-  directorPage: renderDirector,
-  safetyPage: renderSafetyRole,
+  workHubPage: renderWorkHub,
+  directorPage: renderDirectorDashboard,
+  safetyPage: renderSafety,
   qualityPage: renderQuality,
-  constructionPage: renderConstructionRole,
-  resourcePage: renderResourceRole,
+  constructionPage: renderConstruction,
+  resourcePage: renderResource,
+  roleScopePage: renderRoleScope,
   knowledgePage: renderKnowledge,
   sitePage: renderSite,
   schedulePage: renderSchedule,
@@ -107,6 +127,26 @@ function bindLogin(){
   });
 }
 
+
+function applySimpleMode(){
+  const enabled = state.uiSimpleMode !== false;
+  document.body.classList.toggle("simple-mode", enabled);
+  const btn = document.querySelector("#simpleModeBtn");
+  if(btn){
+    btn.setAttribute("aria-pressed", String(enabled));
+    btn.textContent = enabled ? "간편화면 사용중" : "간편화면 보기";
+    btn.title = enabled ? "누르면 상세화면으로 전환" : "누르면 간편화면으로 전환";
+  }
+}
+function bindSimpleMode(){
+  document.querySelector("#simpleModeBtn")?.addEventListener("click",()=>{
+    state.uiSimpleMode = !(state.uiSimpleMode !== false);
+    saveLocal();
+    applySimpleMode();
+    renderActivePage();
+  });
+}
+
 function updateHeaderSite(){const el=document.querySelector("#headerSiteName");if(el)el.textContent=state.site?.siteName||state.siteProfile?.siteName||"Guest";const chip=document.querySelector(".user-chip");if(chip)chip.textContent=state.site?.siteCode||state.siteProfile?.siteCode||"Guest";}
 function bindMobileMenu(){const btn=document.querySelector("#mobileMenuBtn");const tabs=document.querySelector(".header-tabs");btn?.addEventListener("click",()=>tabs?.classList.toggle("open"));}
 function bindTabs(){
@@ -136,10 +176,26 @@ function ensureInitialRoute(){
 }
 
 document.addEventListener("DOMContentLoaded", () => {
+  applyVersionToDocument();
   loadLocal();
+  migrateLegacyWorkData();
+  migrateQualityData();
+  migrateConstructionData();
+  migrateRoleSeparatedDataV981();
+  migrateResourceData();
+  migrateComplianceData();
+  migrateEvidenceData();
+  ensureDirectorInstructionState();
+  migrateTaskRoleClassification();
+  migrateRoleTaskGeneration();
+  migrateWorkStartConditionData();
+  migrateSimpleActionFlow();
+  saveLocal();
   bindLogin();
   bindTabs();
   bindMobileMenu();
+  bindSimpleMode();
+  applySimpleMode();
   updateHeaderSite();
   ensureInitialRoute();
   if(state.siteProfile || state.site?.siteCode) showHome();

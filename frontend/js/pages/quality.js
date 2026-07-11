@@ -1,80 +1,35 @@
-import { registerCasting, ensureSpecimenState, getTodayQualityTasks } from "../services/specimenManager.js";
+import { todayYmd } from "../services/workInstanceDatabase.js";
+import { ensureSpecimenState, getTodayQualityTasks } from "../services/specimenManager.js";
+import { addQualityPhoto, addQualityTest, createSpecimenPlanForWork, ensureQualityState, qualityWorkForDate, resolveSpecimenWorkId, toggleQualityTaskItem, updateQualityDocument, updateQualityTest } from "../services/qualityManagement.js";
 
-function row(t){
-  return `<tr><td>${t.testDate}</td><td>${t.block||""}</td><td>${t.location||""}</td><td>${t.testType}</td><td>${t.curing}</td><td>${t.age}일</td><td>${t.qty}개</td><td>${t.status}</td></tr>`;
+const esc=v=>String(v??"").replace(/[&<>"']/g,m=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[m]));
+function statusClass(status){return status==="완료"||status==="확인완료"?"quality-ok":status==="진행"?"quality-warn":"quality-pending";}
+function specimenRow(t){const workId=resolveSpecimenWorkId(t);return `<tr><td>${esc(workId||"미연결")}</td><td>${esc(t.testDate)}</td><td>${esc(t.block||"")}</td><td>${esc(t.location||"")}</td><td>${esc(t.testType)}</td><td>${esc(t.curing)}</td><td>${t.qty}개</td><td>${esc(t.status)}</td></tr>`;}
+function workCard(work){
+ const qualityItems=work.qualityTasks.flatMap(task=>(task.qualityItems||[]).map(x=>({task,item:x.item,index:x.originalIndex,checked:Boolean(task.checkedItems?.[x.originalIndex])})));
+ const done=qualityItems.filter(x=>x.checked).length, testsDone=work.tests.filter(x=>x.status==="완료").length, docsDone=work.documents.filter(x=>x.status==="확인완료").length;
+ const specimenQty=work.specimenTasks.reduce((s,t)=>s+(Number(t.qty)||0),0);
+ return `<article class="quality-work-card" data-work-id="${esc(work.workId)}">
+  <header class="quality-work-head"><div><span class="work-id-chip">품질업무</span><h3>${esc(work.subProcess||work.title)}</h3><p>${esc(work.location||"위치 미입력")} · ${esc(work.contractor||"협력업체 미입력")}</p></div><span class="quality-progress">${done+testsDone+docsDone}/${qualityItems.length+work.tests.length+work.documents.length}</span></header>
+  <div class="quality-quick-flow"><article><b>1. 시험</b><strong>${testsDone}/${work.tests.length}</strong><span>결과 확인</span></article><article><b>2. 공시체</b><strong>${specimenQty?`${specimenQty}개`:"미생성"}</strong><span>계획·시험일</span></article><article><b>3. 자료</b><strong>${docsDone}/${work.documents.length}</strong><span>성적서·승인서</span></article><article><b>4. 사진</b><strong>${work.photos.length}장</strong><span>자동 Work 연결</span></article></div>
+  <section class="quality-simple-section"><h4>오늘 시험</h4><div class="quality-record-list">${work.tests.map(t=>`<label class="quality-record"><input class="test-complete" type="checkbox" data-test-id="${t.testId}" ${t.status==="완료"?"checked":""}><span>${esc(t.testType)}</span><b class="${statusClass(t.status)}">${esc(t.status)}</b></label>`).join("")||"<p class='help-text'>등록된 시험이 없습니다.</p>"}</div><div class="inline-actions"><button class="secondary-btn add-test">기타 시험 추가</button>${/콘크리트|타설/.test(`${work.subProcess} ${work.title}`)?`<button class="primary-btn create-specimen">공시체 계획</button>`:""}</div></section>
+  <section class="quality-simple-section"><h4>품질자료 확인</h4><div class="quality-record-list">${work.documents.map(d=>`<label class="quality-record"><input class="document-complete" type="checkbox" data-document-id="${d.documentId}" ${d.status==="확인완료"?"checked":""}><span>${esc(d.documentType)}</span><b class="${statusClass(d.status)}">${esc(d.status)}</b></label>`).join("")}</div></section>
+  <details class="quality-detail"><summary>품질기준과 공사관리 참고정보</summary><div class="quality-card-grid"><section><h4>품질관리 주담당 체크</h4><div class="quality-task-list">${qualityItems.length?qualityItems.map(x=>`<label><input class="quality-task-check" type="checkbox" data-task-id="${x.task.taskId}" data-index="${x.index}" ${x.checked?"checked":""}><span>${esc(x.item)}</span></label>`).join(""):"<p class='help-text'>추가 품질기준이 없습니다.</p>"}</div></section><section><h4>공사관리 검측상태 · 참고</h4><div class="quality-reference-box"><b>${esc(work.inspection?.status||"미요청")}</b><p>${esc(work.inspection?.result||"검측 요청과 결과는 공사관리에서 입력합니다.")}</p><span class="help-text">품질관리에서는 시험결과·성적서·품질자료만 제공합니다.</span></div></section></div></details>
+  <section class="quality-simple-section"><h4>사진 추가</h4><input class="quality-photo-input" type="file" accept="image/*" multiple><div class="quality-photo-list">${work.photos.map(p=>`<span>📷 ${esc(p.name)}</span>`).join("")||"<span class='help-text'>사진을 선택하면 현재 작업에 자동 연결됩니다.</span>"}</div></section>
+ </article>`;
 }
-
 export function renderQuality(root){
-  const s = ensureSpecimenState();
-  const todayTasks = getTodayQualityTasks();
-  root.innerHTML = `
-    <div class="section-head">
-      <div><h2>QUALITY · 품질관리</h2><p>타설 등록을 기준으로 공시체, 시험일정, 오늘 품질업무를 자동 생성합니다.</p></div>
-      <button class="secondary-btn" onclick="window.print()">출력</button>
-    </div>
-
-    <details class="quality-accordion" open>
-      <summary>오늘 품질업무</summary>
-      <div class="action-list">
-        ${todayTasks.length ? todayTasks.map(t=>`<label class="action-item"><input type="checkbox"><span>${t.block} ${t.location} · ${t.testType} · ${t.qty}개 · ${t.testDate}</span></label>`).join("") : "<p class='help-text'>오늘 예정된 품질시험이 없습니다.</p>"}
-      </div>
-    </details>
-
-    <details class="quality-accordion" open>
-      <summary>타설 등록</summary>
-      <div class="form-grid">
-        <label>타설일<input id="castDate" type="date" value="${new Date().toISOString().slice(0,10)}"></label>
-        <label>동<input id="castBlock" placeholder="예: 101동"></label>
-        <label>층<input id="castFloor" placeholder="예: 15층"></label>
-        <label>부재<input id="castMember" placeholder="예: 슬래브"></label>
-        <label>타설량(㎥)<input id="castVolume" type="number" value="120"></label>
-        <label>설계강도<input id="castStrength" placeholder="예: 24MPa"></label>
-        <label>레미콘회사<input id="castCompany" placeholder="예: ○○레미콘"></label>
-        <label>배합번호<input id="castMix" placeholder="예: 24-0708-01"></label>
-      </div>
-      <button id="registerCastingBtn" class="primary-btn">타설 등록 및 공시체 자동 생성</button>
-      <p class="help-text">기본 템플릿: 120㎥당 30개 = 수직 3 + 수평 3 + 필라서포트 3 + 표준양생 28일 9 + 현장양생 28일 9 + 예비 3.</p>
-    </details>
-
-    <details class="quality-accordion" open>
-      <summary>공시체 관리대장</summary>
-      <div class="table-scroll">
-        <table class="quality-table">
-          <thead><tr><th>시험일</th><th>동</th><th>위치</th><th>시험종류</th><th>양생</th><th>재령</th><th>수량</th><th>상태</th></tr></thead>
-          <tbody>${s.tasks.map(row).join("") || "<tr><td colspan='8'>등록된 공시체가 없습니다.</td></tr>"}</tbody>
-        </table>
-      </div>
-    </details>
-
-    <details class="quality-accordion"><summary>레미콘 / 슬럼프 / 공기량 / 염화물</summary>
-      <div class="summary-grid">
-        <article class="summary-card risk-blue"><div class="label">레미콘</div><p>송장, 배합, 출하/도착/타설시간 기록</p></article>
-        <article class="summary-card risk-blue"><div class="label">슬럼프</div><p>타설 전 현장시험 및 사진 기록</p></article>
-        <article class="summary-card risk-blue"><div class="label">공기량</div><p>AE제 사용, 내구성, 동결융해 관련 관리</p></article>
-        <article class="summary-card risk-blue"><div class="label">염화물</div><p>염화물량 시험 및 철근 부식 위험 관리</p></article>
-      </div>
-    </details>
-
-    <details class="quality-accordion"><summary>균열 / 재료분리 / 양생관리</summary>
-      <div class="summary-grid">
-        <article class="summary-card risk-orange"><div class="label">균열</div><p>초기균열, 건조수축, 온도균열, 구조균열 구분 기록</p></article>
-        <article class="summary-card risk-orange"><div class="label">재료분리</div><p>낙하고, 다짐, 이어치기, 블리딩 확인</p></article>
-        <article class="summary-card risk-orange"><div class="label">양생</div><p>습윤양생, 보온, 보양포, 현장양생 공시체 관리</p></article>
-      </div>
-    </details>
-  `;
-  root.querySelector("#registerCastingBtn").addEventListener("click", () => {
-    const result = registerCasting({
-      castDate:root.querySelector("#castDate").value,
-      block:root.querySelector("#castBlock").value,
-      floor:root.querySelector("#castFloor").value,
-      member:root.querySelector("#castMember").value,
-      volumeM3:Number(root.querySelector("#castVolume").value),
-      designStrength:root.querySelector("#castStrength").value,
-      company:root.querySelector("#castCompany").value,
-      mixNo:root.querySelector("#castMix").value
-    });
-    alert(`공시체 ${result.totalQty}개를 자동 생성했습니다.`);
-    renderQuality(root);
-  });
+ ensureQualityState();const specimens=ensureSpecimenState(),date=todayYmd(),works=qualityWorkForDate(date),due=getTodayQualityTasks(date);
+ const tests=works.flatMap(w=>w.tests),docs=works.flatMap(w=>w.documents),doneTests=tests.filter(x=>x.status==="완료").length,doneDocs=docs.filter(x=>x.status==="확인완료").length;
+ root.innerHTML=`<div class="section-head"><div><h2>QUALITY · 품질관리</h2><p>시험·공시체·품질자료·사진만 확인합니다. 검측과 시공관리는 공사관리에서 담당합니다.</p></div><button class="secondary-btn" onclick="window.print()">출력</button></div>
+ <div class="quality-principle-banner"><b>품질관리 기본 흐름</b><span>시험 확인 → 공시체 관리 → 성적서 확인 → 사진 저장</span><em>한 번 입력한 작업정보는 다시 입력하지 않습니다.</em></div>
+ <div class="summary-grid quality-summary"><article class="summary-card risk-blue"><div class="label">오늘 품질대상</div><strong>${works.length}건</strong><p>일정에서 자동 연결</p></article><article class="summary-card risk-blue"><div class="label">시험 완료</div><strong>${doneTests}/${tests.length}</strong><p>체크 한 번으로 완료</p></article><article class="summary-card risk-orange"><div class="label">시험 도래</div><strong>${due.length}건</strong><p>미완료 포함</p></article><article class="summary-card risk-blue"><div class="label">자료 확인</div><strong>${doneDocs}/${docs.length}</strong><p>성적서·승인서</p></article></div>
+ <details class="quality-accordion" open><summary>오늘 품질업무 · ${date}</summary><div class="quality-work-list">${works.length?works.map(workCard).join(""):"<div class='empty-state'><h3>오늘 품질업무가 없습니다.</h3><p>일정에 공정을 등록하면 필요한 시험과 자료가 자동 생성됩니다.</p></div>"}</div></details>
+ <details class="quality-accordion"><summary>공시체 관리대장 · ${specimens.tasks.length}건</summary><div class="table-scroll"><table class="quality-table"><thead><tr><th>Work ID</th><th>시험일</th><th>동</th><th>위치</th><th>시험종류</th><th>양생</th><th>수량</th><th>상태</th></tr></thead><tbody>${specimens.tasks.map(specimenRow).join("")||"<tr><td colspan='8'>등록된 공시체가 없습니다.</td></tr>"}</tbody></table></div></details>`;
+ root.querySelectorAll(".quality-task-check").forEach(el=>el.addEventListener("change",()=>{toggleQualityTaskItem(el.dataset.taskId,Number(el.dataset.index),el.checked);renderQuality(root);}));
+ root.querySelectorAll(".add-test").forEach(btn=>btn.addEventListener("click",()=>{const type=prompt("추가 시험명을 입력하세요.");if(type){addQualityTest(btn.closest(".quality-work-card").dataset.workId,{testType:type,plannedDate:date});renderQuality(root);}}));
+ root.querySelectorAll(".test-complete").forEach(el=>el.addEventListener("change",()=>{updateQualityTest(el.dataset.testId,{status:el.checked?"완료":"예정",completedAt:el.checked?new Date().toISOString():""});renderQuality(root);}));
+ root.querySelectorAll(".document-complete").forEach(el=>el.addEventListener("change",()=>{updateQualityDocument(el.dataset.documentId,{status:el.checked?"확인완료":"미확인",confirmedAt:el.checked?new Date().toISOString():""});renderQuality(root);}));
+ root.querySelectorAll(".create-specimen").forEach(btn=>btn.addEventListener("click",()=>{const volume=Number(prompt("타설량(㎥)","120"))||120;const result=createSpecimenPlanForWork(btn.closest(".quality-work-card").dataset.workId,{volumeM3:volume});alert(result.existing?"이미 공시체 계획이 있습니다.":`공시체 ${result.totalQty}개를 생성했습니다.`);renderQuality(root);}));
+ root.querySelectorAll(".quality-photo-input").forEach(input=>input.addEventListener("change",()=>{[...input.files].forEach(file=>addQualityPhoto(input.closest(".quality-work-card").dataset.workId,file));renderQuality(root);}));
 }
