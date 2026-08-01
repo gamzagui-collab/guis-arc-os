@@ -2,6 +2,11 @@
 
 ## v0.24.5 로컬 구현 상태 (2026-08-02)
 
+- Integration D1 Migration `0028_internal_test_site.sql` 적용 완료, 재조회 미적용 0건이다.
+- Integration Worker `guis-arc-integrated-api-dev` 배포 완료. Version ID `05a9f880-8965-462c-b1e6-8d8b9052092b`, health는 v0.24.5/integration/D1·R2 정상이다.
+- Integration Pages `guis-arc-integrated-dev` canonical 배포 완료. 고유 URL은 `https://c788b05c.guis-arc-integrated-dev.pages.dev`이며 canonical의 version.js와 Service Worker cache는 v0.24.5다.
+- 기존 E2E 현장 2개는 `INTERNAL_TEST`, 일반 계정 교차 목적 충돌은 0건이다. 기존 fixture 7계정·활성 Membership 8건은 보존됐다.
+- E2E provisioning Secret과 공통 PIN이 없어 12계정 `plan/apply/show` 및 인증 Browser E2E는 `NOT_EXECUTED`다. 관리 API는 비활성 상태를 유지한다.
 - 배포 전 최종 보완에서 공통 8자리 시험 PIN 입력과 계정별 salt·PBKDF2 hash 생성 계약으로 CLI를 단순화했다.
 - ChatGPT는 설계·결과 검토, Codex는 공식 구현·검증·배포·Git·패키징을 담당하는 원칙을 `DEVELOPMENT_RULES.md`와 `AGENTS.md`에 반영했다.
 - 직접 기준본은 v0.24.4 공식 ZIP과 SHA-256 `455A993C035AD55722DEC5D71324158894159E11BEB3860BD3F98BDBD5560BA8`이다.
@@ -9,7 +14,7 @@
 - 일반 계정은 서로 다른 목적의 현장 Membership을 가질 수 없으며 `PLATFORM_OWNER`, `INTEGRATED_OWNER`만 예외다.
 - 현장 선택 UI는 “운영 현장”과 “개발 도구”로 분리되고 내부 테스트 현장에는 실제 업무 데이터가 아니라는 문구를 항상 표시한다.
 - 기존 `e2e-v021` fixture를 12개 역할별 계정으로 확장하고 Integration 전용 `plan/apply/show/disable/enable` 관리 명령을 추가했다.
-- Integration Migration 적용, Worker·Pages 배포, 실제 계정 생성, 인증 Browser E2E는 `NOT_EXECUTED`다. Production은 `NOT_CHANGED`다.
+- 실제 12계정 생성과 인증 Browser E2E는 `NOT_EXECUTED`다. Production은 `NOT_CHANGED`다.
 - 아래 v0.24.4 기록은 직접 기준본의 과거 배포 사실이며 v0.24.5 배포 상태를 뜻하지 않는다.
 
 ## 공식 기준본

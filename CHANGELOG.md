@@ -1,5 +1,6 @@
 # v0.24.5 — 내부 테스트 현장 격리
 
+- Integration D1에 Migration 0028을 적용하고 Worker·canonical Pages를 v0.24.5로 배포했습니다. E2E provisioning Secret과 공통 PIN이 없어 12계정 생성과 인증 Browser E2E는 실행하지 않았습니다.
 - 테스트 계정 준비 입력을 역할별 JSON에서 공통 8자리 시험 PIN 하나로 단순화하고, 계정별 salt·PBKDF2 hash 분리를 유지했습니다.
 - ChatGPT의 설계·검토 역할과 Codex의 공식 구현·배포·Git·패키징 역할을 개발 규칙에 명시했습니다.
 - 동일 Integration 서버와 DB에서 운영 현장과 내부 테스트 현장을 `sites.purpose`로 구분합니다.
