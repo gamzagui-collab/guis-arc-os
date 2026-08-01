@@ -1,0 +1,27 @@
+name = "guis-arc-integrated-api-dev"
+main = "worker/index.js"
+compatibility_date = "2026-07-21"
+
+[vars]
+APP_ENV = "integration"
+APP_VERSION = "0.24.4"
+PUBLIC_ORIGIN = "https://guis-arc-integrated-dev.pages.dev"
+SESSION_COOKIE_NAME = "guis_arc_integrated_session"
+SESSION_IDLE_SECONDS = "43200"
+SESSION_ABSOLUTE_SECONDS = "604800"
+LOGIN_RATE_LIMIT_MAX = "8"
+PROVISIONING_ENABLED = "false"
+E2E_PROVISIONING_ENABLED = "false"
+ISSUE_E2E_FAILURE_INJECTION_ENABLED = "false"
+R2_ACCOUNT_ID = "4a45cdf5940064842ab8d499614c1a2f"
+R2_BUCKET_NAME = "guis-arc-integrated-files-dev"
+
+[[d1_databases]]
+binding = "DB"
+database_name = "guis_arc_integrated_dev"
+database_id = "40bbc7df-6990-4171-ab6b-d99eeafe4603"
+migrations_dir = "database/migrations"
+
+[[r2_buckets]]
+binding = "FILES"
+bucket_name = "guis-arc-integrated-files-dev"

@@ -1,0 +1,26 @@
+{
+  "product": "GUI's Arc Integrated",
+  "version": "0.24.4",
+  "foundationBaseline": "0.1.0",
+  "constitutionVersion": "1.0.0",
+  "uiSystemVersion": "0.12.0",
+  "architecture": "MODULAR_MONOLITH",
+  "theme": "MONOCHROME_FOUNDATION",
+  "legacyBaselines": {
+    "platform": "0.11.5",
+    "os": "12.9.0",
+    "issue": "0.72.9"
+  },
+  "modules": {
+    "today": "READY",
+    "workforce": "READY",
+    "construction": "READY",
+    "issue": "READY",
+    "safety": "READY",
+    "quality": "READY",
+    "materials": "PLANNED",
+    "equipment": "PLANNED",
+    "documents": "PLANNED",
+    "admin": "READY"
+  }
+}

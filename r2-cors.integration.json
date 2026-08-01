@@ -1,0 +1,22 @@
+﻿{
+  "rules": [
+    {
+      "id": "gui-arc-integrated-dev-upload",
+      "allowed": {
+        "origins": [
+          "https://guis-arc-integrated-dev.pages.dev"
+        ],
+        "methods": [
+          "PUT"
+        ],
+        "headers": [
+          "Content-Type"
+        ]
+      },
+      "exposeHeaders": [
+        "ETag"
+      ],
+      "maxAgeSeconds": 900
+    }
+  ]
+}

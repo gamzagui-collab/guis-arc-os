@@ -1,0 +1,3 @@
+import test from"node:test";import assert from"node:assert/strict";import fs from"node:fs";const read=f=>fs.readFileSync(f,"utf8");
+test("modular monolith boundaries are explicit",()=>{for(const dir of["worker/core","worker/modules","apps/web/shell","apps/web/modules","packages/ui","packages/design-tokens","packages/permissions"])assert.ok(fs.existsSync(dir));assert.match(read("docs/02_MODULE_BOUNDARIES.md"),/direct cross-module table mutation is forbidden/i)});
+test("legacy baselines are references only",()=>{const text=read("docs/09_LEGACY_BASELINES.md");for(const value of["Platform v0.11.5","OS v12.9.0","Issue v0.72.9"])assert.match(text,new RegExp(value.replaceAll(".","\\.")));assert.match(text,/not copied wholesale/i)});

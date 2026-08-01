@@ -1,0 +1,141 @@
+# GUI's Arc 현재 프로젝트 상태
+
+## 공식 기준본
+
+| 항목 | 상태 |
+| --- | --- |
+| 현재 공식 릴리스 | v0.24.4 |
+| 직접 기준 버전 | v0.24.4 |
+| 기준 ZIP | `GUI_Arc_Integrated_v0.24.4_Integrated.zip` |
+| 기준 SHA-256 | `455A993C035AD55722DEC5D71324158894159E11BEB3860BD3F98BDBD5560BA8` |
+| 기준 ZIP 패키징 | 확정 |
+| Integration 배포 | v0.24.4 `DEPLOYED` |
+| Integration D1 | `0027_issue_assignment_type.sql` 적용 완료, 미적용 Migration 0건 |
+| 운영 검증 상태 | `OPERATIONAL_VERIFICATION_PENDING` |
+| Production 변경 | `NOT_CHANGED` |
+| v0.24.4 전체 테스트 | 293/293 `PASS` |
+| Typecheck | 108개 모듈 `PASS` |
+| Skill 정적 검증 | 15개 `PASS`, WARNING 0개 |
+| Validate | `PASS` |
+| Build | `PASS` |
+| 한국어 검사 | 18개 파일 `PASS` |
+| Browser E2E | 인증 전 버전·반응형 셸 `PASS`; 인증 후 직영 단건·일괄 배정, 권한·Revision·Idempotency·Audit `NOT_EXECUTED` |
+| Skill Trigger E2E | 별도 신규 Codex 세션 자동 선택 검증 `NOT_EXECUTED` |
+
+v0.24.4 공식 기준 ZIP과 SHA-256은 프로젝트 루트 밖의 검증된 릴리스 파일을 기준으로 확정했다. 개인 절대경로는 기록하지 않으며 파일명과 SHA-256만 공식 기준으로 사용한다.
+
+v0.24.4는 기존 5개 상위 Skill과 10개 전문 Skill, 정적 Validator와 Trigger 평가 자료를 포함한다. v0.24.3 직영 배정 기능과 Migration 0027을 유지하며 검증된 패키지는 Integration에 배포됐다. Production은 변경하지 않았다.
+
+## v0.24.4 Integration 배포·기준선 검증 (2026-08-01)
+
+- Integration Worker health는 `version: 0.24.4`, `environment: integration`이며 Worker·D1·R2 바인딩이 정상이다.
+- Integration Pages 프로젝트 `guis-arc-integrated-dev`의 배포를 확인했다.
+- Integration D1의 `d1_migrations`에서 `0027_issue_assignment_type.sql`을 확인했고 미적용 Migration은 0건이다.
+- 전체 테스트 293/293, Typecheck 108개 모듈, Validate, Build, 한국어 UI 18개 파일이 PASS했다.
+- Skill 정적 검증은 15개 PASS, WARNING 0개다.
+- 인증 후 직영 단건·일괄 배정, 전환, 권한 격리, Revision·Idempotency·Audit 실제 원격 검증은 `NOT_EXECUTED`다.
+- 별도 신규 Codex 세션의 Skill Trigger 자동 선택 검증은 `NOT_EXECUTED`다.
+- 운영 검증 상태는 `OPERATIONAL_VERIFICATION_PENDING`이며 Production은 `NOT_CHANGED`다.
+
+## 과거 기록: v0.24.2 Integration 배포·검증 (2026-08-01)
+
+- Integrated ZIP SHA-256: `A967FC03A389BEF24FE2C1150202AD5F7480FD7D2CF88A48E91358CA4E4283C4`.
+- Integration D1 재조회 결과 미적용 Migration은 0건이며 Migration을 새로 적용하지 않았다.
+- Integration Worker Version ID: `85d1b93e-471c-46c1-9131-75d51a3ca187`.
+- Integration Pages Deployment ID: `81c488b0-84f8-44ec-be62-a9b8972c1d57`.
+- 배포 URL: `https://81c488b0.guis-arc-integrated-dev.pages.dev`.
+- Worker health는 `version: 0.24.2`, `environment: integration`, Worker·D1·R2 바인딩 정상이다.
+- 전체 테스트 281/281, Typecheck 105개 모듈, Validate, Build, 한국어 UI 18개 파일이 PASS했다.
+- 실제 브라우저에서 1280·1024·768px v0.24.2 로그인 표면과 가로 오버플로 없음을 확인했다.
+- 재사용 가능한 Integration 인증 세션이 없어 실제 Issue 선택·일괄 변경·Audit Browser E2E는 `NOT_EXECUTED`다.
+- Production Worker, Pages, D1, R2는 변경하지 않았다.
+
+## v0.24.1 Integration 배포·검증 (2026-08-01)
+
+- Integration D1에 미적용 상태였던 `0026_construction_department_engine.sql`을 적용했고 재조회 결과 미적용 Migration은 0건이다.
+- Integration Worker `guis-arc-integrated-api-dev` 배포 완료. Version ID: `9fd0607f-7c46-4a3b-b3fa-efe06baa3ba2`.
+- Integration Pages `guis-arc-integrated-dev` 배포 완료. Deployment ID: `aa71130c-717f-4b81-b28b-db8f1f05dea4`.
+- 배포 URL: `https://aa71130c.guis-arc-integrated-dev.pages.dev`.
+- Worker health는 `version: 0.24.1`, `environment: integration`, Worker·D1·R2 바인딩 정상이다.
+- 배포 전 테스트 278/278, Typecheck 105개 모듈, Validate, Build, 한국어 UI 18개 파일이 모두 PASS했다.
+- 실제 브라우저에서 고유 배포 URL과 canonical Integration URL의 v0.24.1 표면을 확인했다. 1280·1024·768·360·390·412px 인증 전 로그인 화면은 가로 오버플로가 없었다.
+- 재사용 가능한 Integration 인증 세션과 E2E 계정이 없어 PC Issue Dashboard 액션·권한·Audit·Today 회귀 검증은 `NOT_EXECUTED`다.
+- Production Worker, Pages, D1, R2는 변경하지 않았다.
+
+## 현재 모듈 상태
+
+| 모듈 | 상태 | 확인 근거 요약 |
+| --- | --- | --- |
+| 인증·계정·권한 | `IMPLEMENTED` | 통합 세션, CSRF, 현장 Context, 역할·게시판 권한 코드와 테스트 |
+| Today | `IMPLEMENTED` | 통합 Today API, Provider 집계, 60초 갱신과 상태 보존 |
+| Issue | `IMPLEMENTED` | 간편 등록·등록 후 배정과 PC 목록·모바일 기본 사진 슬라이드·Overlay·Swipe·단계적 원본 Viewer |
+| Workforce | `IMPLEMENTED` | 가입·승인·QR 출역·출력일보·Today Provider |
+| Construction | `IMPLEMENTED` | 공사일보·Revision·검측·공사 Today·권한 계약 |
+| Safety | `IMPLEMENTED` | 사례·위험성평가·개선조치·정기업무·Today Provider |
+| Quality | `PARTIAL` | 내부 품질시험·검사·CSI 입력 준비는 구현, 국가 CSI 자동 제출은 미구현 |
+| Admin | `IMPLEMENTED` | 회사·현장·역할·초대·권한·공종 관리 코드와 테스트 |
+| R2 업로드 | `IMPLEMENTED` | Issue·Construction·Safety 비공개 미디어 및 원본 업로드 계약 |
+| 월간 공사일보 | `IMPLEMENTED` | R2 직접 업로드·분석·경고·날짜 확정·Revision·대형 세션 회귀 |
+| 월간계획 | `IMPLEMENTED` | 기간 일정 CRUD·회사별 공종·Revision·Audit·취소 사유 |
+| 공사 Today 카드 | `IMPLEMENTED` | v0.20.0 정보 우선순위·반응형·출처·자동 갱신 테스트 |
+| Construction Engine | `IMPLEMENTED` | v0.24.1 부서 Master·Rule 평가·Issue 추천 Snapshot·관리자 확정·Audit |
+
+## 현재 확정 사실
+
+- Integrated Core가 계정·회사·현장·Membership·역할·게시판 권한의 원본이다.
+- 사용자 UI는 한국어가 기본이며 Production은 명시적 승인 없이 변경하지 않는다.
+- 검증된 Integrated ZIP 한 개가 다음 개발의 기준본이다.
+- Today는 60초 자동 갱신 후 스크롤과 지원되는 펼침 상태를 보존한다.
+- 오늘의 공사 Today는 확정 공사일보를 우선하고, 없으면 월간계획을 사용한다. 내일·모레는 월간계획을 사용한다.
+- 공사 Today는 Provider 원본 순서를 유지하고 회사·위치·인원·작업내용을 추론하거나 임의 재계산하지 않는다.
+- 공사 Today 카드의 우선순위는 회사 → 공종·인원 → 위치 → 작업내용 → 시간·주의사항이다. 회사가 없으면 공종·인원이 주 제목이다.
+- 공사일보 확정은 기존 Revision·Audit·idempotency 계약을 유지하며 월간 `analysis_json`을 다시 저장하지 않는다.
+- Issue 최초 등록은 사진·위치·내용만 사용하며 업체·공종·담당자는 미배정 상태로 저장한 뒤 권한 있는 관리자가 상세 화면에서 배정한다.
+- Issue Photo Viewer는 목록 API 1회와 앞·현재·뒤 썸네일을 사용하며 원본은 사용자 요청 시에만 불러온다.
+- Construction Engine v1.0은 외부 AI 없이 Issue 제목·내용·현재 공종을 명시적 Rule로 평가한다. 추천과 관리자 확정은 분리되며 충돌과 무일치는 미분류다.
+
+## 폐기되었거나 더 이상 기준이 아닌 내용
+
+- `AIOS/00_PROJECT.md`의 v0.2.2 상태는 역사 기록이며 현재 기준이 아니다.
+- `AIOS/12_NEXT_CHAT.md`의 v0.3.0·v0.4.0 작업 지시는 역사 기록이며 현재 기준이 아니다.
+- 과거 Placeholder였던 모듈을 현재도 Placeholder라고 자동 간주하지 않는다.
+- 과거 Handoff의 다음 작업을 현재 Backlog로 자동 복원하지 않는다.
+
+## 알려진 제한과 검증 공백
+
+- v0.20.0과 v0.20.1은 Integration에 배포하지 않았다.
+- 인증 전 버전·반응형 셸 Browser 검증은 완료했지만 인증 후 직영 단건·일괄 배정과 권한·Revision·Idempotency·Audit E2E는 실행하지 않았다.
+- 별도 신규 Codex 세션의 Skill Trigger 자동 선택 E2E는 실행하지 않았다.
+- 운영 검증 상태는 `OPERATIONAL_VERIFICATION_PENDING`이다.
+- Production은 `NOT_CHANGED`다.
+- Issue 상태 흐름 단순화와 Today의 사용자별 조치 동선은 v0.21.1 범위에 포함하지 않았다.
+
+## 문서 충돌 및 정리 필요 항목
+
+| 문서 | 오래된 내용 | 실제 현재 상태 | 처리 방식 | 삭제 여부 | 근거 |
+| --- | --- | --- | --- | --- | --- |
+| `AIOS/00_PROJECT.md` | v0.2.2, 다수 Placeholder | v0.20.1 문서 릴리스와 위 모듈 상태 | 상단 `HISTORICAL` 표시 | 유지 | 버전 매트릭스·코드·테스트 |
+| `AIOS/12_NEXT_CHAT.md` | v0.3.0·v0.4.0 다음 작업 | 현재 작업으로 자동 승계하지 않음 | 상단 `HISTORICAL` 표시 | 유지 | 현재 VERSION·BASELINE |
+| `docs/98_NEXT_CHAT_HANDOFF.md` | v0.3.0·v0.8.0 기준과 과거 공백 | 공식 전달 원본은 `AIOS/NEXT_TASK.md` | 상단 `HISTORICAL` 표시 | 유지 | 저장소 참조 테스트 존재 |
+| `docs/99_START_NEXT_CHAT.md` | v0.3.0·v0.4.0 시작 지시 | 현재 진입점은 `AGENTS.md` | 상단 `HISTORICAL` 표시 | 유지 | validate 필수 문서 |
+| `docs/20_TODAY_PROVIDER_CONTRACT.md` 서두 | Workforce·Construction·Safety·Quality Placeholder | 해당 Provider는 현재 구현됨 | 역사적 v0.3.0 표로 보존, 이 문서를 우선 근거로 사용하지 않음 | 유지 | 현재 Provider 코드·테스트 |
+| `docs/03_DATA_OWNERSHIP.md` 서두 | 다수 OS 모듈 Placeholder | 후속 절과 코드에서 구현 확인 | 역사적 기초 계약으로 보존, 최신 상태는 이 문서 사용 | 유지 | 후속 계약·버전 매트릭스 |
+
+## 다음 작업
+
+다음 단일 작업은 `AIOS/NEXT_TASK.md`에서 현재 사용자 요청으로만 지정한다. 과거 Roadmap이나 Handoff를 자동 복원하지 않는다.
+
+- Issue 모바일 목록: 사진 중심 슬라이드, 25% 하단 Overlay, Swipe·Double Tap·Pinch Zoom과 단계적 원본 로딩 구현 완료. PC 목록과 기존 상세 처리 흐름 유지.
+
+## v0.22.0 Integration 배포·브라우저 검증 (2026-08-01)
+
+- Integration Worker `guis-arc-integrated-api-dev` 배포 완료. Version ID: `e1dbd863-bc95-42f7-bbc3-2d93c40b89a1`.
+- Integration Pages `guis-arc-integrated-dev` 배포 완료. Deployment ID: `81e0c92f-1790-48a9-a323-c773a7cd21af`.
+- 배포 URL: `https://81e0c92f.guis-arc-integrated-dev.pages.dev`.
+- Worker health에서 `version: 0.22.0`, `environment: integration`, Worker·D1·R2 binding 정상 확인.
+- 원격 Integration D1은 미적용 Migration 없음. Migration 변경·적용 없음.
+- 배포 전 검증: 전체 테스트 250/250, Typecheck 100개 모듈, Validate, Build, 한국어 UI 17개 파일 모두 PASS.
+- 실제 브라우저에서 로그인 화면과 문서 제목의 v0.22.0 표면 확인.
+- 인증된 Integration 세션과 허용된 E2E 계정 준비 수단이 없어 Issue Photo Viewer PC·360·390·412px 상호작용, 권한·회귀 Browser E2E는 `NOT_EXECUTED`.
+- 실제 삼성 인터넷 및 실제 모바일 기기 검증은 `NOT_EXECUTED`.
+- Production 리소스는 변경하지 않음.

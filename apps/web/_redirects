@@ -1,0 +1,1 @@
+# SPA fallback is handled by _worker.js so static module requests never receive HTML.

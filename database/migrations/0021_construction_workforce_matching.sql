@@ -1,0 +1,10 @@
+ALTER TABLE construction_daily_report_uploads ADD COLUMN today_workforce_total INTEGER;
+ALTER TABLE construction_daily_report_uploads ADD COLUMN employee_workforce INTEGER;
+ALTER TABLE construction_daily_report_uploads ADD COLUMN trade_workforce_total INTEGER;
+ALTER TABLE construction_daily_report_uploads ADD COLUMN source_total_workforce INTEGER;
+ALTER TABLE construction_daily_report_uploads ADD COLUMN workforce_total_matches_source INTEGER;
+ALTER TABLE construction_daily_report_uploads ADD COLUMN workforce_warnings_json TEXT;
+
+ALTER TABLE construction_daily_report_imported_items ADD COLUMN work_description_source TEXT NOT NULL DEFAULT 'ORIGINAL_WORK_PLAN';
+ALTER TABLE construction_daily_report_imported_items ADD COLUMN is_fallback_work_item INTEGER NOT NULL DEFAULT 0;
+ALTER TABLE construction_daily_report_imported_items ADD COLUMN trade_match_json TEXT;

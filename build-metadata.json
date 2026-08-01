@@ -1,0 +1,13 @@
+{
+  "version": "0.24.4",
+  "release": "PC Issue Dashboard Bulk Candidate and Checkbox Alignment Hotfix",
+  "constitutionVersion": "1.0.0",
+  "runtimeChange": "PC_ISSUE_BULK_CANDIDATE_AND_ALIGNMENT_HOTFIX",
+  "legacyIssueReference": "0.72.9",
+  "integrationDeployment": "https://guis-arc-integrated-dev.pages.dev",
+  "authenticatedTodayE2E": "NOT_EXECUTED",
+  "authenticatedIssueE2E": "NOT_EXECUTED",
+  "workforceE2E": "NOT_EXECUTED",
+  "constructionE2E": "NOT_EXECUTED",
+  "production": "UNCHANGED"
+}

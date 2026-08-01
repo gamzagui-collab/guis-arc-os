@@ -1,0 +1,3 @@
+ALTER TABLE quality_test_inspections ADD COLUMN material_reference TEXT;
+ALTER TABLE quality_test_inspections ADD COLUMN construction_daily_report_id TEXT REFERENCES construction_daily_reports(id);
+CREATE INDEX idx_quality_tests_daily_report ON quality_test_inspections(construction_daily_report_id);

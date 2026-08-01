@@ -1,0 +1,5 @@
+.nav-link span{margin-left:auto;transition:transform .15s}
+.nav-link[aria-expanded="true"] span{transform:rotate(180deg)}
+.nav-link[aria-expanded="false"]+.subnav{display:none}
+.subnav-link{min-height:44px}
+#mobile-logout{width:100%;margin-top:16px}

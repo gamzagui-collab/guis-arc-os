@@ -1,0 +1,30 @@
+{
+  "name": "guis-arc-integrated",
+  "version": "0.24.4",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "test": "node --test tests/*.test.mjs",
+    "typecheck": "node scripts/typecheck.mjs",
+    "validate": "node scripts/validate.mjs",
+    "validate:korean-ui": "node scripts/validate-korean-ui.mjs",
+    "build": "node scripts/build.mjs",
+    "audit:performance": "node scripts/performance-audit.mjs",
+    "admin:provision": "node scripts/admin-provision.mjs",
+    "admin:reset-construction-test-data": "node scripts/reset-construction-test-data.mjs",
+    "package:integrated": "node scripts/package-integrated.mjs",
+    "task:scope": "node scripts/task-scope.mjs",
+    "skills:validate": "node scripts/validate-skills.mjs"
+  },
+  "devDependencies": {
+    "wrangler": "4.110.0"
+  },
+  "engines": {
+    "node": ">=22.16.0"
+  },
+  "dependencies": {
+    "aws4fetch": "^1.0.20",
+    "fflate": "^0.8.2",
+    "qrcode": "^1.5.4"
+  }
+}
