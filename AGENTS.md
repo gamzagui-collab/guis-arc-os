@@ -1,5 +1,13 @@
 # GUI's Arc Codex 진입 지침
 
+## ChatGPT와 Codex 역할 요약
+
+- 기본 설계와 결과 검토는 ChatGPT가 담당한다.
+- 공식 코드·테스트·Migration·배포·Git·Integrated ZIP은 Codex가 담당한다.
+- Codex 결과는 ChatGPT 검토 후 다음 작업으로 진행한다.
+- ChatGPT 직접 구현은 사용자가 명시적으로 선택한 예외에 한한다.
+- 전체 역할 원본은 `DEVELOPMENT_RULES.md`의 “ChatGPT와 Codex의 개발 역할”을 따른다.
+
 ## 사실과 지침의 우선순위
 
 1. 현재 사용자의 명시적 요청

@@ -2,7 +2,7 @@ export const ISSUE_SCOPE = Object.freeze({ SITE: "SITE", CONTRACTOR: "CONTRACTOR
 
 export function resolveIssueScope(roleCodes = []) {
   const roles = new Set(roleCodes);
-  if (roles.has("INTEGRATED_OWNER") || roles.has("SITE_MANAGER") || roles.has("GENERAL_CONTRACTOR_STAFF") || roles.has("GENERAL_CONTRACTOR_FOREMAN") || roles.has("CONSTRUCTION_MANAGER") || roles.has("SAFETY_MANAGER") || roles.has("QUALITY_MANAGER") || roles.has("MATERIALS_MANAGER") || roles.has("EQUIPMENT_MANAGER")) return ISSUE_SCOPE.SITE;
+  if (roles.has("PLATFORM_OWNER") || roles.has("INTEGRATED_OWNER") || roles.has("SITE_MANAGER") || roles.has("GENERAL_CONTRACTOR_STAFF") || roles.has("GENERAL_CONTRACTOR_FOREMAN") || roles.has("CONSTRUCTION_MANAGER") || roles.has("SAFETY_MANAGER") || roles.has("QUALITY_MANAGER") || roles.has("MATERIALS_MANAGER") || roles.has("EQUIPMENT_MANAGER")) return ISSUE_SCOPE.SITE;
   if (roles.has("CONTRACTOR_MANAGER") || roles.has("CONTRACTOR_SITE_MANAGER") || roles.has("CONTRACTOR_FOREMAN") || roles.has("CONTRACTOR_EMPLOYEE")) return ISSUE_SCOPE.CONTRACTOR;
   if (roles.has("CONTRACTOR_ASSIGNEE")) return ISSUE_SCOPE.ASSIGNEE;
   if (roles.has("FIELD_WORKER")) return ISSUE_SCOPE.SELF_CREATED;

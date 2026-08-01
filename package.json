@@ -1,6 +1,6 @@
 {
   "name": "guis-arc-integrated",
-  "version": "0.24.4",
+  "version": "0.24.5",
   "private": true,
   "type": "module",
   "scripts": {
@@ -11,6 +11,7 @@
     "build": "node scripts/build.mjs",
     "audit:performance": "node scripts/performance-audit.mjs",
     "admin:provision": "node scripts/admin-provision.mjs",
+    "internal-test:manage": "node scripts/internal-test-manage.mjs",
     "admin:reset-construction-test-data": "node scripts/reset-construction-test-data.mjs",
     "package:integrated": "node scripts/package-integrated.mjs",
     "task:scope": "node scripts/task-scope.mjs",

@@ -1,3 +1,13 @@
+# v0.24.5 — 내부 테스트 현장 격리
+
+- 테스트 계정 준비 입력을 역할별 JSON에서 공통 8자리 시험 PIN 하나로 단순화하고, 계정별 salt·PBKDF2 hash 분리를 유지했습니다.
+- ChatGPT의 설계·검토 역할과 Codex의 공식 구현·배포·Git·패키징 역할을 개발 규칙에 명시했습니다.
+- 동일 Integration 서버와 DB에서 운영 현장과 내부 테스트 현장을 `sites.purpose`로 구분합니다.
+- 일반 계정의 운영·테스트 현장 교차 Membership을 DB와 서버에서 차단하고 Master 계정만 양쪽 진입을 허용합니다.
+- 현장 선택 UI를 운영 현장과 개발 도구로 분리하고 내부 테스트 현장에 영구 문구 배너를 표시합니다.
+- 기존 `e2e-v021` fixture를 확장한 명시적 Integration 전용 관리 명령을 추가했으며 자동 생성·물리 삭제·Production 실행은 금지합니다.
+- Migration 0028과 Integration 배포 및 실제 테스트 계정 생성은 이번 로컬 패키지 작업에서 실행하지 않았습니다. Production은 변경하지 않았습니다.
+
 # v0.24.4 — Codex Skill 체계와 Integration 배포
 
 - 기존 상위 실행 Skill 5개를 유지하고 역할이 분리된 전문 Skill 10개를 추가했습니다.

@@ -4,7 +4,7 @@ compatibility_date = "2026-07-21"
 
 [vars]
 APP_ENV = "integration"
-APP_VERSION = "0.24.4"
+APP_VERSION = "0.24.5"
 PUBLIC_ORIGIN = "https://guis-arc-integrated-dev.pages.dev"
 SESSION_COOKIE_NAME = "guis_arc_integrated_session"
 SESSION_IDLE_SECONDS = "43200"
