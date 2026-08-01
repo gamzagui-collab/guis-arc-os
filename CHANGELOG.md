@@ -1,3 +1,12 @@
+# v0.24.6 — 내부 테스트 계약 ID 재사용 Hotfix
+
+- 기존 Integration fixture DB에서 `(company_id, site_id)` 자연키로 저장된 실제 회사-현장 계약 ID를 재사용합니다.
+- 신규 DB에서는 기존 fixture 계약 ID를 생성하고, 기존 v0.21 DB에서는 `gc-contract-e2e-v021-site-a`처럼 이미 저장된 ID를 유지합니다.
+- 계약 공종과 일반 근로자 현장 등록이 실제 계약 ID를 참조하도록 수정해 FK 실패를 제거했습니다.
+- 동일 자연키의 복수 계약과 `OPERATIONAL` 현장 연결은 batch 실행 전에 한국어 오류로 차단합니다.
+- 내부 테스트 공통 PIN을 운영 계정과 동일한 숫자 4자리·PBKDF2-SHA256 100,000회 정책으로 맞추고 반복·연속된 단순 PIN을 거부합니다.
+- 신규 Migration은 없으며 Production은 변경하지 않습니다.
+
 # v0.24.5 — 내부 테스트 현장 격리
 
 - Integration D1에 Migration 0028을 적용하고 Worker·canonical Pages를 v0.24.5로 배포했습니다. E2E provisioning Secret과 공통 PIN이 없어 12계정 생성과 인증 Browser E2E는 실행하지 않았습니다.

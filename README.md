@@ -1,17 +1,17 @@
-# GUI's Arc Integrated v0.24.5
+# GUI's Arc Integrated v0.24.6
 
-v0.24.5는 동일한 Integration 배포 안에서 운영 현장과 `INTERNAL_TEST` 현장을 분리합니다. 일반 계정은 서로 다른 목적의 현장 Membership을 가질 수 없고, Master 계정만 현장 선택기의 “개발 도구” 그룹을 통해 내부 테스트 현장에 진입할 수 있습니다. 내부 테스트 fixture는 `npm run internal-test:manage -- <plan|apply|show|disable|enable>`로만 관리하며 Integration 대상이 명시되지 않으면 fail-closed 합니다. 자세한 계약은 `docs/37_INTERNAL_TEST_SITE_CONTRACT.md`를 참조하십시오.
+v0.24.6은 기존 Integration fixture DB의 실제 회사-현장 계약 ID를 재사용하는 최소 Hotfix입니다. v0.24.5의 내부 테스트 현장 격리 계약과 관리 명령은 그대로 유지하며, 자연키가 모호하거나 운영 현장인 경우 fail-closed 합니다. 자세한 계약은 `docs/37_INTERNAL_TEST_SITE_CONTRACT.md`를 참조하십시오.
 
 ```powershell
 $env:GUI_ARC_TARGET="integration"
 $env:GUI_ARC_E2E_PROVISIONING_SECRET="<Integration Secret>"
-$env:GUI_ARC_INTERNAL_TEST_PIN="<공통 8자리 시험 PIN>"
+$env:GUI_ARC_INTERNAL_TEST_PIN="<공통 4자리 시험 PIN>"
 npm run internal-test:manage -- plan
 npm run internal-test:manage -- apply
 npm run internal-test:manage -- show
 ```
 
-`apply`만 공통 PIN이 필요합니다. CLI는 계정마다 별도 salt와 PBKDF2 hash를 만들며 PIN 원문을 서버·로그·결과 JSON에 포함하지 않습니다.
+`apply`만 공통 4자리 숫자 PIN이 필요합니다. 반복·연속된 단순 PIN은 거부합니다. CLI는 운영 계정과 동일하게 계정마다 별도 salt와 PBKDF2-SHA256 100,000회 hash를 만들며 PIN 원문을 서버·로그·결과 JSON에 포함하지 않습니다.
 
 현장 이슈는 모바일 사진 슬라이드와 Overlay에서 확인하고, Construction Engine v1.0의 명시적 Rule로 추천 부서를 검토·확정한다. 외부 AI를 사용하지 않으며 Production은 변경하지 않는다.
 

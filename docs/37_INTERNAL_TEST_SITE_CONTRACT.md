@@ -27,6 +27,6 @@ Integration의 동일 서버·애플리케이션·D1에서 역할별 기능을 �
 
 ## Integration fixture
 
-`npm run internal-test:manage -- plan|apply|show|disable|enable`을 사용한다. 명령은 `GUI_ARC_TARGET=integration`과 보호된 provisioning secret이 없으면 실패한다. `apply`만 `GUI_ARC_INTERNAL_TEST_PIN`의 공통 8자리 숫자 PIN 하나를 요구한다. CLI는 계정마다 별도 salt와 PBKDF2 hash를 만들고 서버에는 hash·salt·iteration만 전달하며 PIN 원문을 저장·전송·출력하지 않는다. `plan`, `show`, `disable`, `enable`에는 PIN이 필요 없다. 재실행은 고정 namespace를 갱신하고, `disable`은 비활성화하며 물리 삭제하지 않는다.
+`npm run internal-test:manage -- plan|apply|show|disable|enable`을 사용한다. 명령은 `GUI_ARC_TARGET=integration`과 보호된 provisioning secret이 없으면 실패한다. `apply`만 `GUI_ARC_INTERNAL_TEST_PIN`의 공통 4자리 숫자 PIN 하나를 요구하며 반복·연속된 단순 PIN은 거부한다. CLI는 운영 계정과 동일하게 계정마다 별도 salt와 PBKDF2-SHA256 100,000회 hash를 만들고 서버에는 hash·salt·iteration만 전달하며 PIN 원문을 저장·전송·출력하지 않는다. `plan`, `show`, `disable`, `enable`에는 PIN이 필요 없다. 재실행은 고정 namespace를 갱신하고, `disable`은 비활성화하며 물리 삭제하지 않는다.
 
 기존 `e2e-v021` namespace는 내부 테스트 현장으로 편입한다. Production 실행, Migration 기반 계정 생성, 자동 로그인, 실제 사용자·회사·현장 변경과 prefix 기반 삭제를 금지한다.

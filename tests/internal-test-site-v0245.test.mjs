@@ -5,6 +5,7 @@ import {DatabaseSync} from "node:sqlite";
 import {resolveIssueScope,ISSUE_SCOPE} from "../worker/modules/issue-policy.js";
 import {INTERNAL_TEST_PRINCIPALS} from "../worker/core/issue-e2e-provisioning.js";
 import {createInternalTestCredentials,validateInternalTestPin} from "../scripts/internal-test-auth.mjs";
+import {pinValidationError} from "../worker/core/pin-policy.js";
 
 const read=path=>readFile(new URL(`../${path}`,import.meta.url),"utf8"),migration=await read("database/migrations/0028_internal_test_site.sql"),session=await read("worker/core/session.js"),worker=await read("worker/index.js"),ui=await read("apps/web/assets/app.js"),cli=await read("scripts/internal-test-manage.mjs"),fixture=await read("worker/core/issue-e2e-provisioning.js"),issues=await read("worker/modules/issues.js"),todayIssue=await read("worker/modules/today/providers/issue-provider.js"),workforce=await read("worker/modules/workforce.js");
 const agents=await read("AGENTS.md"),rules=await read("DEVELOPMENT_RULES.md");
@@ -48,16 +49,17 @@ test("internal test management is explicit idempotent-shaped and fail closed",()
  assert.match(cli,/Production target is forbidden/);assert.match(cli,/GUI_ARC_TARGET!=="integration"/);assert.match(cli,/GUI_ARC_INTERNAL_TEST_PIN/);assert.ok(!cli.includes("GUI_ARC_INTERNAL_TEST_PIN"+"S"));assert.doesNotMatch(cli,/console\.(log|error).*pin/i);
 });
 
-test("one common PIN creates separate non-logged credentials for all accounts",()=>{
- let sequence=0;const credentials=createInternalTestCredentials("87654321",size=>Buffer.alloc(size,++sequence));
+test("one common four digit PIN creates separate non-logged credentials for all accounts",()=>{
+ let sequence=0;const credentials=createInternalTestCredentials("5827",size=>Buffer.alloc(size,++sequence));
  assert.equal(Object.keys(credentials).length,12);
  assert.equal(new Set(Object.values(credentials).map(value=>value.credentialSalt)).size,12);
  assert.equal(new Set(Object.values(credentials).map(value=>value.credentialHash)).size,12);
  const serialized=JSON.stringify({action:"APPLY",credentials});
- assert.doesNotMatch(serialized,/87654321/);
- assert.throws(()=>validateInternalTestPin(),/8자리/);
- assert.throws(()=>validateInternalTestPin("1234567"),/8자리/);
- assert.throws(()=>validateInternalTestPin("abcdefgh"),/8자리/);
+ assert.doesNotMatch(serialized,/5827/);
+ assert.equal(validateInternalTestPin("5827"),"5827");
+ for(const invalid of["123","12345","12345678","abcd"])assert.throws(()=>validateInternalTestPin(invalid),/4자리/);
+ for(const weak of["0000","1111","1234","4321","4567","7654"])assert.throws(()=>validateInternalTestPin(weak),/단순 PIN/);
+ assert.equal(pinValidationError("5827"),null);
 });
 
 test("ChatGPT and Codex responsibilities have one canonical rule source",()=>{

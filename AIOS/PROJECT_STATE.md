@@ -1,13 +1,21 @@
 # GUI's Arc 현재 프로젝트 상태
 
-## v0.24.5 로컬 구현 상태 (2026-08-02)
+## v0.24.6 Hotfix 상태 (2026-08-02)
+
+- v0.24.5 내부 테스트 계정 apply 실패의 Root Cause는 기존 GC 계약의 실제 ID `gc-contract-e2e-v021-site-a`와 하위 관계가 가정한 `e2e-v021-contract-gc`의 불일치다.
+- v0.24.6은 `(company_id, site_id)` 자연키로 실제 계약 ID를 결정하고 계약 공종·근로자 등록에서 동일 ID를 재사용한다.
+- 신규 DB, 기존 v0.21 fixture, 2회 적용, batch rollback, 모호성·OPERATIONAL 차단 회귀 테스트를 추가했다.
+- 내부 테스트 공통 PIN은 운영 계정과 동일한 4자리 숫자·PBKDF2-SHA256 100,000회 정책을 사용하고 반복·연속된 단순 PIN은 거부한다.
+- Migration 변경은 없고 Integration Worker·Pages 재배포와 실제 fixture 재시도·Browser E2E는 검증 절차에서 수행한다. Production은 `NOT_CHANGED`다.
+
+## v0.24.5 배포 기준 (2026-08-02)
 
 - Integration D1 Migration `0028_internal_test_site.sql` 적용 완료, 재조회 미적용 0건이다.
 - Integration Worker `guis-arc-integrated-api-dev` 배포 완료. Version ID `05a9f880-8965-462c-b1e6-8d8b9052092b`, health는 v0.24.5/integration/D1·R2 정상이다.
 - Integration Pages `guis-arc-integrated-dev` canonical 배포 완료. 고유 URL은 `https://c788b05c.guis-arc-integrated-dev.pages.dev`이며 canonical의 version.js와 Service Worker cache는 v0.24.5다.
 - 기존 E2E 현장 2개는 `INTERNAL_TEST`, 일반 계정 교차 목적 충돌은 0건이다. 기존 fixture 7계정·활성 Membership 8건은 보존됐다.
 - E2E provisioning Secret과 공통 PIN이 없어 12계정 `plan/apply/show` 및 인증 Browser E2E는 `NOT_EXECUTED`다. 관리 API는 비활성 상태를 유지한다.
-- 배포 전 최종 보완에서 공통 8자리 시험 PIN 입력과 계정별 salt·PBKDF2 hash 생성 계약으로 CLI를 단순화했다.
+- v0.24.5 당시 공통 8자리 시험 PIN 계약은 v0.24.6에서 운영 계정과 동일한 4자리 정책으로 대체됐다.
 - ChatGPT는 설계·결과 검토, Codex는 공식 구현·검증·배포·Git·패키징을 담당하는 원칙을 `DEVELOPMENT_RULES.md`와 `AGENTS.md`에 반영했다.
 - 직접 기준본은 v0.24.4 공식 ZIP과 SHA-256 `455A993C035AD55722DEC5D71324158894159E11BEB3860BD3F98BDBD5560BA8`이다.
 - v0.24.5는 `sites.purpose` (`OPERATIONAL`, `INTERNAL_TEST`)와 Migration `0028_internal_test_site.sql`을 추가한다.
