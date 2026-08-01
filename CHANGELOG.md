@@ -1,3 +1,11 @@
+# v0.24.8 — 내부 테스트 접근 없음 권한 정리 Hotfix
+
+- v0.24.7 Integration apply가 12계정·13 Membership을 생성한 뒤 `no_access`의 과거 활성 Issue entitlement 때문에 readback 12/11 불일치로 실패한 문제를 수정했습니다.
+- `NO_ISSUE_ACCESS` fixture의 활성 Issue entitlement와 Issue Board grant를 같은 batch에서 비활성화합니다.
+- 다른 역할의 권한과 비활성 권한 이력은 보존합니다.
+- 과거 권한이 남은 DB의 2회 apply 회귀 테스트를 추가했습니다.
+- Migration과 Production은 변경하지 않습니다.
+
 # v0.24.7 — 내부 테스트 Board grant 이력 Hotfix
 
 - v0.24.6 확정 후 Integration apply에서 발견된 `board_access_grants` 활성·비활성 이력 충돌을 수정했습니다.

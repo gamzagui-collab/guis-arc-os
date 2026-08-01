@@ -56,9 +56,16 @@ test("applying twice is idempotent for fixture entities and relations",async()=>
  const sqlite=database(),db=d1(sqlite),input={credentials:credentials()};
  await provisionIssueE2EFixture(db,input,"twice-1");
  sqlite.prepare("INSERT INTO board_access_grants(id,site_id,board_id,user_id,access_level,is_active) VALUES('historical-inactive-issue','e2e-v021-site-a','board-issue','e2e-v021-user-site-manager','VIEW',0)").run();
+ sqlite.prepare("INSERT INTO module_entitlements(id,user_id,module_code,status) VALUES('stale-no-access-issue','e2e-v021-user-no-access','issue','ACTIVE')").run();
+ sqlite.prepare("INSERT INTO board_access_grants(id,site_id,board_id,user_id,access_level,is_active) VALUES('stale-no-access-board','e2e-v021-site-a','board-issue','e2e-v021-user-no-access','VIEW',1)").run();
+ sqlite.prepare("INSERT INTO user_site_roles(id,user_id,role_id,company_id,site_id,status) VALUES('stale-no-access-role','e2e-v021-user-no-access','role-general-contractor-staff','e2e-v021-company','e2e-v021-site-a','ACTIVE')").run();
  await provisionIssueE2EFixture(db,input,"twice-2");
  assert.deepEqual({companies:count(sqlite,"companies","id LIKE 'e2e-v021-%'"),sites:count(sqlite,"sites","id LIKE 'e2e-v021-site-%'"),contracts:count(sqlite,"company_site_contracts","company_id LIKE 'e2e-v021-%'"),users:count(sqlite,"users","id LIKE 'e2e-v021-user-%'"),memberships:count(sqlite,"memberships","user_id LIKE 'e2e-v021-user-%'"),trades:count(sqlite,"company_site_contract_trades","id LIKE 'e2e-v021-contract-trade-%'")},{companies:3,sites:2,contracts:3,users:12,memberships:13,trades:3});
  assert.equal(sqlite.prepare("SELECT is_active FROM board_access_grants WHERE id='historical-inactive-issue'").get().is_active,0);
+ assert.equal(sqlite.prepare("SELECT status FROM module_entitlements WHERE id='stale-no-access-issue'").get().status,"INACTIVE");
+ assert.equal(sqlite.prepare("SELECT is_active FROM board_access_grants WHERE id='stale-no-access-board'").get().is_active,0);
+ assert.equal(sqlite.prepare("SELECT status FROM user_site_roles WHERE id='stale-no-access-role'").get().status,"INACTIVE");
+ assert.equal(count(sqlite,"user_site_roles","user_id LIKE 'e2e-v021-user-%' AND status='ACTIVE'"),13);
  sqlite.close();
 });
 

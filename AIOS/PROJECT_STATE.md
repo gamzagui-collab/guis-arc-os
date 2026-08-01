@@ -1,6 +1,12 @@
 # GUI's Arc 현재 프로젝트 상태
 
-## v0.24.7 Hotfix 상태 (2026-08-02)
+## v0.24.8 Hotfix 상태 (2026-08-02)
+
+- v0.24.7 Integration apply에서 12계정·13 Membership 생성은 성공했으나 `no_access` 계정의 과거 활성 Issue entitlement가 남아 readback이 기대 11 대신 12로 실패했다.
+- v0.24.8은 `NO_ISSUE_ACCESS` fixture의 활성 Issue entitlement와 Issue Board grant를 batch 안에서 비활성화한다.
+- 관리 API와 임시 Secret은 실패 직후 정리됐으며 Migration과 Production은 변경하지 않는다.
+
+## v0.24.7 Board grant 이력 Hotfix 기준 (2026-08-02)
 
 - v0.24.6 확정 후 Integration apply에서 기존 활성 Board grant와 비활성 역사 행을 동시에 재활성화해 partial UNIQUE index가 충돌하는 결함을 확인했다.
 - 실패 batch는 원자적으로 rollback되어 fixture 계정 7개·활성 Membership 8개 상태가 보존됐고 부분 생성은 없다.

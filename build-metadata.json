@@ -1,8 +1,8 @@
 {
-  "version": "0.24.7",
-  "release": "Internal Test Board Grant History Hotfix",
+  "version": "0.24.8",
+  "release": "Internal Test No-Access Entitlement Hotfix",
   "constitutionVersion": "1.0.0",
-  "runtimeChange": "INTERNAL_TEST_ACTIVE_BOARD_GRANT_UPDATE",
+  "runtimeChange": "INTERNAL_TEST_NO_ACCESS_REVOCATION",
   "legacyIssueReference": "0.72.9",
   "integrationDeployment": "https://guis-arc-integrated-dev.pages.dev",
   "integrationWorkerVersionId": "PENDING_FINAL_DEPLOY",
