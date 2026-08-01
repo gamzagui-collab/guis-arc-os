@@ -1,11 +1,11 @@
 # GUI's Arc 다음 단일 작업
 
-## v0.24.6 Hotfix 인계 기준
+## v0.24.7 Hotfix 인계 기준
 
-- v0.24.5 Integration D1 0028·Worker·canonical Pages 배포 상태를 기준으로, v0.24.6은 실제 회사-현장 계약 ID 재사용만 보완한다.
+- v0.24.6 Integration apply에서 발견된 비활성 Board grant 역사 재활성화 충돌을 v0.24.7에서 최소 수정한다.
 - E2E provisioning Secret과 공통 PIN이 준비되면 관리 API를 승인된 시간 동안만 활성화하고 `plan → apply → show → 인증 Browser E2E → 재비활성화`한다.
 - 내부 테스트 계정 `apply`는 `GUI_ARC_INTERNAL_TEST_PIN` 공통 4자리 숫자 PIN 하나만 받으며 반복·연속 PIN을 거부하고 계정마다 서로 다른 salt와 PBKDF2-SHA256 100,000회 hash를 생성한다.
-- 현재 소스 버전: v0.24.6
+- 현재 소스 버전: v0.24.7
 - 직접 기준 ZIP: `GUI_Arc_Integrated_v0.24.4_Integrated.zip`
 - 직접 기준 SHA-256: `455A993C035AD55722DEC5D71324158894159E11BEB3860BD3F98BDBD5560BA8`
 - 로컬 구현: 내부 테스트 현장 격리, Migration 0028, 12개 역할별 fixture, Integration 전용 관리 CLI.

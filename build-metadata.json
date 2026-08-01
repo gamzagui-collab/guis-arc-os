@@ -1,8 +1,8 @@
 {
-  "version": "0.24.6",
-  "release": "Internal Test Contract Identity Hotfix",
+  "version": "0.24.7",
+  "release": "Internal Test Board Grant History Hotfix",
   "constitutionVersion": "1.0.0",
-  "runtimeChange": "INTERNAL_TEST_CONTRACT_ID_REUSE",
+  "runtimeChange": "INTERNAL_TEST_ACTIVE_BOARD_GRANT_UPDATE",
   "legacyIssueReference": "0.72.9",
   "integrationDeployment": "https://guis-arc-integrated-dev.pages.dev",
   "integrationWorkerVersionId": "PENDING_FINAL_DEPLOY",

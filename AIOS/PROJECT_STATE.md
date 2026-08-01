@@ -1,6 +1,12 @@
 # GUI's Arc 현재 프로젝트 상태
 
-## v0.24.6 Hotfix 상태 (2026-08-02)
+## v0.24.7 Hotfix 상태 (2026-08-02)
+
+- v0.24.6 확정 후 Integration apply에서 기존 활성 Board grant와 비활성 역사 행을 동시에 재활성화해 partial UNIQUE index가 충돌하는 결함을 확인했다.
+- 실패 batch는 원자적으로 rollback되어 fixture 계정 7개·활성 Membership 8개 상태가 보존됐고 부분 생성은 없다.
+- v0.24.7은 활성 Board grant만 갱신하며 비활성 이력을 보존한다. Migration과 Production은 변경하지 않는다.
+
+## v0.24.6 계약 ID·PIN Hotfix 기준 (2026-08-02)
 
 - v0.24.5 내부 테스트 계정 apply 실패의 Root Cause는 기존 GC 계약의 실제 ID `gc-contract-e2e-v021-site-a`와 하위 관계가 가정한 `e2e-v021-contract-gc`의 불일치다.
 - v0.24.6은 `(company_id, site_id)` 자연키로 실제 계약 ID를 결정하고 계약 공종·근로자 등록에서 동일 ID를 재사용한다.

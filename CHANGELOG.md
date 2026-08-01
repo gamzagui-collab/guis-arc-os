@@ -1,3 +1,11 @@
+# v0.24.7 — 내부 테스트 Board grant 이력 Hotfix
+
+- v0.24.6 확정 후 Integration apply에서 발견된 `board_access_grants` 활성·비활성 이력 충돌을 수정했습니다.
+- fixture 권한 갱신은 활성 grant만 변경하며 비활성 이력을 재활성화하지 않습니다.
+- 활성 grant가 없을 때는 기존 idempotent INSERT가 새 활성 행을 생성합니다.
+- 활성 행과 비활성 역사 행이 공존하는 상태의 2회 apply 회귀 테스트를 추가했습니다.
+- Migration과 Production은 변경하지 않습니다.
+
 # v0.24.6 — 내부 테스트 계약 ID 재사용 Hotfix
 
 - 기존 Integration fixture DB에서 `(company_id, site_id)` 자연키로 저장된 실제 회사-현장 계약 ID를 재사용합니다.

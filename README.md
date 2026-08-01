@@ -1,6 +1,6 @@
-# GUI's Arc Integrated v0.24.6
+# GUI's Arc Integrated v0.24.7
 
-v0.24.6은 기존 Integration fixture DB의 실제 회사-현장 계약 ID를 재사용하는 최소 Hotfix입니다. v0.24.5의 내부 테스트 현장 격리 계약과 관리 명령은 그대로 유지하며, 자연키가 모호하거나 운영 현장인 경우 fail-closed 합니다. 자세한 계약은 `docs/37_INTERNAL_TEST_SITE_CONTRACT.md`를 참조하십시오.
+v0.24.7은 기존 Integration fixture DB의 실제 회사-현장 계약 ID를 재사용하고 비활성 Board grant 이력을 재활성화하지 않는 최소 Hotfix입니다. v0.24.5의 내부 테스트 현장 격리 계약과 관리 명령은 그대로 유지하며, 자연키가 모호하거나 운영 현장인 경우 fail-closed 합니다. 자세한 계약은 `docs/37_INTERNAL_TEST_SITE_CONTRACT.md`를 참조하십시오.
 
 ```powershell
 $env:GUI_ARC_TARGET="integration"

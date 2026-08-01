@@ -54,8 +54,11 @@ test("existing v0.21 GC contract is reused without duplicate or FK failure",asyn
 
 test("applying twice is idempotent for fixture entities and relations",async()=>{
  const sqlite=database(),db=d1(sqlite),input={credentials:credentials()};
- await provisionIssueE2EFixture(db,input,"twice-1");await provisionIssueE2EFixture(db,input,"twice-2");
+ await provisionIssueE2EFixture(db,input,"twice-1");
+ sqlite.prepare("INSERT INTO board_access_grants(id,site_id,board_id,user_id,access_level,is_active) VALUES('historical-inactive-issue','e2e-v021-site-a','board-issue','e2e-v021-user-site-manager','VIEW',0)").run();
+ await provisionIssueE2EFixture(db,input,"twice-2");
  assert.deepEqual({companies:count(sqlite,"companies","id LIKE 'e2e-v021-%'"),sites:count(sqlite,"sites","id LIKE 'e2e-v021-site-%'"),contracts:count(sqlite,"company_site_contracts","company_id LIKE 'e2e-v021-%'"),users:count(sqlite,"users","id LIKE 'e2e-v021-user-%'"),memberships:count(sqlite,"memberships","user_id LIKE 'e2e-v021-user-%'"),trades:count(sqlite,"company_site_contract_trades","id LIKE 'e2e-v021-contract-trade-%'")},{companies:3,sites:2,contracts:3,users:12,memberships:13,trades:3});
+ assert.equal(sqlite.prepare("SELECT is_active FROM board_access_grants WHERE id='historical-inactive-issue'").get().is_active,0);
  sqlite.close();
 });
 
