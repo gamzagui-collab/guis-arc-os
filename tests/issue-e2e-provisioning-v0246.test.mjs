@@ -76,6 +76,14 @@ test("injected batch failure rolls back every fixture mutation",async()=>{
  sqlite.close();
 });
 
+test("fixture rejects an arbitrary phone identifier outside the fixed account mapping",async()=>{
+ const sqlite=database(),input={credentials:credentials()};
+ input.credentials.site_manager.identifier="01099999999";
+ await assert.rejects(()=>provisionIssueE2EFixture(d1(sqlite),input,"bad-identifier"),/E2E_FIXTURE_IDENTIFIER_INVALID/);
+ assert.equal(count(sqlite,"users","id LIKE 'e2e-v021-user-%'"),0);
+ sqlite.close();
+});
+
 test("ambiguous natural key and OPERATIONAL site fail closed in Korean",async()=>{
  const ambiguous={prepare(sql){return{bind(){return sql.startsWith("SELECT purpose")?{first:async()=>({purpose:"INTERNAL_TEST"})}:{all:async()=>({results:[{id:"a"},{id:"b"}]})}}}}};
  await assert.rejects(()=>ensureCompanySiteContract(ambiguous,{desiredId:"new",companyId:"company",siteId:"site"}),/계약이 여러 개/);

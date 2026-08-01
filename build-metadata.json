@@ -1,8 +1,8 @@
 {
-  "version": "0.24.8",
-  "release": "Internal Test No-Access Entitlement Hotfix",
+  "version": "0.24.9",
+  "release": "Internal Test Phone Login Fixture Hotfix",
   "constitutionVersion": "1.0.0",
-  "runtimeChange": "INTERNAL_TEST_NO_ACCESS_REVOCATION",
+  "runtimeChange": "INTERNAL_TEST_PHONE_IDENTIFIERS",
   "legacyIssueReference": "0.72.9",
   "integrationDeployment": "https://guis-arc-integrated-dev.pages.dev",
   "integrationWorkerVersionId": "PENDING_FINAL_DEPLOY",

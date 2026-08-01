@@ -1,3 +1,10 @@
+# v0.24.9 — 내부 테스트 전화번호 로그인 Hotfix
+
+- 12개 Integration 내부 테스트 계정에 고정된 11자리 전화번호 식별자를 배정했다.
+- 서버 provisioning은 계정별 기대 전화번호를 정확히 검증하며 임의 식별자를 거부한다.
+- 기존 fixture user ID·membership·role·권한을 보존한 채 로그인 식별자와 salt/hash만 안전하게 갱신한다.
+- 실제 로그인 UI의 숫자 입력·전화번호 정규화 계약과 Browser E2E 계정 계약을 일치시켰다.
+
 # v0.24.8 — 내부 테스트 접근 없음 권한 정리 Hotfix
 
 - v0.24.7 Integration apply가 12계정·13 Membership을 생성한 뒤 `no_access`의 과거 활성 Issue entitlement 때문에 readback 12/11 불일치로 실패한 문제를 수정했습니다.

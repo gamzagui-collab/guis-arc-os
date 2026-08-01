@@ -32,8 +32,8 @@ export async function ensureCompanySiteContract(db,{desiredId,companyId,siteId})
 export async function provisionIssueE2EFixture(db,input,requestId){
  const credentials=input?.credentials;
  if(!credentials||Object.keys(PRINCIPALS).some(key=>!credentials[key]))throw new Error("E2E_FIXTURE_INPUT_INVALID");
- const identifiers=Object.values(credentials).map(value=>String(value.identifier||"").toLowerCase());
- if(new Set(identifiers).size!==identifiers.length||identifiers.some(value=>!value.startsWith("e2e-v021-")))throw new Error("E2E_FIXTURE_IDENTIFIER_INVALID");
+ const identifiers=Object.entries(PRINCIPALS).map(([key],index)=>({actual:String(credentials[key]?.identifier||""),expected:`0102408${String(index+1).padStart(4,"0")}`}));
+ if(new Set(identifiers.map(value=>value.actual)).size!==identifiers.length||identifiers.some(value=>value.actual!==value.expected))throw new Error("E2E_FIXTURE_IDENTIFIER_INVALID");
  const roleCodes=[...new Set(Object.values(PRINCIPALS).map(value=>value.role))],rolePlaceholders=roleCodes.map((_,index)=>`?${index+1}`).join(","),roles=(await db.prepare(`SELECT id,code FROM roles WHERE code IN (${rolePlaceholders})`).bind(...roleCodes).all()).results||[],roleMap=Object.fromEntries(roles.map(role=>[role.code,role.id]));
  if(Object.values(PRINCIPALS).some(principal=>!roleMap[principal.role]))throw new Error("E2E_FIXTURE_ROLE_MISSING");
  const contractIds=Object.fromEntries(await Promise.all(Object.entries(CONTRACTS).map(async([key,contract])=>[key,await ensureCompanySiteContract(db,contract)])));

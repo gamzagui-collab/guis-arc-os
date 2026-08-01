@@ -1,7 +1,9 @@
+import {internalTestIdentifier} from "./internal-test-auth.mjs";
+
 const origin="https://guis-arc-integrated-api-dev.gamzagui.workers.dev";
 const pins=JSON.parse(process.env.GUI_ARC_E2E_PINS||"{}");
 const controlSecret=process.env.GUI_ARC_E2E_PROVISIONING_SECRET||"";
-const identifiers=Object.fromEntries(Object.keys(pins).map(key=>[key,`e2e-v021-${key.replaceAll("_","-")}@integration.invalid`]));
+const identifiers=Object.fromEntries(Object.keys(pins).map(key=>[key,internalTestIdentifier(key)]));
 const results={};
 const cookieFrom=response=>(response.headers.getSetCookie?.()||[response.headers.get("set-cookie")]).filter(Boolean).map(value=>value.split(";",1)[0]).join("; ");
 async function login(key){const started=performance.now(),response=await fetch(`${origin}/api/v1/auth/login`,{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({identifier:identifiers[key],pin:pins[key]})}),body=await response.json(),cookie=cookieFrom(response),loginMs=Math.round((performance.now()-started)*100)/100;if(response.status!==200||!cookie||!body.context)throw new Error(`LOGIN_${key}_${response.status}`);return {key,cookie,csrf:body.csrfToken,context:body.context,loginMs,serverTiming:response.headers.get("server-timing")||""}}

@@ -1,9 +1,10 @@
 # GUI's Arc 현재 프로젝트 상태
 
-## v0.24.8 Hotfix 상태 (2026-08-02)
+## v0.24.9 Hotfix 상태 (2026-08-02)
 
 - v0.24.7 Integration apply에서 12계정·13 Membership 생성은 성공했으나 `no_access` 계정의 과거 활성 Issue entitlement가 남아 readback이 기대 11 대신 12로 실패했다.
-- v0.24.8은 `NO_ISSUE_ACCESS` fixture의 활성 Issue entitlement와 Issue Board grant를 batch 안에서 비활성화한다.
+- v0.24.9는 실제 로그인 UI 계약에 맞춰 12개 fixture 식별자를 고정 11자리 전화번호로 갱신한다.
+- v0.24.8의 `NO_ISSUE_ACCESS` entitlement·Issue Board grant 정리와 활성 역할 13개 readback을 유지한다.
 - 관리 API와 임시 Secret은 실패 직후 정리됐으며 Migration과 Production은 변경하지 않는다.
 
 ## v0.24.7 Board grant 이력 Hotfix 기준 (2026-08-02)

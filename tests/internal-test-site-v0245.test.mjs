@@ -4,7 +4,7 @@ import {readFile} from "node:fs/promises";
 import {DatabaseSync} from "node:sqlite";
 import {resolveIssueScope,ISSUE_SCOPE} from "../worker/modules/issue-policy.js";
 import {INTERNAL_TEST_PRINCIPALS} from "../worker/core/issue-e2e-provisioning.js";
-import {createInternalTestCredentials,validateInternalTestPin} from "../scripts/internal-test-auth.mjs";
+import {createInternalTestCredentials,internalTestIdentifier,validateInternalTestPin} from "../scripts/internal-test-auth.mjs";
 import {pinValidationError} from "../worker/core/pin-policy.js";
 
 const read=path=>readFile(new URL(`../${path}`,import.meta.url),"utf8"),migration=await read("database/migrations/0028_internal_test_site.sql"),session=await read("worker/core/session.js"),worker=await read("worker/index.js"),ui=await read("apps/web/assets/app.js"),cli=await read("scripts/internal-test-manage.mjs"),fixture=await read("worker/core/issue-e2e-provisioning.js"),issues=await read("worker/modules/issues.js"),todayIssue=await read("worker/modules/today/providers/issue-provider.js"),workforce=await read("worker/modules/workforce.js");
@@ -54,6 +54,8 @@ test("one common four digit PIN creates separate non-logged credentials for all 
  assert.equal(Object.keys(credentials).length,12);
  assert.equal(new Set(Object.values(credentials).map(value=>value.credentialSalt)).size,12);
  assert.equal(new Set(Object.values(credentials).map(value=>value.credentialHash)).size,12);
+ assert.deepEqual(Object.values(credentials).map(value=>value.identifier),Array.from({length:12},(_,index)=>`0102408${String(index+1).padStart(4,"0")}`));
+ assert.equal(internalTestIdentifier("site_manager"),"01024080001");
  const serialized=JSON.stringify({action:"APPLY",credentials});
  assert.doesNotMatch(serialized,/5827/);
  assert.equal(validateInternalTestPin("5827"),"5827");

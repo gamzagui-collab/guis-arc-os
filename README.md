@@ -1,6 +1,6 @@
-# GUI's Arc Integrated v0.24.8
+# GUI's Arc Integrated v0.24.9
 
-v0.24.8은 기존 Integration fixture DB의 실제 계약 ID와 비활성 Board grant 이력을 보존하고 `no_access` fixture의 오래된 Issue 권한을 명시적으로 비활성화하는 최소 Hotfix입니다. 자세한 계약은 `docs/37_INTERNAL_TEST_SITE_CONTRACT.md`를 참조하십시오.
+v0.24.9는 기존 Integration fixture의 권한·계정 ID를 보존하면서 실제 로그인 UI 계약에 맞는 11자리 전화번호 식별자로 갱신하는 최소 Hotfix입니다. 자세한 계약은 `docs/37_INTERNAL_TEST_SITE_CONTRACT.md`를 참조하십시오.
 
 ```powershell
 $env:GUI_ARC_TARGET="integration"
