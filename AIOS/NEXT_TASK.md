@@ -1,5 +1,12 @@
 # GUI's Arc 다음 단일 작업
 
+## v0.24.15 현재 작업
+
+- 부서 enum과 Issue 생성 상태 이력의 한국어 표시를 최종 검증한다.
+- 공사담당자 상세 배정·부서 관리 UI를 공식 Board Access 계약과 정렬하고 다른 역할·현장 격리를 회귀 검증한다.
+- Migration과 Production은 변경하지 않는다.
+- Integration Worker·Pages 배포와 역할별 Browser E2E는 별도 승인 후 수행한다.
+
 ## v0.24.14 Engine Core v1 Stabilization 현재 작업
 
 - 남은 검증: 새 브라우저 세션에서 역할별 Browser E2E와 ISSUE_CREATED, TITLE_CHANGED, DESCRIPTION_CHANGED, TRADE_CHANGED, MANUAL_REQUEST의 Integration History·Metrics 증분을 실제 확인한다.

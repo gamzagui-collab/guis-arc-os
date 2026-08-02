@@ -1,9 +1,9 @@
 {
     "product":  "GUI\u0027s Arc Integrated",
-    "version":  "0.24.14",
+    "version":  "0.24.15",
     "baselineVersion":  "0.24.4",
     "baselineSha256":  "455A993C035AD55722DEC5D71324158894159E11BEB3860BD3F98BDBD5560BA8",
-    "branch":  "feature/engine-core-v1-stabilization",
+    "branch":  "hotfix/v0.24.15-korean-ui-permission",
     "releaseType":  "INTEGRATED",
     "integrationStatus":  "DEPLOYED",
     "productionChanged":  false

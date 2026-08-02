@@ -18,6 +18,13 @@ export const STATUS_LABELS={
 };
 export const ACCESS_LABELS={NONE:"권한 없음",VIEW:"열람",EDIT:"수정",MANAGE:"관리"};
 export const COMPANY_TYPE_LABELS={GENERAL_CONTRACTOR:"원도급사",SUBCONTRACTOR:"협력업체"};
+export const DEPARTMENT_LABELS={CONSTRUCTION:"공사",SAFETY:"안전",QUALITY:"품질",ADMINISTRATION:"관리",UNCLASSIFIED:"미분류"};
+const ISSUE_HISTORY_REASON_LABELS={
+ "Issue created without assignment":"담당자 미배정 상태로 이슈가 등록되었습니다.",
+ ISSUE_CREATED_WITHOUT_ASSIGNMENT:"담당자 미배정 상태로 이슈가 등록되었습니다.",
+ "Issue created and assigned":"담당자가 배정된 상태로 이슈가 등록되었습니다.",
+ ISSUE_CREATED_AND_ASSIGNED:"담당자가 배정된 상태로 이슈가 등록되었습니다."
+};
 const ERROR_MESSAGES={
  LOGIN_FAILED:"로그인 정보를 확인해 주세요.",UNAUTHORIZED:"로그인이 필요합니다.",SESSION_REQUIRED:"로그인이 필요합니다.",
  SESSION_INVALID:"세션이 만료되었습니다. 다시 로그인해 주세요.",SESSION_EXPIRED:"로그인 시간이 만료되었습니다.",
@@ -114,6 +121,14 @@ export const moduleLabel=value=>MODULE_LABELS[value]||value||"알 수 없는 모
 export const statusLabel=value=>STATUS_LABELS[value]||value||"상태 없음";
 export const accessLabel=value=>ACCESS_LABELS[value]||value||"권한 없음";
 export const companyTypeLabel=value=>COMPANY_TYPE_LABELS[value]||value||"회사 유형 미지정";
+export const departmentLabel=value=>DEPARTMENT_LABELS[value]||value||"미분류";
+export function issueHistoryReasonLabel(value){
+ const reason=String(value||"").trim();
+ if(!reason)return "상세 사유 없음";
+ if(ISSUE_HISTORY_REASON_LABELS[reason])return ISSUE_HISTORY_REASON_LABELS[reason];
+ if(/(?:^|\n)\s*at\s+\S+|\b(?:Error|stack trace)\b/i.test(reason))return "상세 사유를 표시할 수 없습니다.";
+ return reason;
+}
 export function errorMessage(body={},status=0){
  const code=typeof body==="string"?body:body?.error;if(ERROR_MESSAGES[code])return ERROR_MESSAGES[code];
  if(status===400)return "잘못된 항목과 안내 문구를 확인해 주세요.";if(status===401)return "로그인이 필요합니다.";

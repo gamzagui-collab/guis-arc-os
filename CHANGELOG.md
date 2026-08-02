@@ -1,3 +1,10 @@
+# v0.24.15 — Issue 한국어 표시·배정 권한 정합성 Hotfix
+
+- 공식 5개 부서 enum을 공통 한국어 formatter로 표시하고 canonical Engine·API·DB 값은 유지한다.
+- 기존 영문 Issue 생성 이력과 대응 reason code를 한국어로 표시하며 과거 DB 원문을 변경하지 않는다.
+- 공사담당자 상세 배정·부서 관리 UI를 `SITE scope + ISSUE EDIT/MANAGE` Board Access 계약에 맞추고 레거시 `issue.assign` 직접 비교를 제거한다.
+- Migration과 Production 변경은 없다.
+
 # v0.24.14 — Engine Core v1 Stabilization
 
 - Engine SDK 평가와 Registry·History·Metrics 기록을 분리하고 기본 fail-open 및 명시적 strict 모드를 추가했다.

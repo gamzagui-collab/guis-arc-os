@@ -1,6 +1,6 @@
-# GUI's Arc Integrated v0.24.14
+# GUI's Arc Integrated v0.24.15
 
-v0.24.14는 Issue 단건·일괄 배정에서 UI payload, Worker 검증, DB의 `UNASSIGNED`·`DIRECT`·`CONTRACTOR` 유형과 `OPEN`·`ASSIGNED` 상태 전이를 일치시킨 최소 Hotfix입니다. 일반 협력업체 선택은 명시적으로 `CONTRACTOR`로 저장되며 잘못된 업체·공종·담당자 조합은 저장 전에 거부됩니다.
+v0.24.15는 Issue 부서와 상태 이력의 사용자 표시를 한국어로 변환하고, 공사담당자 배정 UI를 공식 `SITE scope + ISSUE EDIT/MANAGE` Board Access 계약과 일치시킨 최소 Hotfix입니다. Engine·API·DB 원본·Migration과 Production은 변경하지 않습니다.
 
 ```powershell
 $env:GUI_ARC_TARGET="integration"

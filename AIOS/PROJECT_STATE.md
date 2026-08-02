@@ -1,5 +1,14 @@
 # GUI's Arc 현재 프로젝트 상태
 
+## v0.24.15 Issue 한국어 표시·배정 권한 정합성 Hotfix 상태 (2026-08-02)
+
+- `UNCLASSIFIED` 등 공식 5개 부서 enum과 기존 Issue 생성 이력 영문 원문은 DB·API 값을 유지한 채 공통 한국어 formatter에서 표시한다.
+- 알 수 없는 정상 이력 문자열은 원문을 유지하고 오류·stack 형태만 안전 문구로 대체한다.
+- `CONSTRUCTION_MANAGER`의 공식 계약은 SITE scope와 ISSUE EDIT/MANAGE Board Access다. Integration 계정은 ACTIVE Membership, 해당 역할, ISSUE EDIT grant가 정상이며 레거시 role permission은 없다.
+- 상세 배정·부서 관리 UI의 잔존 `issue.assign` 직접 검사를 `/issues/options`의 `canBulkManage` 판정으로 교체한다. Grant·Seed·Role Template·D1은 변경하지 않는다.
+- Engine Core, Construction Rule·Snapshot·History·Metrics, Worker API, DB, Migration과 Production은 변경하지 않는다.
+- Integration Worker v0.24.15 `7fd17d7a-8d67-4447-94b3-dda14d63a55b`와 Pages `4527b29d-2963-4ab0-ba4b-d48b6f217c40`을 배포했다. health의 Worker·D1·R2, canonical Pages 버전·Service Worker 캐시·Hotfix 자산을 확인했다. 역할별 Browser E2E는 아직 `NOT_EXECUTED`다.
+
 ## v0.24.14 Engine Core v1 Stabilization 상태 (2026-08-02)
 
 - v0.24.14 Integration Worker `37136a26-7e4c-410f-92fa-de603901025f`와 Pages `9bc32428-de6e-40c2-8bf9-4e81160b61a9` 배포 및 health를 확인했다.
@@ -225,3 +234,16 @@ v0.24.4는 기존 5개 상위 Skill과 10개 전문 Skill, 정적 Validator와 T
 - 공사담당자 Integration 역할에 `issue.assign` permission이 없어 관리 UI를 사용할 수 없는 Configuration 경고가 있다.
 - 완료된 Issue의 부서 분류 `UNCLASSIFIED`와 상태 이력 사유 `Issue created without assignment`가 내부 영문 값으로 노출되는 한국어 UI 표시 경고가 있다.
 - 실제 모바일 카메라 촬영은 v0.24.14에서 재실행하지 않았다. 사진 경로가 변경되지 않았으므로 v0.24.12 실제 모바일 PASS를 기존 증거로만 인용한다.
+
+## v0.24.15 한국어 UI·Issue 권한 Hotfix Integration 검증 (2026-08-02)
+
+- Integration Worker Version ID: `7fd17d7a-8d67-4447-94b3-dda14d63a55b`.
+- Integration Pages Production Deployment ID: `5e30f0c6-8f3f-4ac7-9ab7-d9e1de5fc60f`; canonical URL은 `https://guis-arc-integrated-dev.pages.dev`다.
+- 완료 Issue `03542a64-d4ea-4cb3-936b-9dc0884f0c6e`에서 `UNCLASSIFIED`는 `미분류`로, `Issue created without assignment`는 한국어 상태 이력 사유로 표시된다. DB·API 원본 값은 변경하지 않았다.
+- 안전관리자, 협력업체 관리자 A, 공사담당자, 현장소장, 협력업체 담당자 A의 동일 Issue 접근·역할별 UI를 실제 인증 세션으로 확인했다.
+- 공사담당자는 ASSIGNED Issue `90f65270-e85d-47b2-9f56-c725b46cdffa`에서 단일 업체·공종·담당자 배정 UI와 PC 일괄 변경 진입 권한을 정상적으로 받았다. 별도 `issue.assign` 권한이나 Grant 확대는 없다.
+- 협력업체 담당자 A는 동일 ASSIGNED Issue의 `flow=action`에서 기존 조치 폼이 유지된다. 검증 중 데이터 저장은 실행하지 않았다.
+- 접근 없음 계정은 Issue 메뉴가 없고 상세 URL은 모듈 접근 오류, 직접 API는 `BOARD_ACCESS_DENIED`로 차단됐다.
+- 현장소장이 `e2e-v021-site-b` Context에서 site-a Issue에 접근했을 때 차단됐고, site-a로 전환한 뒤 정상 접근하여 현장 격리도 확인했다.
+- 역할별 Browser E2E Console error는 0건이다. Network 전체 자동 수집은 지원 표면 부재로 `NOT_EXECUTED`이며, 직접 권한 API 응답은 확인했다.
+- Migration 추가·D1 변경·R2 변경은 없으며 Production은 `NOT_CHANGED`다.
