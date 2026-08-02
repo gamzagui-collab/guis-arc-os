@@ -10,14 +10,16 @@ export function validateEngineDefinition(definition){
  if(!NAME.test(String(definition.engineName||"")))throw new Error("ENGINE_NAME_INVALID");
  if(!VERSION.test(String(definition.engineVersion||"")))throw new Error("ENGINE_VERSION_INVALID");
  if(String(definition.contractVersion)!==ENGINE_CONTRACT_VERSION)throw new Error("ENGINE_CONTRACT_VERSION_UNSUPPORTED");
+ for(const key of["displayName","ruleVersion","schemaVersion","status"])required(definition[key],`DEFINITION_${key.toUpperCase()}`);
+ if(typeof definition.enabled!=="boolean")throw new Error("ENGINE_DEFINITION_ENABLED_REQUIRED");
  if(typeof definition.evaluate!=="function"||typeof definition.toRecommendation!=="function")throw new Error("ENGINE_ADAPTER_INVALID");
  return definition;
 }
 export function validateEventType(value){const event=String(value||"");if(!EVENT.test(event))throw new Error("ENGINE_EVENT_INVALID");return event}
 export function validateEvaluationContext(context){
- for(const key of["entityType","entityId","siteId","entityRevision","eventType","inputHash"])required(context?.[key],key.toUpperCase());
+ for(const key of["entityType","entityId","siteId","eventType","inputHash"])required(context?.[key],key.toUpperCase());
  validateEventType(context.eventType);
- if(!Number.isInteger(Number(context.entityRevision))||Number(context.entityRevision)<0)throw new Error("ENGINE_ENTITY_REVISION_INVALID");
+ if(context.entityRevision!==null&&context.entityRevision!==undefined&&(!Number.isInteger(Number(context.entityRevision))||Number(context.entityRevision)<0))throw new Error("ENGINE_ENTITY_REVISION_INVALID");
  if(!/^[a-f0-9]{64}$/.test(String(context.inputHash)))throw new Error("ENGINE_INPUT_HASH_INVALID");
  return context;
 }
@@ -28,6 +30,6 @@ export function validateRecommendation(value){
  return value;
 }
 export function selectIssueEvent({tradeChanged=false,descriptionChanged=false,titleChanged=false}={}){return tradeChanged?ENGINE_EVENTS.TRADE_CHANGED:descriptionChanged?ENGINE_EVENTS.DESCRIPTION_CHANGED:titleChanged?ENGINE_EVENTS.TITLE_CHANGED:null}
-export function compareRecommendations(left,right){return {sameCode:left?.code===right?.code,confidenceDelta:Number(right?.confidence||0)-Number(left?.confidence||0),reviewChanged:Boolean(left?.requiresReview)!==Boolean(right?.requiresReview)} }
-export function engineVersion(definition){validateEngineDefinition(definition);return {engineName:definition.engineName,engineVersion:definition.engineVersion,contractVersion:definition.contractVersion}}
+export function compareRecommendations(left,right){return {sameEngineVersion:left?.engineVersion===right?.engineVersion,sameRuleVersion:left?.ruleVersion===right?.ruleVersion,sameSchemaVersion:left?.schemaVersion===right?.schemaVersion,sameCode:left?.code===right?.code,confidenceDelta:Number(right?.confidence||0)-Number(left?.confidence||0),conflictChanged:Boolean(left?.conflict)!==Boolean(right?.conflict)} }
+export function engineVersion(definition){validateEngineDefinition(definition);return {engineName:definition.engineName,engineVersion:definition.engineVersion,ruleVersion:definition.ruleVersion,schemaVersion:definition.schemaVersion,contractVersion:definition.contractVersion}}
 export function limitedJson(value,max=8192){const json=JSON.stringify(value);if(new TextEncoder().encode(json).byteLength>max)throw new Error("ENGINE_JSON_TOO_LARGE");return json}

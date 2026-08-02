@@ -175,6 +175,15 @@ SDK는 다음 함수를 제공한다.
 
 SDK는 framework, plugin loader, dependency injection container를 사용하지 않는다. DB와 clock/ID 생성기는 생성 함수의 명시적 dependency로 받는다. adapter는 업무 engine 호출과 공통 contract mapping만 수행한다.
 
+## MVP 저장 필드
+
+- Registry: `engine_name`, `display_name`, `engine_version`, `rule_version`, `schema_version`, `status`, `enabled`, 생성·수정 시각을 저장한다.
+- Context: `site_id`, `entity_type`, `entity_id`, nullable `entity_revision`, `user_id`, `trigger`, UTC timestamp와 engine별 payload를 분리한다.
+- History: execution·engine/rule/schema version·entity·trigger·input hash·최소 recommendation/result·confirmed/override·actor·UTC 평가 시각·실행 시간을 append-only로 저장한다.
+- Metrics: execution/success/failure/override 누계, 총 실행 시간, 마지막 실행 시간과 UTC 평가 시각을 단일 SQL UPSERT로 갱신한다.
+- Decision: 기존 snapshot이 원본 결정을 소유한다. Core는 원 평가 `execution_id`를 `linked_execution_id`로 가진 append-only `DECISION_CONFIRMED` history를 추가하며 같은 결정 재시도는 idempotency key로 중복 저장·집계를 막는다.
+- Legacy Construction API에는 override reason/note가 없으므로 v1에서는 nullable을 허용한다. 신규 engine은 구조화 사유를 요구할 수 있다.
+
 ## Construction adapter 보존 계약
 
 - `normalizeClassificationInput`, `inputHash`, rule loading, priority, conflict, confidence 계산을 변경하지 않는다.

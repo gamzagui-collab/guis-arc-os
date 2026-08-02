@@ -4,6 +4,8 @@
 - registry, append-only history, 원자적 metrics, 특정 execution 결정 연결을 제공하는 얇은 JavaScript SDK를 추가했다.
 - 기존 Construction Department Engine을 adapter로 연결하되 알고리즘, 공개 API, 권한, snapshot과 확정값 보존 계약은 변경하지 않았다.
 - Integration 전용 feature flag와 Migration 0029를 추가했으며 Production은 변경하지 않는다.
+- Migration 0030에서 Registry/History/Metrics의 필수 v1 필드, nullable entity revision, append-only Decision 연결과 재시도 멱등성을 완성했다.
+- Migration 0031에서 기존 Metrics 집계를 신규 실행·시간 열로 보존했다.
 
 # v0.24.12 — Issue 배정 유형·상태 전이 정합성 Hotfix
 

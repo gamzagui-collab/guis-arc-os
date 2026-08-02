@@ -5,9 +5,9 @@
 - `docs/38_ENGINE_CONSTITUTION_V1.md`가 Input, Recommendation, Decision, History, Metrics, Version, Event, Audit, Override, Lifecycle 공통 계약을 정의한다.
 - Engine Core는 registry, append-only history, 원자적 metrics와 단순 JavaScript SDK를 제공하며 기존 Construction Department Engine만 adapter로 연결한다.
 - 기존 Construction 정규화, 규칙, 점수, 충돌, 공개 API, 권한, snapshot, 확정값은 변경하지 않는다.
-- `0029_engine_core_v1.sql`은 공통 테이블과 특정 execution 연결만 추가하고 기존 데이터는 보존한다.
+- `0029_engine_core_v1.sql`은 공통 테이블과 특정 execution 연결을 추가하고, `0030_engine_core_v1_contract_completion.sql`은 nullable revision·필수 Registry/History/Metrics 계약을 기존 데이터 보존 방식으로 완성하며, `0031_engine_core_v1_metrics_backfill.sql`은 기존 집계를 신규 Metrics 열로 보존한다.
 - `ENGINE_CORE_ENABLED`는 Integration에서만 활성화하며 Core 기록 실패는 기존 Issue 흐름을 차단하지 않는다.
-- Integration Migration 0029 적용 후 미적용 0건이며 Worker `8600a190-5feb-4ac6-bc98-f3d0daaaff34`, canonical Pages `e05ace95`가 v0.24.13으로 배포됐다.
+- Integration Migration 0029·0030·0031 적용 완료 및 미적용 0건이며 Worker `8d4a83ef-08a9-4554-9135-4552c5de04ef`, canonical Pages `e05ace95`가 v0.24.13으로 배포됐다. 실제 Browser E2E에서 추천 History·Metrics·동일 확정·Override·확정 후 재추천 보존을 확인했다.
 - 인증된 내부 테스트 Issue의 `MANUAL_REQUEST` E2E에서 registry, history, metrics와 snapshot execution 연결을 확인했고 Console 오류는 0건이다.
 - Production은 변경하지 않는다.
 
