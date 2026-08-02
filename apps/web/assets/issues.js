@@ -2,9 +2,9 @@ import {escapeHtml,emptyState,errorState,loadingSkeleton,statusBadge} from "../.
 import {canonicalLocationId,extractLocationSpeech} from "./issue-speech.js";
 import {DEPARTMENT_LABELS,departmentLabel,errorMessage,issueHistoryReasonLabel} from "./i18n/ko.js";
 import {setActionPending,clearActionPending,showActionSuccess,showActionError} from "./action-feedback.js";
-import {issueActionVisibility} from "./issue-action-policy.js?v=0.25.0";
-import {assignmentPayload,assignmentTypeForCompany} from "./issue-assignment.js?v=0.25.0";
-import {installRootCauseEnhancement} from "./issue-root-cause.js?v=0.25.0";
+import {issueActionVisibility} from "./issue-action-policy.js?v=0.25.1";
+import {assignmentPayload,assignmentTypeForCompany} from "./issue-assignment.js?v=0.25.1";
+import {installRootCauseEnhancement} from "./issue-root-cause.js?v=0.25.1";
 
 const LABEL={OPEN:"미조치",ASSIGNED:"담당자 지정",ACTION_IN_PROGRESS:"조치 중",COMPLETION_REQUESTED:"완료 확인",COMPLETED:"완료",REWORK_REQUIRED:"재조치",CANCELLED:"취소"};
 const PRIORITY={LOW:"낮음",NORMAL:"보통",HIGH:"높음",URGENT:"긴급"};

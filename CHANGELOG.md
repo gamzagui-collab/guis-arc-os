@@ -1,3 +1,11 @@
+# v0.25.1 — Root Cause Integrity Hotfix
+
+- 확정된 분석의 원인·note·재발 방지 메모가 실질적으로 변경되면 `DRAFT`로 되돌리고 확정자·확정 시각을 초기화해 재확정을 요구한다.
+- 원인 순서만 달라진 동일값 저장은 상태·revision·확정 정보·Audit를 변경하지 않는다.
+- API가 분석 상태를 반영한 `canEdit`을 반환하고 UI도 같은 값을 사용해, 협력업체 관리자의 확정 분석 편집 UI를 숨긴다.
+- 확정 후 수정은 `ROOT_CAUSE_REOPENED` Audit로 이전·새 상태와 revision을 기록하며, DRAFT는 공식 집계에서 계속 제외된다.
+- Migration·Engine Core·Construction Rule·Production은 변경하지 않는다.
+
 # v0.25.0 — Root Cause Management v1
 
 - Issue 상세에 사람이 직접 작성하는 직접·기여·근본 원인과 재발 방지 메모의 초안·확정 흐름을 추가했다.

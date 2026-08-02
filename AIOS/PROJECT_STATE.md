@@ -1,5 +1,13 @@
 # GUI's Arc 현재 프로젝트 상태
 
+## v0.25.1 Root Cause Integrity Hotfix 상태 (2026-08-02)
+
+- 확정 분석의 실질 변경은 `CONFIRMED → DRAFT`로 전환하고 `confirmed_by_user_id`, `confirmed_at`을 비워 재확정을 요구한다.
+- 원인 의미 집합과 note·재발 방지 메모가 동일한 저장은 상태·revision·확정 정보·Audit를 변경하지 않는다.
+- Root Cause 권한 응답에 상태 기반 `canEdit`을 추가하고 UI도 이를 사용해 협력업체 관리자의 확정 분석 편집 폼을 숨긴다.
+- 확정 후 변경은 `ROOT_CAUSE_REOPENED` Audit로 이전·새 상태 및 revision을 기록한다. Migration 0032, Engine Core와 Construction Rule은 변경하지 않는다.
+- Integration Worker `61239d71-869a-4702-b35c-de0dc4a55ef6`와 Pages `cb10ed01-232a-46a4-a60c-73940883719f` 배포 및 v0.25.1 health·canonical cache 검증을 완료했다. Production은 `NOT_CHANGED`다.
+
 ## v0.25.0 Root Cause Management v1 개발 상태 (2026-08-02)
 
 - Issue 상세 내부에 사람이 직접 관리하는 원인 분석을 추가한다.

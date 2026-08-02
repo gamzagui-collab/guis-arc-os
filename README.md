@@ -1,6 +1,6 @@
-# GUI's Arc Integrated v0.25.0
+# GUI's Arc Integrated v0.25.1
 
-v0.25.0은 Issue 상세에서 사람이 직접 복수 원인을 수준별로 기록하고 초안·확정·재발 방지 메모·Audit·현장 집계를 관리하는 기능입니다. 자동 추천, AI/LLM, 책임 점수 및 Engine 연동은 포함하지 않으며 Production은 변경하지 않습니다.
+v0.25.1은 확정된 Root Cause 분석의 실질 변경을 초안으로 되돌려 재확정을 요구하고, 상태별 편집 UI와 API 권한을 일치시키는 정합성 Hotfix입니다. Migration·Engine·Construction Rule과 Production은 변경하지 않습니다.
 
 ```powershell
 $env:GUI_ARC_TARGET="integration"
