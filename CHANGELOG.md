@@ -1,3 +1,13 @@
+# v0.24.12 — Issue 배정 유형·상태 전이 정합성 Hotfix
+
+- 단건과 일괄 UI가 같은 payload 규칙으로 일반 협력업체를 `CONTRACTOR`, 직영을 `DIRECT`, 미배정을 `UNASSIGNED`로 명시한다.
+- Worker가 기존 클라이언트 payload도 같은 규칙으로 추론하고, 업체·공종·담당자의 활성 현장 범위를 batch 실행 전에 검증한다.
+- `CONTRACTOR`·`DIRECT`는 `ASSIGNED`, `UNASSIGNED`는 `OPEN`으로 전이하며 revision·상태 이력·Audit를 유지한다.
+- 담당자는 선택 사항이지만 지정 시 선택 업체 또는 원도급사의 활성 현장 사용자여야 하며, 업체 변경 시 소속이 맞지 않는 기존 담당자는 해제한다.
+- `ISSUE-AUTH-UI-002`는 완료 요청·완료 확인·재조치의 capability, 관리자 우회, 작성자·담당자 범위와 상태 조건을 UI와 Worker가 공유하는 단일 정책 함수로 통합한다.
+- 관리자·작성자·일반 사용자 권한 회귀 테스트를 추가하고, 기존 작성자 직접 비교를 UI와 Worker에서 제거한다.
+- Migration, DB schema, R2, 인증 구조와 Production은 변경하지 않는다.
+
 # v0.24.11 — Issue 조치 권한·테스트 fixture 정합성 Hotfix
 
 - `CONTRACTOR_ASSIGNEE` 테스트 fixture의 Issue access가 공식 역할 기본값과 달리 VIEW였던 문제를 EDIT로 수정하고, 공식 기본값을 공유하도록 단일화했다.

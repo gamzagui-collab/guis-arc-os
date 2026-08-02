@@ -1,5 +1,13 @@
 # GUI's Arc 현재 프로젝트 상태
 
+## v0.24.12 안정화 Hotfix 상태 (2026-08-02)
+
+- `ISSUE-ASSIGN-001`의 원인은 일반 협력업체 선택 UI가 `assignmentType=CONTRACTOR`를 보내지 않아 Worker가 기존 `UNASSIGNED`를 유지한 계약 불일치였다.
+- 단건·일괄 UI와 Worker가 `UNASSIGNED`·`DIRECT`·`CONTRACTOR` 유형 및 `OPEN`·`ASSIGNED` 상태 전이를 공유하며, 잘못된 업체·공종·담당자 조합은 원자적 저장 전에 거부한다.
+- `ISSUE-AUTH-UI-002`는 완료 요청·완료 확인·재조치의 capability, 관리자 우회, 작성자·담당자 범위 및 상태 판정을 `issueCompletionDecision`으로 단일화했다.
+- Integration Worker `c55742ca-0700-45f9-8698-caead3c67cb6`와 canonical Pages `8d8fda5e`에 배포했으며, 현장소장 Browser E2E에서 완료 확인·재조치 노출, 완료 처리, 새로고침 유지를 확인했다.
+- Migration과 Production 변경은 없다.
+
 ## v0.24.11 안정화 Hotfix 상태 (2026-08-02)
 
 - `CONTRACTOR_ASSIGNEE` 내부 테스트 fixture의 ISSUE access를 공식 역할 기본값과 공유하여 EDIT로 정렬했다.

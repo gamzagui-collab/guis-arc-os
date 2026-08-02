@@ -1,6 +1,14 @@
 # GUI's Arc 다음 단일 작업
 
-## v0.24.11 안정화 Hotfix 인계 기준
+## v0.24.12 안정화 Hotfix 인계 기준
+
+- `ISSUE-ASSIGN-001`만 수정한다.
+- `ISSUE-AUTH-UI-002` 범위로 완료 요청·완료 확인·재조치 권한을 UI와 Worker의 공통 정책 함수로 정렬한다.
+- 단건·일괄 배정의 UI payload, Worker 검증, DB 저장 유형과 상태 전이를 동일 계약으로 유지한다.
+- 현재 소스 버전: v0.24.12
+- Migration·Production 변경 없음. Integration 관리자 완료 Browser E2E 완료; 작성자·일반 사용자의 실제 계정 Browser E2E는 별도 진행 시 명시한다.
+
+## 과거 v0.24.11 인계 기록
 
 - TEST-FIXTURE-001과 ISSUE-AUTH-UI-001만 수정한다.
 - 협력업체 담당자 fixture는 공식 ROLE_DEFAULTS의 ISSUE EDIT를 공유하고, 조치 UI는 Board access·capability·개인 담당자·상태 계약으로 렌더한다.

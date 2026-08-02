@@ -1,6 +1,6 @@
-# GUI's Arc Integrated v0.24.11
+# GUI's Arc Integrated v0.24.12
 
-v0.24.11은 협력업체 담당자 테스트 fixture를 공식 ISSUE EDIT 기본값과 일치시키고, 조치 입력·완료 요청 UI를 실제 Board access·capability·개인 담당자·상태 계약과 일치시킨 최소 Hotfix입니다. Integration 테스트 계정 계약은 `docs/37_INTERNAL_TEST_SITE_CONTRACT.md`를 참조하십시오.
+v0.24.12는 Issue 단건·일괄 배정에서 UI payload, Worker 검증, DB의 `UNASSIGNED`·`DIRECT`·`CONTRACTOR` 유형과 `OPEN`·`ASSIGNED` 상태 전이를 일치시킨 최소 Hotfix입니다. 일반 협력업체 선택은 명시적으로 `CONTRACTOR`로 저장되며 잘못된 업체·공종·담당자 조합은 저장 전에 거부됩니다.
 
 ```powershell
 $env:GUI_ARC_TARGET="integration"
