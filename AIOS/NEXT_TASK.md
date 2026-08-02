@@ -62,3 +62,13 @@
 실행하지 않은 검증은 `NOT_EXECUTED`로 보고하고 Production은 명시적 승인 없이 변경하지 않는다.
 
 이 문서는 누적 이력이 아니며 위 후보가 자동으로 개발 범위를 결정하지 않는다. 다음 작업은 현재 사용자의 명시적 요청으로만 확정하고, 새 릴리스나 다음 작업이 확정되면 전체 내용을 현재 사실로 교체한다.
+
+## v0.24.14 이후 확인 필요 항목
+
+현재 Engine Core v1 Stabilization의 기본 Integration 업무 흐름은 완료됐다. 다음 항목은 이번 릴리스의 코드 범위에 섞지 않고 별도 승인 후 처리한다.
+
+1. Issue 제목·설명 편집의 공식 UI 계약을 확정한 뒤 `TITLE_CHANGED`, `DESCRIPTION_CHANGED`, 복합 변경 실제 Browser E2E를 수행한다.
+2. Integration `CONSTRUCTION_MANAGER` 역할의 `issue.assign` 권한 누락이 fixture 의도인지 확인하고 Configuration을 정상화한다.
+3. 사용자 화면의 `UNCLASSIFIED` 내부 enum과 상태 이력 사유 `Issue created without assignment`를 한국어 표시값으로 변환하는 최소 UI Hotfix를 검토한다.
+4. 브라우저 제어 세션 연결을 복구한 뒤 Console·Network 자동 증거 수집을 재실행한다.
+5. npm 의존성 취약점 3건은 기능 변경과 분리해 보안 검토한다. 자동 `npm audit fix`는 실행하지 않는다.

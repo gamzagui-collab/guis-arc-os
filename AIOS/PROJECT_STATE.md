@@ -211,3 +211,17 @@ v0.24.4는 기존 5개 상위 Skill과 10개 전문 Skill, 정적 Validator와 T
 - 인증된 Integration 세션과 허용된 E2E 계정 준비 수단이 없어 Issue Photo Viewer PC·360·390·412px 상호작용, 권한·회귀 Browser E2E는 `NOT_EXECUTED`.
 - 실제 삼성 인터넷 및 실제 모바일 기기 검증은 `NOT_EXECUTED`.
 - Production 리소스는 변경하지 않음.
+
+## v0.24.14 Engine Core v1 Stabilization Integration 검증 (2026-08-02)
+
+- Integration Worker Version ID: `37136a26-7e4c-410f-92fa-de603901025f`.
+- Integration Pages Deployment ID: `9bc32428-de6e-40c2-8bf9-4e81160b61a9`.
+- D1 미적용 Migration은 0건이며 Production은 `NOT_CHANGED`다.
+- `ISSUE_CREATED`, `TRADE_CHANGED`, `MANUAL_REQUEST`의 History·Metrics·latest execution 갱신과 중복 부재를 실제 Integration 데이터로 확인했다.
+- Issue `03542a64-d4ea-4cb3-936b-9dc0884f0c6e`에서 등록 → 업체·공종·담당자 배정 → 조치·사진 저장 → 완료 요청 → 현장소장 완료 → 새로고침 유지 흐름을 PASS로 확인했다.
+- 현장소장, 협력업체 담당자 A, 협력업체 관리자 A, 안전관리자 교차 확인과 접근 없음 계정의 메뉴·직접 URL·API 차단을 PASS로 확인했다.
+- `TITLE_CHANGED`, `DESCRIPTION_CHANGED`, 복합 변경 이벤트의 실제 Browser E2E는 편집 UI 부재로 `NOT_EXECUTED`다. 단위 테스트의 이벤트 우선순위와 단일 평가 계약은 PASS다.
+- 브라우저 제어 세션 탭 불일치로 Console·Network 자동 수집은 `NOT_EXECUTED`다. 실제 결과는 화면 확인, D1 readback, Audit, 직접 API 403 응답으로 검증했다.
+- 공사담당자 Integration 역할에 `issue.assign` permission이 없어 관리 UI를 사용할 수 없는 Configuration 경고가 있다.
+- 완료된 Issue의 부서 분류 `UNCLASSIFIED`와 상태 이력 사유 `Issue created without assignment`가 내부 영문 값으로 노출되는 한국어 UI 표시 경고가 있다.
+- 실제 모바일 카메라 촬영은 v0.24.14에서 재실행하지 않았다. 사진 경로가 변경되지 않았으므로 v0.24.12 실제 모바일 PASS를 기존 증거로만 인용한다.
