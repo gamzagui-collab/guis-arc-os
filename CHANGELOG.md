@@ -1,3 +1,10 @@
+# v0.24.14 — Engine Core v1 Stabilization
+
+- Engine SDK 평가와 Registry·History·Metrics 기록을 분리하고 기본 fail-open 및 명시적 strict 모드를 추가했다.
+- 기록 실패 뒤 Construction 평가가 다시 실행되던 경로를 제거하고 단계별 안전 warning 계약을 추가했다.
+- History를 원본 실행 기록, Metrics를 파생 집계로 확정하고 실패 격리·단일 평가·수동 재시도 회귀 테스트를 추가했다.
+- Engine 1.0.0의 Rule, 점수, 충돌, 후보, 공개 API, Snapshot, 권한, UI 및 Migration 0029·0030·0031은 변경하지 않았다.
+
 # v0.24.13 — Engine Core v1 MVP
 
 - Engine Constitution v1과 공통 Input, Recommendation, Decision, History, Metrics, Version, Event, Audit, Override, Lifecycle 계약을 추가했다.

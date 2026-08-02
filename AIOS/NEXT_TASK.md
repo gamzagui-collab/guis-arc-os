@@ -1,6 +1,8 @@
 # GUI's Arc 다음 단일 작업
 
-## v0.24.13 Engine Core v1 MVP 현재 작업
+## v0.24.14 Engine Core v1 Stabilization 현재 작업
+
+- 남은 검증: 새 브라우저 세션에서 역할별 Browser E2E와 ISSUE_CREATED, TITLE_CHANGED, DESCRIPTION_CHANGED, TRADE_CHANGED, MANUAL_REQUEST의 Integration History·Metrics 증분을 실제 확인한다.
 
 - Engine Constitution과 Construction adapter 연결을 검증한다.
 - Migration 0029, registry/history/metrics, event idempotency, 특정 execution 결정 연결을 Integration에서 확인한다.

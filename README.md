@@ -1,6 +1,6 @@
-# GUI's Arc Integrated v0.24.13
+# GUI's Arc Integrated v0.24.14
 
-v0.24.13는 Issue 단건·일괄 배정에서 UI payload, Worker 검증, DB의 `UNASSIGNED`·`DIRECT`·`CONTRACTOR` 유형과 `OPEN`·`ASSIGNED` 상태 전이를 일치시킨 최소 Hotfix입니다. 일반 협력업체 선택은 명시적으로 `CONTRACTOR`로 저장되며 잘못된 업체·공종·담당자 조합은 저장 전에 거부됩니다.
+v0.24.14는 Issue 단건·일괄 배정에서 UI payload, Worker 검증, DB의 `UNASSIGNED`·`DIRECT`·`CONTRACTOR` 유형과 `OPEN`·`ASSIGNED` 상태 전이를 일치시킨 최소 Hotfix입니다. 일반 협력업체 선택은 명시적으로 `CONTRACTOR`로 저장되며 잘못된 업체·공종·담당자 조합은 저장 전에 거부됩니다.
 
 ```powershell
 $env:GUI_ARC_TARGET="integration"

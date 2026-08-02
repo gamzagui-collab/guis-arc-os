@@ -163,6 +163,16 @@ Constitution, Migration, SDK/repository, Construction adapter, Issue event 연�
 
 ## SDK v1
 
+### Evaluation과 Recording 분리
+
+- Evaluation은 Engine의 업무 판단이며 한 요청에서 정확히 한 번만 실행한다.
+- Recording은 Registry, History, Metrics 저장이며 Evaluation 성공 여부와 분리한다.
+- SDK 기본 모드는 `strict: false`인 fail-open이다. Evaluation이 성공했다면 Recording 실패로 업무 결과를 버리거나 같은 Evaluation을 다시 실행하지 않는다.
+- `strict: true`는 테스트와 명시적 개발 검증에서만 사용하며 Registry, History, Metrics 기록 실패를 예외로 전달한다.
+- History는 실행 기록의 원본이고 Metrics는 History에서 파생되는 집계다. History 저장 실패 시 Metrics의 success/failure를 증가시키지 않는다. Metrics 실패는 이미 저장된 History를 취소하지 않는다.
+- SDK 결과는 `ok`, `value`, `recommendation`, `executionId`, `coreRecorded`, `warnings`를 구분한다. warning은 `EVALUATION_FAILED`, `REGISTRY_WRITE_FAILED`, `HISTORY_WRITE_FAILED`, `METRICS_WRITE_FAILED`, `DECISION_LINK_FAILED` 코드만 사용하며 원본 DB 오류나 민감정보를 포함하지 않는다.
+- JavaScript Core 계약 이름은 `actorUserId`, `eventType`, `evaluatedAt`을 사용하고 DB 경계에서 snake_case로 매핑한다.
+
 SDK는 다음 함수를 제공한다.
 
 - `register(definition)`

@@ -1,13 +1,17 @@
 # GUI's Arc 현재 프로젝트 상태
 
-## v0.24.13 Engine Core v1 MVP 상태 (2026-08-02)
+## v0.24.14 Engine Core v1 Stabilization 상태 (2026-08-02)
+
+- v0.24.14 Integration Worker `37136a26-7e4c-410f-92fa-de603901025f`와 Pages `9bc32428-de6e-40c2-8bf9-4e81160b61a9` 배포 및 health를 확인했다.
+- v0.24.14 역할별 Browser E2E와 실제 자동 Event 변경 검증은 브라우저 세션 연결 불일치로 `NOT_EXECUTED`이며, 이전 v0.24.12 모바일 촬영 증거는 UI·사진 경로가 바뀌지 않았다는 회귀 근거로만 유지한다.
+- Engine SDK 기록 실패 격리와 단일 평가 보장은 dependency 주입 테스트로 검증했으며 Production은 변경하지 않았다.
 
 - `docs/38_ENGINE_CONSTITUTION_V1.md`가 Input, Recommendation, Decision, History, Metrics, Version, Event, Audit, Override, Lifecycle 공통 계약을 정의한다.
 - Engine Core는 registry, append-only history, 원자적 metrics와 단순 JavaScript SDK를 제공하며 기존 Construction Department Engine만 adapter로 연결한다.
 - 기존 Construction 정규화, 규칙, 점수, 충돌, 공개 API, 권한, snapshot, 확정값은 변경하지 않는다.
 - `0029_engine_core_v1.sql`은 공통 테이블과 특정 execution 연결을 추가하고, `0030_engine_core_v1_contract_completion.sql`은 nullable revision·필수 Registry/History/Metrics 계약을 기존 데이터 보존 방식으로 완성하며, `0031_engine_core_v1_metrics_backfill.sql`은 기존 집계를 신규 Metrics 열로 보존한다.
 - `ENGINE_CORE_ENABLED`는 Integration에서만 활성화하며 Core 기록 실패는 기존 Issue 흐름을 차단하지 않는다.
-- Integration Migration 0029·0030·0031 적용 완료 및 미적용 0건이며 Worker `8d4a83ef-08a9-4554-9135-4552c5de04ef`, canonical Pages `e05ace95`가 v0.24.13으로 배포됐다. 실제 Browser E2E에서 추천 History·Metrics·동일 확정·Override·확정 후 재추천 보존을 확인했다.
+- Integration Migration 0029·0030·0031 적용 완료 및 미적용 0건이며 Worker `8d4a83ef-08a9-4554-9135-4552c5de04ef`, canonical Pages `e05ace95`가 v0.24.14으로 배포됐다. 실제 Browser E2E에서 추천 History·Metrics·동일 확정·Override·확정 후 재추천 보존을 확인했다.
 - 인증된 내부 테스트 Issue의 `MANUAL_REQUEST` E2E에서 registry, history, metrics와 snapshot execution 연결을 확인했고 Console 오류는 0건이다.
 - Production은 변경하지 않는다.
 
