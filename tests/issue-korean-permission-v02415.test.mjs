@@ -42,5 +42,5 @@ test("v0.24.15 API와 DB 원본 계약은 변경하지 않는다",()=>{
  assert.match(worker,/Issue created without assignment/);
  assert.match(worker,/history:history\.results/);
  assert.match(worker,/canBulkManage:auth\.scope===ISSUE_SCOPE\.SITE&&\["EDIT","MANAGE"\]\.includes\(access\)/);
- assert.equal(fs.readdirSync("database/migrations").filter(name=>/^0032_/.test(name)).length,0);
+ assert.equal(fs.readdirSync("database/migrations").filter(name=>/^0032_root_cause_management_v1\.sql$/.test(name)).length,1);
 });

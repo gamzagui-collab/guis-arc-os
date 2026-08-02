@@ -1,5 +1,15 @@
 # GUI's Arc 현재 프로젝트 상태
 
+## v0.25.0 Root Cause Management v1 개발 상태 (2026-08-02)
+
+- Issue 상세 내부에 사람이 직접 관리하는 원인 분석을 추가한다.
+- 원인 수준은 `DIRECT`, `CONTRIBUTING`, `ROOT`이며 분석 상태는 `NOT_STARTED`, `DRAFT`, `CONFIRMED`다.
+- 자동 추천, AI/LLM, 점수, 신뢰도, 책임자·회사 순위 및 Engine Core 연동은 범위 밖이다.
+- 신규 Migration `0032_root_cause_management_v1.sql`은 Integration D1에 적용됐고 미적용 Migration은 0건이다. Integration Worker v0.25.0은 최종 Version ID `80f5ec97-4ea0-4c2a-834b-93cee4594a5a`, Pages는 Deployment ID `c453690e-5fbf-4388-af42-7dc0fe72e871`로 배포됐다.
+- 실제 Browser에서 현장소장의 초안 저장·확정·새로고침 유지와 안전관리자의 확정 분석 조회·편집 UI 비노출을 확인했다. 공사담당자 수동 검증은 사용자 요청에 따라 `USER_SKIPPED`이며 PASS로 간주하지 않는다.
+- 현장소장·안전관리자·공사담당자·협력업체 관리자·협력업체 담당자·접근 없음의 Root Cause 권한 차이는 Worker 공통 권한 함수의 자동 Matrix 테스트로 검증한다. 남은 배포 Browser 자동 로그인은 세션 자격정보가 없어 `NOT_EXECUTED`이며 API·UI 정책 테스트로 대체한다.
+- Production은 `NOT_CHANGED`다.
+
 ## v0.24.15 Issue 한국어 표시·배정 권한 정합성 Hotfix 상태 (2026-08-02)
 
 - `UNCLASSIFIED` 등 공식 5개 부서 enum과 기존 Issue 생성 이력 영문 원문은 DB·API 값을 유지한 채 공통 한국어 formatter에서 표시한다.

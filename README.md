@@ -1,6 +1,6 @@
-# GUI's Arc Integrated v0.24.15
+# GUI's Arc Integrated v0.25.0
 
-v0.24.15는 Issue 부서와 상태 이력의 사용자 표시를 한국어로 변환하고, 공사담당자 배정 UI를 공식 `SITE scope + ISSUE EDIT/MANAGE` Board Access 계약과 일치시킨 최소 Hotfix입니다. Engine·API·DB 원본·Migration과 Production은 변경하지 않습니다.
+v0.25.0은 Issue 상세에서 사람이 직접 복수 원인을 수준별로 기록하고 초안·확정·재발 방지 메모·Audit·현장 집계를 관리하는 기능입니다. 자동 추천, AI/LLM, 책임 점수 및 Engine 연동은 포함하지 않으며 Production은 변경하지 않습니다.
 
 ```powershell
 $env:GUI_ARC_TARGET="integration"

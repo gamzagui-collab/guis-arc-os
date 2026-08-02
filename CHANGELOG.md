@@ -1,3 +1,12 @@
+# v0.25.0 — Root Cause Management v1
+
+- Issue 상세에 사람이 직접 작성하는 직접·기여·근본 원인과 재발 방지 메모의 초안·확정 흐름을 추가했다.
+- 원인 분류 12개, Revision·Idempotency·Audit, 현장·회사 Scope, Board Access와 역할별 작성·확정 권한을 적용했다.
+- 확정 분석만 현장 단위 집계에 포함하며 자동 추천·점수·신뢰도·책임 순위와 Engine Core 연동은 추가하지 않았다.
+- Migration 0032, Integration Worker·Pages 배포 및 현장소장 전체 흐름과 안전관리자 조회 전용 Browser 검증을 완료했다.
+- 나머지 역할은 자동 권한 Matrix와 기존 배정 회귀로 검증하며, 자동 로그인 자격정보가 없는 Browser 시나리오는 `NOT_EXECUTED`로 분리한다.
+- Production은 변경하지 않았다.
+
 # v0.24.15 — Issue 한국어 표시·배정 권한 정합성 Hotfix
 
 - 공식 5개 부서 enum을 공통 한국어 formatter로 표시하고 canonical Engine·API·DB 값은 유지한다.
