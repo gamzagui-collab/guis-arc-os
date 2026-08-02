@@ -1,5 +1,16 @@
 # GUI's Arc 현재 프로젝트 상태
 
+## v0.24.13 Engine Core v1 MVP 상태 (2026-08-02)
+
+- `docs/38_ENGINE_CONSTITUTION_V1.md`가 Input, Recommendation, Decision, History, Metrics, Version, Event, Audit, Override, Lifecycle 공통 계약을 정의한다.
+- Engine Core는 registry, append-only history, 원자적 metrics와 단순 JavaScript SDK를 제공하며 기존 Construction Department Engine만 adapter로 연결한다.
+- 기존 Construction 정규화, 규칙, 점수, 충돌, 공개 API, 권한, snapshot, 확정값은 변경하지 않는다.
+- `0029_engine_core_v1.sql`은 공통 테이블과 특정 execution 연결만 추가하고 기존 데이터는 보존한다.
+- `ENGINE_CORE_ENABLED`는 Integration에서만 활성화하며 Core 기록 실패는 기존 Issue 흐름을 차단하지 않는다.
+- Integration Migration 0029 적용 후 미적용 0건이며 Worker `8600a190-5feb-4ac6-bc98-f3d0daaaff34`, canonical Pages `e05ace95`가 v0.24.13으로 배포됐다.
+- 인증된 내부 테스트 Issue의 `MANUAL_REQUEST` E2E에서 registry, history, metrics와 snapshot execution 연결을 확인했고 Console 오류는 0건이다.
+- Production은 변경하지 않는다.
+
 ## v0.24.12 안정화 Hotfix 상태 (2026-08-02)
 
 - `ISSUE-ASSIGN-001`의 원인은 일반 협력업체 선택 UI가 `assignmentType=CONTRACTOR`를 보내지 않아 Worker가 기존 `UNASSIGNED`를 유지한 계약 불일치였다.

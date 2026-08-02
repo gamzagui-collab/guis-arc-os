@@ -1,5 +1,13 @@
 # GUI's Arc 다음 단일 작업
 
+## v0.24.13 Engine Core v1 MVP 현재 작업
+
+- Engine Constitution과 Construction adapter 연결을 검증한다.
+- Migration 0029, registry/history/metrics, event idempotency, 특정 execution 결정 연결을 Integration에서 확인한다.
+- 기존 Construction 공개 계약과 결과 parity를 유지한다.
+- Production은 변경하지 않는다.
+- Engine Core v1 MVP Integration 배포와 실제 수동 추천 E2E는 완료됐다. 후속 엔진 추가는 별도 승인 작업이다.
+
 ## v0.24.12 안정화 Hotfix 인계 기준
 
 - `ISSUE-ASSIGN-001`만 수정한다.

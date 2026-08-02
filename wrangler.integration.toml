@@ -4,7 +4,7 @@ compatibility_date = "2026-07-21"
 
 [vars]
 APP_ENV = "integration"
-APP_VERSION = "0.24.12"
+APP_VERSION = "0.24.13"
 PUBLIC_ORIGIN = "https://guis-arc-integrated-dev.pages.dev"
 SESSION_COOKIE_NAME = "guis_arc_integrated_session"
 SESSION_IDLE_SECONDS = "43200"
@@ -13,6 +13,7 @@ LOGIN_RATE_LIMIT_MAX = "8"
 PROVISIONING_ENABLED = "false"
 E2E_PROVISIONING_ENABLED = "false"
 ISSUE_E2E_FAILURE_INJECTION_ENABLED = "false"
+ENGINE_CORE_ENABLED = "true"
 R2_ACCOUNT_ID = "4a45cdf5940064842ab8d499614c1a2f"
 R2_BUCKET_NAME = "guis-arc-integrated-files-dev"
 

@@ -1,3 +1,10 @@
+# v0.24.13 — Engine Core v1 MVP
+
+- Engine Constitution v1과 공통 Input, Recommendation, Decision, History, Metrics, Version, Event, Audit, Override, Lifecycle 계약을 추가했다.
+- registry, append-only history, 원자적 metrics, 특정 execution 결정 연결을 제공하는 얇은 JavaScript SDK를 추가했다.
+- 기존 Construction Department Engine을 adapter로 연결하되 알고리즘, 공개 API, 권한, snapshot과 확정값 보존 계약은 변경하지 않았다.
+- Integration 전용 feature flag와 Migration 0029를 추가했으며 Production은 변경하지 않는다.
+
 # v0.24.12 — Issue 배정 유형·상태 전이 정합성 Hotfix
 
 - 단건과 일괄 UI가 같은 payload 규칙으로 일반 협력업체를 `CONTRACTOR`, 직영을 `DIRECT`, 미배정을 `UNASSIGNED`로 명시한다.

@@ -7,7 +7,7 @@ import {inferIssueAssignmentType,issueStatusForAssignment} from "../worker/core/
 const worker=await readFile(new URL("../worker/modules/issues.js",import.meta.url),"utf8");
 const ui=await readFile(new URL("../apps/web/assets/issues.js",import.meta.url),"utf8");
 
-test("v0.24.12 single and bulk UI infer one explicit assignment contract",()=>{
+test("v0.24.13 single and bulk UI infer one explicit assignment contract",()=>{
  assert.equal(assignmentTypeForCompany("contractor-a"),"CONTRACTOR");
  assert.equal(assignmentTypeForCompany("__DIRECT__"),"DIRECT");
  assert.equal(assignmentTypeForCompany("__UNASSIGNED__"),"UNASSIGNED");
@@ -20,7 +20,7 @@ test("v0.24.12 single and bulk UI infer one explicit assignment contract",()=>{
  assert.match(ui,/trade\.required=false;assignee\.required=false/);
 });
 
-test("v0.24.12 Worker infers legacy payloads and aligns status with assignment type",()=>{
+test("v0.24.13 Worker infers legacy payloads and aligns status with assignment type",()=>{
  assert.equal(inferIssueAssignmentType({contractorCompanyId:"contractor-a"},"UNASSIGNED"),"CONTRACTOR");
  assert.equal(inferIssueAssignmentType({contractorCompanyId:"__DIRECT__"},"UNASSIGNED"),"DIRECT");
  assert.equal(inferIssueAssignmentType({contractorCompanyId:null},"CONTRACTOR"),"UNASSIGNED");
@@ -30,7 +30,7 @@ test("v0.24.12 Worker infers legacy payloads and aligns status with assignment t
  assert.equal(issueStatusForAssignment("CONTRACTOR"),"ASSIGNED");
 });
 
-test("v0.24.12 Worker rejects invalid combinations before atomic batch writes",()=>{
+test("v0.24.13 Worker rejects invalid combinations before atomic batch writes",()=>{
  for(const code of ["ISSUE_ASSIGNMENT_TYPE_INVALID","ISSUE_COMPANY_SCOPE_DENIED","ISSUE_CONTRACT_SCOPE_DENIED","ISSUE_ASSIGNEE_SCOPE_DENIED","ISSUE_DIRECT_TRADE_INVALID","ISSUE_DIRECT_ASSIGNEE_INVALID","ISSUE_ASSIGNMENT_STATE_INVALID","ISSUE_STALE_REVISION"])assert.ok(worker.includes(code),code);
  assert.match(worker,/if\(has\("contractorCompanyId"\)\|\|body\.clearInvalidAssignee===true\)assigneeId=null/);
  assert.match(worker,/await env\.DB\.batch\(statements\)/);
