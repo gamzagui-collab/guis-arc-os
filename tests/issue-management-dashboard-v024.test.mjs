@@ -71,3 +71,16 @@ test("v0.24.2 cleanup checkbox and dialog controls keep accessible aligned layou
  assert.match(css,/\.bulk-field select\{display:block;width:100%;min-width:0/);
  assert.match(css,/@media\(max-width:800px\) and \(min-width:761px\)/);
 });
+
+test("v0.24.10 construction manager bulk capability matches the server board contract and gives actionable feedback",()=>{
+ assert.match(worker,/canBulkManage:auth\.scope===ISSUE_SCOPE\.SITE&&\["EDIT","MANAGE"\]\.includes\(access\),assignmentTypes/);
+ assert.doesNotMatch(worker,/canBulkManage:[^,]+permissions\.includes\("issue\.assign"\)/);
+ assert.match(worker,/authorize\(request,env,"issue\.assign",\{write:true\}\)/);
+ assert.match(ui,/open\.disabled=!options\.canBulkManage/);
+ assert.doesNotMatch(ui,/open\.disabled=!options\.canBulkManage\|\|!selected\.size/);
+ assert.match(ui,/open\.onclick=\(\)=>\{if\(!selected\.size\)/);
+ assert.match(ui,/일괄 변경할 항목을 먼저 선택해 주세요\./);
+ assert.match(ui,/company\.value==="__DIRECT__".*options\.directAssignment/);
+ assert.match(ui,/checks\.forEach\(\(check,index\)=>check\.onchange=/);
+ assert.match(ui,/form\.onsubmit=async event=>/);
+});

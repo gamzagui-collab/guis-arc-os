@@ -1,16 +1,16 @@
 # GUI's Arc 다음 단일 작업
 
-## v0.24.9 Hotfix 인계 기준
+## v0.24.10 Hotfix 인계 기준
 
-- v0.24.8 Browser E2E에서 발견된 이메일 fixture와 전화번호 전용 로그인 UI 충돌을 v0.24.9에서 최소 수정한다.
-- E2E provisioning Secret과 공통 PIN이 준비되면 관리 API를 승인된 시간 동안만 활성화하고 `plan → apply → show → 인증 Browser E2E → 재비활성화`한다.
-- 내부 테스트 계정 `apply`는 `GUI_ARC_INTERNAL_TEST_PIN` 공통 4자리 숫자 PIN 하나만 받으며 반복·연속 PIN을 거부하고 계정마다 서로 다른 salt와 PBKDF2-SHA256 100,000회 hash를 생성한다.
-- 현재 소스 버전: v0.24.9
+- v0.24.9 실제 사용자 검증에서 재현된 공사담당자 PC 이슈 일괄 변경 이벤트 바인딩 중단을 v0.24.10에서 최소 수정한다.
+- 일괄 변경 capability는 서버와 동일한 SITE scope + ISSUE EDIT/MANAGE grant를 사용하며, 선택 없음·처리 중·성공·실패 피드백 계약을 유지한다.
+- Integration에서 단일·다중·전체 선택 저장, 새로고침 유지, 권한 경계와 Console·Network를 확인한 뒤 Worker·Pages·패키지를 확정한다.
+- 현재 소스 버전: v0.24.10
 - 직접 기준 ZIP: `GUI_Arc_Integrated_v0.24.4_Integrated.zip`
 - 직접 기준 SHA-256: `455A993C035AD55722DEC5D71324158894159E11BEB3860BD3F98BDBD5560BA8`
 - 로컬 구현: 내부 테스트 현장 격리, Migration 0028, 12개 역할별 fixture, Integration 전용 관리 CLI.
-- 다음 운영 작업 후보: 승인 후 Integration D1에 0028 적용 → Worker·Pages 배포 → PIN을 로그에 남기지 않고 fixture apply → 인증 Browser E2E.
-- 현재 원격 상태: 0028·Worker·Pages 배포 완료, 12계정 생성과 인증 Browser E2E `NOT_EXECUTED`; Production `NOT_CHANGED`.
+- 다음 운영 작업 후보: 협력업체 별도 인증 세션의 실제 Browser 권한 차단을 필요 시 추가 확인한다.
+- 현재 원격 상태: v0.24.10 Worker·Pages 배포와 공사담당자 단일·다중 저장·새로고침·전체 선택 Browser E2E 완료; Production `NOT_CHANGED`.
 - 아래 v0.24.4 항목은 과거 직접 기준 기록이며 현재 원격 배포 완료를 의미하지 않는다.
 
 - 공식 기준 버전: v0.24.4

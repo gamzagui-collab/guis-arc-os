@@ -1,9 +1,10 @@
-# v0.24.9 — 내부 테스트 전화번호 로그인 Hotfix
+# v0.24.10 — 공사담당자 이슈 일괄 변경 Hotfix
 
-- 12개 Integration 내부 테스트 계정에 고정된 11자리 전화번호 식별자를 배정했다.
-- 서버 provisioning은 계정별 기대 전화번호를 정확히 검증하며 임의 식별자를 거부한다.
-- 기존 fixture user ID·membership·role·권한을 보존한 채 로그인 식별자와 salt/hash만 안전하게 갱신한다.
-- 실제 로그인 UI의 숫자 입력·전화번호 정규화 계약과 Browser E2E 계정 계약을 일치시켰다.
+- 실제 Integration 공사담당자가 SITE scope와 ISSUE EDIT grant를 보유해도 레거시 `issue.assign` permission 확인 때문에 `canBulkManage=false`가 되어 버튼이 비활성화되던 문제를 수정했다.
+- 일괄 변경 capability를 실제 서버 저장 권한과 동일한 SITE scope + Board EDIT/MANAGE 조건으로 맞췄다.
+- 권한 있는 사용자는 선택 전에도 버튼을 누를 수 있고, 선택 항목이 없으면 `일괄 변경할 항목을 먼저 선택해 주세요.` 안내를 받는다.
+- DB Migration과 Production 변경 없이 관련 회귀 테스트를 추가했다.
+- 동적 이슈 모듈과 앱 셸 캐시 키를 v0.24.10-r1로 회전해 열린 구버전 PWA에서도 Hotfix 자산을 새로 받게 했다.
 
 # v0.24.8 — 내부 테스트 접근 없음 권한 정리 Hotfix
 

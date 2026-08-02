@@ -1,6 +1,6 @@
-# GUI's Arc Integrated v0.24.9
+# GUI's Arc Integrated v0.24.10
 
-v0.24.9는 기존 Integration fixture의 권한·계정 ID를 보존하면서 실제 로그인 UI 계약에 맞는 11자리 전화번호 식별자로 갱신하는 최소 Hotfix입니다. 자세한 계약은 `docs/37_INTERNAL_TEST_SITE_CONTRACT.md`를 참조하십시오.
+v0.24.10은 공사담당자의 SITE scope·ISSUE EDIT grant와 일괄 변경 UI capability 조건을 서버 저장 권한과 일치시키고, 선택 없음 안내와 캐시 갱신을 보강한 최소 Hotfix입니다. Integration 테스트 계정 계약은 `docs/37_INTERNAL_TEST_SITE_CONTRACT.md`를 참조하십시오.
 
 ```powershell
 $env:GUI_ARC_TARGET="integration"

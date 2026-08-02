@@ -1,11 +1,12 @@
 # GUI's Arc 현재 프로젝트 상태
 
-## v0.24.9 Hotfix 상태 (2026-08-02)
+## v0.24.10 Hotfix 상태 (2026-08-02)
 
-- v0.24.7 Integration apply에서 12계정·13 Membership 생성은 성공했으나 `no_access` 계정의 과거 활성 Issue entitlement가 남아 readback이 기대 11 대신 12로 실패했다.
-- v0.24.9는 실제 로그인 UI 계약에 맞춰 12개 fixture 식별자를 고정 11자리 전화번호로 갱신한다.
-- v0.24.8의 `NO_ISSUE_ACCESS` entitlement·Issue Board grant 정리와 활성 역할 13개 readback을 유지한다.
-- 관리 API와 임시 Secret은 실패 직후 정리됐으며 Migration과 Production은 변경하지 않는다.
+- 실제 Integration 공사담당자는 SITE scope와 ISSUE EDIT grant를 보유하지만 레거시 permission 배열이 비어 `/issues/options`의 `canBulkManage`만 false가 되는 권한 조건 불일치를 재현했다.
+- v0.24.10은 UI capability를 서버 저장 권한과 동일한 SITE scope + Board EDIT/MANAGE 조건으로 맞추고, 선택 전 클릭에는 한국어 선택 필요 안내를 표시한다.
+- 기존 단건 배정, 서버 일괄 변경 계약, 역할·권한·Migration은 변경하지 않는다.
+- Integration Worker `e1e1593d-8022-43e1-a9ec-9f3a9f07b9d5`와 Pages canonical v0.24.10 배포를 확인했다.
+- 실제 공사담당자 Browser E2E에서 미선택 안내, 단일 1건·다중 2건 직영 저장, 새로고침 유지, 전체 12건 선택 UI, Console 오류 0건을 확인했다. Production은 변경하지 않았다.
 
 ## v0.24.7 Board grant 이력 Hotfix 기준 (2026-08-02)
 
