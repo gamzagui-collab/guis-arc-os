@@ -1,3 +1,4 @@
+import {ROLE_DEFAULTS} from "./board-access-defaults.js";
 const IDS=Object.freeze({company:"e2e-v021-company",contractorA:"e2e-v021-contractor-a",contractorB:"e2e-v021-contractor-b",siteA:"e2e-v021-site-a",siteB:"e2e-v021-site-b"});
 export const INTERNAL_TEST_PRINCIPALS=Object.freeze({
  site_manager:{role:"SITE_MANAGER",company:IDS.company,sites:[IDS.siteA,IDS.siteB],issueAccess:"MANAGE",displayName:"테스트 현장소장"},
@@ -9,7 +10,7 @@ export const INTERNAL_TEST_PRINCIPALS=Object.freeze({
  contractor_site_manager:{role:"CONTRACTOR_SITE_MANAGER",company:IDS.contractorA,sites:[IDS.siteA],issueAccess:"EDIT",displayName:"테스트 협력업체 소장 A"},
  contractor_foreman:{role:"CONTRACTOR_FOREMAN",company:IDS.contractorA,sites:[IDS.siteA],issueAccess:"EDIT",displayName:"테스트 협력업체 반장 A"},
  contractor_b_manager:{role:"CONTRACTOR_MANAGER",company:IDS.contractorB,sites:[IDS.siteA],issueAccess:"EDIT",displayName:"테스트 협력업체 관리자 B"},
- contractor_assignee:{role:"CONTRACTOR_ASSIGNEE",company:IDS.contractorA,sites:[IDS.siteA],issueAccess:"VIEW",displayName:"테스트 협력업체 담당자 A"},
+ contractor_assignee:{role:"CONTRACTOR_ASSIGNEE",company:IDS.contractorA,sites:[IDS.siteA],issueAccess:ROLE_DEFAULTS.CONTRACTOR_ASSIGNEE.ISSUE,displayName:"테스트 협력업체 담당자 A"},
  no_access:{role:"NO_ISSUE_ACCESS",company:IDS.company,sites:[IDS.siteA],issueAccess:null,displayName:"테스트 현장 경계 사용자"},
  field_worker:{role:"FIELD_WORKER",company:IDS.contractorA,sites:[IDS.siteA],issueAccess:"VIEW",displayName:"테스트 일반 근로자 A"}
 });

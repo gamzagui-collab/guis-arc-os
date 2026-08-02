@@ -4,6 +4,8 @@ import fs from "node:fs";
 import {DatabaseSync} from "node:sqlite";
 import {createInternalTestCredentials} from "../scripts/internal-test-auth.mjs";
 import {ensureCompanySiteContract,provisionIssueE2EFixture} from "../worker/core/issue-e2e-provisioning.js";
+import {INTERNAL_TEST_PRINCIPALS} from "../worker/core/issue-e2e-provisioning.js";
+import {ROLE_DEFAULTS} from "../worker/core/board-access-defaults.js";
 
 const credentials=()=>{let sequence=0;return createInternalTestCredentials("5827",size=>Buffer.alloc(size,++sequence))};
 
@@ -66,7 +68,14 @@ test("applying twice is idempotent for fixture entities and relations",async()=>
  assert.equal(sqlite.prepare("SELECT is_active FROM board_access_grants WHERE id='stale-no-access-board'").get().is_active,0);
  assert.equal(sqlite.prepare("SELECT status FROM user_site_roles WHERE id='stale-no-access-role'").get().status,"INACTIVE");
  assert.equal(count(sqlite,"user_site_roles","user_id LIKE 'e2e-v021-user-%' AND status='ACTIVE'"),13);
+ assert.equal(sqlite.prepare("SELECT access_level FROM board_access_grants WHERE user_id='e2e-v021-user-contractor-assignee' AND is_active=1").get().access_level,"EDIT");
  sqlite.close();
+});
+
+test("fixture assignee access reuses the official role default without changing other principals",()=>{
+ assert.equal(INTERNAL_TEST_PRINCIPALS.contractor_assignee.issueAccess,"EDIT");
+ assert.equal(INTERNAL_TEST_PRINCIPALS.contractor_assignee.issueAccess,ROLE_DEFAULTS.CONTRACTOR_ASSIGNEE.ISSUE);
+ assert.deepEqual(Object.fromEntries(Object.entries(INTERNAL_TEST_PRINCIPALS).filter(([key])=>key!=="contractor_assignee").map(([key,value])=>[key,value.issueAccess])),{site_manager:"MANAGE",safety_manager:"EDIT",construction_manager:"EDIT",gc_foreman:"EDIT",gc_staff:"EDIT",contractor_manager:"EDIT",contractor_site_manager:"EDIT",contractor_foreman:"EDIT",contractor_b_manager:"EDIT",no_access:null,field_worker:"VIEW"});
 });
 
 test("injected batch failure rolls back every fixture mutation",async()=>{

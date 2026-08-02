@@ -1,5 +1,15 @@
 # GUI's Arc 현재 프로젝트 상태
 
+## v0.24.11 안정화 Hotfix 상태 (2026-08-02)
+
+- `CONTRACTOR_ASSIGNEE` 내부 테스트 fixture의 ISSUE access를 공식 역할 기본값과 공유하여 EDIT로 정렬했다.
+- 조치 입력·완료 요청 UI는 선택 현장, ISSUE EDIT/MANAGE, capability, 개인 담당자, 상태 및 활성 조치 사진 조건을 Worker 계약과 동일하게 평가한다.
+- VIEW-only 사용자는 상세과 기존 조치 이력은 조회하지만 textarea·사진 입력·등록·완료 요청 UI는 보지 않는다.
+- `ISSUE-ASSIGN-001`은 UI가 일반 업체 선택 시 assignmentType을 명시하지 않아 기존 UNASSIGNED가 유지되는 `NEXT_HOTFIX_CANDIDATE`이며 v0.24.11 범위에서 제외한다.
+- Migration·DB schema·R2·인증·Production 변경은 없다.
+- Integration Worker `76bb7930-5d0a-453d-9aa6-c19bf1c2fd8d`와 Pages `7ebba5fa-233f-4551-bb72-1d02474f1062`에 v0.24.11을 배포했다.
+- 실제 Browser E2E에서 VIEW-only 조치 UI 비노출과 접근 없음 차단을 확인했다. 신규 조치 저장·완료 재실행은 조치 가능 담당자 fixture가 없고 ISSUE-ASSIGN-001로 준비가 차단되어 `NOT_EXECUTED`이며 v0.24.10 실제 모바일 저장·완료 증거를 유지한다.
+
 ## v0.24.10 Hotfix 상태 (2026-08-02)
 
 - 실제 Integration 공사담당자는 SITE scope와 ISSUE EDIT grant를 보유하지만 레거시 permission 배열이 비어 `/issues/options`의 `canBulkManage`만 false가 되는 권한 조건 불일치를 재현했다.

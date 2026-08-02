@@ -1,3 +1,11 @@
+# v0.24.11 — Issue 조치 권한·테스트 fixture 정합성 Hotfix
+
+- `CONTRACTOR_ASSIGNEE` 테스트 fixture의 Issue access가 공식 역할 기본값과 달리 VIEW였던 문제를 EDIT로 수정하고, 공식 기본값을 공유하도록 단일화했다.
+- Issue 조치 입력과 완료 요청 UI가 선택 현장, ISSUE EDIT/MANAGE, capability, 개인 담당자, 상태 및 활성 조치 사진 계약을 모두 확인하도록 Worker 계약과 맞췄다.
+- VIEW-only·다른 개인 담당자·COMPLETED·manage_all·ACTION_IN_PROGRESS 조합과 반복 Provisioning 퇴행 회귀 테스트를 추가했다.
+- `ISSUE-ASSIGN-001`은 UNASSIGNED 전환 UI와 Worker 입력 계약의 불일치 후보로 확인했으며 이번 버전에서는 구현하지 않았다.
+- Migration, DB schema, R2, 인증 구조와 Production은 변경하지 않는다.
+
 # v0.24.10 — 공사담당자 이슈 일괄 변경 Hotfix
 
 - 실제 Integration 공사담당자가 SITE scope와 ISSUE EDIT grant를 보유해도 레거시 `issue.assign` permission 확인 때문에 `canBulkManage=false`가 되어 버튼이 비활성화되던 문제를 수정했다.

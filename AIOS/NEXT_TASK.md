@@ -1,5 +1,14 @@
 # GUI's Arc 다음 단일 작업
 
+## v0.24.11 안정화 Hotfix 인계 기준
+
+- TEST-FIXTURE-001과 ISSUE-AUTH-UI-001만 수정한다.
+- 협력업체 담당자 fixture는 공식 ROLE_DEFAULTS의 ISSUE EDIT를 공유하고, 조치 UI는 Board access·capability·개인 담당자·상태 계약으로 렌더한다.
+- `ISSUE-ASSIGN-001`은 `NEXT_HOTFIX_CANDIDATE`로만 기록하며 별도 계약 확정 전 구현하지 않는다.
+- 현재 소스 버전: v0.24.11
+- Migration·Production 변경 없음. Integration Worker·Pages v0.24.11 배포와 VIEW-only·접근 없음 Browser E2E를 완료했다.
+- 다음 권장 작업은 `ISSUE-ASSIGN-001` 계약 확정과 별도 Hotfix다. 신규 조치 저장·완료 재실행은 조치 가능한 담당자 fixture 준비가 차단되어 `NOT_EXECUTED`다.
+
 ## v0.24.10 Hotfix 인계 기준
 
 - v0.24.9 실제 사용자 검증에서 재현된 공사담당자 PC 이슈 일괄 변경 이벤트 바인딩 중단을 v0.24.10에서 최소 수정한다.

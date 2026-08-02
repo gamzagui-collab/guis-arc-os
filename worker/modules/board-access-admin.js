@@ -1,6 +1,7 @@
 import {ApiError,json,parseJson,requestId} from "../core/response.js";
 import {authenticate,context} from "../core/session.js";
 import {ACCESS_LEVELS,includesBoardAccess,requireBoardAccess} from "../core/board-access.js";
+import {ROLE_DEFAULTS} from "../core/board-access-defaults.js";
 
 const MASTER_ROLES=new Set(["PLATFORM_OWNER","INTEGRATED_OWNER"]);
 const MANAGER_ROLES=new Set([...MASTER_ROLES,"SITE_MANAGER"]);
@@ -12,20 +13,6 @@ const PLANNED_MODULES=Object.freeze([
  {moduleKey:"equipment",displayName:"장비 관리",state:"PLANNED"},
  {moduleKey:"documents",displayName:"문서 관리",state:"PLANNED"}
 ]);
-const ROLE_DEFAULTS=Object.freeze({
- SITE_MANAGER:{ISSUE:"MANAGE",WORKFORCE_PROFILE:"MANAGE",WORKFORCE_ATTENDANCE:"MANAGE",WORKFORCE_DAILY_OUTPUT:"MANAGE",CONSTRUCTION_DAILY_REPORT:"MANAGE",CONSTRUCTION_OUTPUT_STATUS:"MANAGE",ADMINISTRATION:"MANAGE"},
- GENERAL_CONTRACTOR_FOREMAN:{ISSUE:"EDIT",WORKFORCE_ATTENDANCE:"VIEW",WORKFORCE_DAILY_OUTPUT:"VIEW",CONSTRUCTION_DAILY_REPORT:"EDIT",CONSTRUCTION_OUTPUT_STATUS:"VIEW"},
- CONSTRUCTION_MANAGER:{ISSUE:"EDIT",WORKFORCE_ATTENDANCE:"VIEW",WORKFORCE_DAILY_OUTPUT:"VIEW",CONSTRUCTION_DAILY_REPORT:"EDIT",CONSTRUCTION_OUTPUT_STATUS:"EDIT"},
- SAFETY_MANAGER:{ISSUE:"EDIT",CONSTRUCTION_DAILY_REPORT:"VIEW"},
- QUALITY_MANAGER:{ISSUE:"EDIT",CONSTRUCTION_DAILY_REPORT:"VIEW"},
- CONTRACTOR_MANAGER:{ISSUE:"EDIT",WORKFORCE_ATTENDANCE:"VIEW",WORKFORCE_DAILY_OUTPUT:"EDIT"},
- CONTRACTOR_SITE_MANAGER:{ISSUE:"EDIT",WORKFORCE_ATTENDANCE:"VIEW",WORKFORCE_DAILY_OUTPUT:"EDIT"},
- CONTRACTOR_FOREMAN:{ISSUE:"EDIT",WORKFORCE_ATTENDANCE:"VIEW",WORKFORCE_DAILY_OUTPUT:"EDIT"},
- GENERAL_CONTRACTOR_STAFF:{},
- CONTRACTOR_EMPLOYEE:{},
- CONTRACTOR_ASSIGNEE:{ISSUE:"EDIT"},
- FIELD_WORKER:{}
-});
 const audit=(env,actor,action,id,meta,outcome="ALLOWED")=>env.DB.prepare("INSERT INTO audit_logs(id,actor_user_id,action,outcome,request_id,metadata_json) VALUES(?1,?2,?3,?4,?5,?6)").bind(crypto.randomUUID(),actor,action,outcome,id,JSON.stringify(meta));
 const rolesAt=async(env,userId,siteId)=>(await env.DB.prepare("SELECT DISTINCT r.code FROM user_site_roles usr JOIN roles r ON r.id=usr.role_id WHERE usr.user_id=?1 AND usr.site_id=?2 AND usr.status='ACTIVE'").bind(userId,siteId).all()).results.map(row=>row.code);
 
