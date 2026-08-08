@@ -1,6 +1,7 @@
 import {kstWorkDate} from "../today-policy.js";
 import {reconcileWorkforceTrades,resolveCanonicalTrade} from "../../construction/trade-matcher.js";
 import {listMonthlyPlansForRange} from "../../construction/monthly-plan.js";
+import {normalizeSourceItemRefs} from "../../issue-source-reference.js";
 
 const addDate=(date,days)=>{
  const value=new Date(`${date}T00:00:00Z`);value.setUTCDate(value.getUTCDate()+days);return value.toISOString().slice(0,10);
@@ -17,7 +18,7 @@ export function aggregateMajorWorks(rows=[]){
   const name=String(row.manager_summary||row.work_description||"").trim();
   if(!name)continue;
   const key=row.is_fallback_work_item?`${row.trade_name_snapshot}::${name}`:name;
-  if(!grouped.has(key))grouped.set(key,{id:`construction-work-${grouped.size+1}`,name,locations:[],companies:new Map(),total:0,workforceRegistered:false,companyBreakdownAvailable:true,isFallbackWorkItem:Boolean(row.is_fallback_work_item)});
+  if(!grouped.has(key))grouped.set(key,{id:`construction-work-${grouped.size+1}`,name,locations:[],companies:new Map(),sourceItems:[],total:0,workforceRegistered:false,companyBreakdownAvailable:true,isFallbackWorkItem:Boolean(row.is_fallback_work_item)});
   const work=grouped.get(key),location=String(row.location_name||row.location_text||"").trim(),company=String(row.company_name||row.company_name_snapshot||"").trim();
   const hasWorkforce=row.workforce_count!==null&&row.workforce_count!==undefined&&row.workforce_count!==""&&Number.isFinite(Number(row.workforce_count));
   const count=hasWorkforce?Math.max(0,Number(row.workforce_count)):0;
@@ -28,10 +29,11 @@ export function aggregateMajorWorks(rows=[]){
   if(hasWorkforce){work.total+=count;work.workforceRegistered=true}
   if(company)work.companies.set(company,(work.companies.get(company)||0)+count);
   else work.companyBreakdownAvailable=false;
+  if(row.id)work.sourceItems.push(row);
  }
  return [...grouped.values()].map(work=>{
   const companies=[...work.companies].map(([name,count])=>({name,count}));
-  return {id:work.id,name:work.name,location:work.locations.join(", ")||"위치 정보 없음",trades:work.trades||[],total:work.workforceRegistered?work.total:null,workforceRegistered:work.workforceRegistered,companies:work.companyBreakdownAvailable?companies:[],companyBreakdownAvailable:work.companyBreakdownAvailable,isFallbackWorkItem:work.isFallbackWorkItem};
+  return {id:work.id,name:work.name,location:work.locations.join(", ")||"위치 정보 없음",trades:work.trades||[],total:work.workforceRegistered?work.total:null,workforceRegistered:work.workforceRegistered,companies:work.companyBreakdownAvailable?companies:[],companyBreakdownAvailable:work.companyBreakdownAvailable,isFallbackWorkItem:work.isFallbackWorkItem,sourceItemRefs:normalizeSourceItemRefs(work.sourceItems).refs};
  });
 }
 

@@ -2,6 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import fs from "node:fs";
 import {DatabaseSync} from "node:sqlite";
+import {aggregateMajorWorks} from "../worker/modules/today/providers/construction-provider.js";
 
 const migrationPath="database/migrations/0033_field_adoption_phase1.sql";
 
@@ -39,4 +40,16 @@ test("response revision determines latest value when timestamps collide",()=>{
  assert.equal(db.prepare("SELECT response FROM issue_assignee_responses WHERE issue_id='i' ORDER BY response_revision DESC LIMIT 1").get().response,"BLOCKED");
  assert.throws(()=>insert.run("r3","i","s","DUE_DATE_DISCUSSION","u",2,"2026-08-08 12:00:00"),/UNIQUE/);
  db.close();
+});
+
+test("aggregated Today work preserves every imported item reference without using its render id",()=>{
+ const [work]=aggregateMajorWorks([
+  {id:"item-a",section_type:"TODAY_PLAN",source_sheet_name:" 8월 ",source_cell_range:"m10:m11",work_description:"거푸집 설치",workforce_count:2},
+  {id:"item-b",section_type:"TODAY_PLAN",source_sheet_name:"8월",source_cell_range:"M12:M13",work_description:"거푸집 설치",workforce_count:3}
+ ]);
+ assert.deepEqual(work.sourceItemRefs,[
+  {itemId:"item-a",matchKey:"TODAY_PLAN|8월|M10:M11"},
+  {itemId:"item-b",matchKey:"TODAY_PLAN|8월|M12:M13"}
+ ]);
+ assert.ok(work.sourceItemRefs.every(ref=>!ref.itemId.startsWith("construction-work-")));
 });
