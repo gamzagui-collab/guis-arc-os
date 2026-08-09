@@ -3,8 +3,8 @@ import assert from "node:assert/strict";
 import fs from "node:fs";
 import { DatabaseSync } from "node:sqlite";
 import { assignmentWithinScope, ISSUE_SCOPE, issueWithinScope, resolveIssueScope } from "../worker/modules/issue-policy.js";
-import {canonicalLocationId,extractLocationSpeech} from "../apps/web/assets/issue-speech.js";
-import {resolveIssueLocation} from "../worker/modules/issues.js";
+import {canonicalLocationId,extractLocationSpeech,naturalLocationSort} from "../apps/web/assets/issue-speech.js";
+import {filterIssueLocationOptions,isIssueRoomFormPresetHidden,isIssueBuildingFormPresetHidden,isIssueUnitRequired,resolveIssueLocation,sortIssueLocationOptions,validateIssueLocationSelection} from "../worker/modules/issues.js";
 
 const read = file => fs.readFileSync(file, "utf8");
 const worker = read("worker/modules/issues.js");
@@ -129,24 +129,191 @@ test("temporary location options send labels without fake IDs",()=>{
 });
 
 test("resolveLocation validates canonical UNIT IDs and reuses dynamic labels",async()=>{
-  const rows=[
-    {id:"site-a-unit-1",site_id:"site-a",location_type:"UNIT",code:"UNIT_1",display_name:"1호",is_active:1},
-    {id:"site-b-unit-1",site_id:"site-b",location_type:"UNIT",code:"UNIT_1",display_name:"1호",is_active:1},
-    {id:"site-a-unit-old",site_id:"site-a",location_type:"UNIT",code:"UNIT_OLD",display_name:"구호",is_active:0}
-  ];
-  const env={DB:{prepare(sql){return{bind(...values){return{
-    async first(){
-      if(sql.includes("WHERE id=?1"))return rows.find(row=>row.id===values[0]&&row.site_id===values[1]&&row.location_type===values[2]&&row.is_active===1)||null;
-      return rows.find(row=>row.site_id===values[0]&&row.location_type===values[1]&&row.code===values[2])||null
-    },
-    async run(){rows.push({id:values[0],site_id:values[1],location_type:values[2],code:values[3],display_name:values[4],is_active:1})}
-  }}}}}};
-  assert.equal((await resolveIssueLocation(env,"site-a",{id:"site-a-unit-1",type:"UNIT"})).id,"site-a-unit-1");
-  for(const id of ["missing-unit","site-b-unit-1","site-a-unit-old"])await assert.rejects(()=>resolveIssueLocation(env,"site-a",{id,type:"UNIT"}),error=>error.status===400);
-  const first=await resolveIssueLocation(env,"site-a",{label:"1402호",type:"UNIT",allowDynamic:true});
-  const second=await resolveIssueLocation(env,"site-a",{label:"1402호",type:"UNIT",allowDynamic:true});
+  const db=database();
+  db.exec("PRAGMA foreign_keys=ON; INSERT INTO companies(id,name,status) VALUES('company-a','A','ACTIVE'),('company-b','B','ACTIVE'); INSERT INTO sites(id,company_id,name,status) VALUES('site-a','company-a','A','ACTIVE'),('site-b','company-b','B','ACTIVE');");
+  db.exec(read("database/migrations/0006_issue_location_entities.sql"));
+  const env={DB:{prepare(sql){let values=[];return{bind(...next){values=next;return this},async first(){return db.prepare(sql).get(...values)||null},async run(){return db.prepare(sql).run(...values)}}}}};
+  const building=db.prepare("SELECT id FROM site_locations WHERE site_id='site-a' AND code='BUILDING_1'").get().id;
+  const canonical=db.prepare("SELECT id FROM site_locations WHERE site_id='site-a' AND code='UNIT_1'").get().id;
+  const otherSite=db.prepare("SELECT id FROM site_locations WHERE site_id='site-b' AND code='UNIT_1'").get().id;
+  assert.equal((await resolveIssueLocation(env,"site-a",{id:canonical,type:"UNIT"})).id,canonical);
+  for(const id of ["missing-unit",otherSite])await assert.rejects(()=>resolveIssueLocation(env,"site-a",{id,type:"UNIT"}),error=>error.status===400);
+  const first=await resolveIssueLocation(env,"site-a",{label:"1402호",type:"UNIT",parentId:building,allowDynamic:true});
+  const second=await resolveIssueLocation(env,"site-a",{label:"1402호",type:"UNIT",parentId:building,allowDynamic:true});
   assert.equal(first.id,second.id);
-  assert.equal(rows.filter(row=>row.site_id==="site-a"&&row.display_name==="1402호").length,1);
+  assert.equal(db.prepare("SELECT COUNT(*) count FROM site_locations WHERE site_id='site-a' AND display_name='1402호' AND parent_id=?").get(building).count,1);
+  db.close();
+});
+
+test("location policy requires units only for BUILDING and COMMERCIAL",()=>{
+  assert.equal(isIssueUnitRequired("BUILDING"),true);
+  assert.equal(isIssueUnitRequired("COMMERCIAL"),true);
+  for(const type of ["PARKING","COMMON","FACILITY","EXTERIOR","OTHER"]){
+    assert.equal(isIssueUnitRequired(type),false,type);
+    assert.doesNotThrow(()=>validateIssueLocationSelection({building:{location_type:type},unit:null}));
+  }
+  assert.throws(()=>validateIssueLocationSelection({building:{location_type:"BUILDING"},unit:null}),error=>error.code==="ISSUE_UNIT_REQUIRED");
+  assert.throws(()=>validateIssueLocationSelection({building:{location_type:"COMMERCIAL"},unit:null}),error=>error.code==="ISSUE_UNIT_REQUIRED");
+});
+
+test("form option filter hides legacy residential BUILDING_1~15 presets",()=>{
+  const rows=[
+    {location_type:"BUILDING",code:"BUILDING_1",display_name:"1동",id:"building-1"},
+    {location_type:"BUILDING",code:"BUILDING_15",display_name:"15동",id:"building-15"},
+    {location_type:"BUILDING",code:"BUILDING_16",display_name:"16동",id:"building-16"},
+    {location_type:"PARKING",code:"PARKING_B1",display_name:"주차장 B1",id:"parking-b1"},
+    {location_type:"FACILITY",code:"COMMUNITY",display_name:"커뮤니티",id:"community"},
+    {location_type:"COMMON",code:"COMMON",display_name:"공용",id:"common"},
+    {location_type:"BUILDING",code:"DYNAMIC_BUILDING_TEMP",display_name:"임시동",id:"dynamic-building"},
+    {location_type:"BUILDING",code:"CUSTOM_BUILDING_CUSTOM",display_name:"직접동",id:"custom-building"},
+  ];
+  const filtered=filterIssueLocationOptions(rows);
+  assert.equal(filtered.length,6);
+  assert.ok(!filtered.find(row=>row.code==="BUILDING_1"));
+  assert.ok(!filtered.find(row=>row.code==="BUILDING_15"));
+  assert.ok(filtered.find(row=>row.code==="BUILDING_16"));
+  assert.equal(filtered.find(row=>row.code==="DYNAMIC_BUILDING_TEMP")?.id,"dynamic-building");
+  assert.equal(filtered.find(row=>row.code==="CUSTOM_BUILDING_CUSTOM")?.id,"custom-building");
+  assert.ok(isIssueBuildingFormPresetHidden(rows[0]));
+  assert.ok(!isIssueBuildingFormPresetHidden({location_type:"BUILDING",code:"DYNAMIC_BUILDING_TEMP"}));
+  assert.ok(!isIssueBuildingFormPresetHidden({location_type:"BUILDING",code:"CUSTOM_BUILDING_CUSTOM"}));
+});
+
+test("form options keep non-residential building presets and existing issue detail rows remain valid",()=>{
+  const rows=[
+    {location_type:"PARKING",code:"PARKING_B1",display_name:"주차장 B1",id:"parking-b1"},
+    {location_type:"FACILITY",code:"MECHANICAL",display_name:"기계실",id:"mechanical"},
+    {location_type:"COMMON",code:"COMMON",display_name:"공용",id:"common"},
+  ];
+  const filtered=filterIssueLocationOptions(rows);
+  assert.equal(filtered.map(row=>row.id).join(","),"parking-b1,mechanical,common");
+});
+
+test("form options hides common ROOM presets except preserved shared types and dynamic/custom",()=>{
+  const rows=[
+    {location_type:"ROOM",code:"LIVING",display_name:"거실",id:"room-living"},
+    {location_type:"ROOM",code:"ENTRANCE",display_name:"현관",id:"room-entrance"},
+    {location_type:"ROOM",code:"BEDROOM_1",display_name:"침실1",id:"room-bed-1"},
+    {location_type:"ROOM",code:"COMMON_BATH",display_name:"공용욕실",id:"room-bath"},
+    {location_type:"ROOM",code:"DRESS_ROOM",display_name:"드레스룸",id:"room-dress"},
+    {location_type:"ROOM",code:"DYNAMIC_ROOM_BUILDING_1",display_name:"임시룸",id:"room-dynamic"},
+    {location_type:"ROOM",code:"CUSTOM_ROOM_001",display_name:"CUSTOM",id:"room-custom"},
+    {location_type:"ROOM",code:"CORRIDOR",display_name:"복도",id:"room-corridor"},
+    {location_type:"ROOM",code:"ROOM_ALL",display_name:"전체",id:"room-whole"},
+  ];
+  const filtered=filterIssueLocationOptions(rows);
+  const ids=filtered.map(row=>row.id);
+  assert.equal(ids.includes("room-living"),false);
+  assert.equal(ids.includes("room-entrance"),false);
+  assert.equal(ids.includes("room-bed-1"),false);
+  assert.equal(ids.includes("room-bath"),false);
+  assert.equal(ids.includes("room-dress"),false);
+  assert.equal(ids.includes("room-dynamic"),true);
+  assert.equal(ids.includes("room-custom"),true);
+  assert.equal(ids.includes("room-corridor"),true);
+  assert.equal(ids.includes("room-whole"),true);
+  assert.ok(isIssueRoomFormPresetHidden({location_type:"ROOM",code:"BEDROOM_1"}));
+  assert.ok(!isIssueRoomFormPresetHidden({location_type:"ROOM",code:"DYNAMIC_ROOM_BUILDING_1"}));
+  assert.ok(!isIssueRoomFormPresetHidden({location_type:"ROOM",code:"CUSTOM_ROOM_001"}));
+  assert.ok(!isIssueRoomFormPresetHidden({location_type:"ROOM",code:"ROOM_ALL",display_name:"전체"}));
+  assert.ok(!isIssueRoomFormPresetHidden({location_type:"ROOM",code:"CORRIDOR"}));
+});
+
+test("existing issue detail keeps hidden preset row ids",async()=>{
+  const db=database();
+  db.exec("PRAGMA foreign_keys=ON; INSERT INTO companies(id,name,status) VALUES('company-a','A','ACTIVE'); INSERT INTO sites(id,company_id,name,status) VALUES('site-a','company-a','Site A','ACTIVE');");
+  db.exec(read("database/migrations/0006_issue_location_entities.sql"));
+  const env={
+    DB:{
+      prepare(sql){
+        let values=[];
+        return {
+          bind(...next){values=next;return this},
+          async first(){return db.prepare(sql).get(...values)||null},
+          async all(){return db.prepare(sql).all(...values)},
+          async run(){return db.prepare(sql).run(...values)},
+        };
+      },
+    },
+  };
+  const canonical=await resolveIssueLocation(env,"site-a",{id:db.prepare("SELECT id FROM site_locations WHERE site_id='site-a' AND code='BUILDING_1'").get().id,type:"BUILDING"});
+  const roomCanonical=await resolveIssueLocation(env,"site-a", {id:db.prepare("SELECT id FROM site_locations WHERE site_id='site-a' AND code='LIVING'").get().id,type:"ROOM",parentId:canonical.id});
+  assert.ok(canonical.id);
+  assert.ok(roomCanonical.id);
+  assert.equal(db.prepare("SELECT code FROM site_locations WHERE id=?").get(canonical.id).code,"BUILDING_1");
+  assert.equal(db.prepare("SELECT code FROM site_locations WHERE id=?").get(roomCanonical.id).code,"LIVING");
+  db.close();
+});
+
+test("new form options hide legacy numeric unit presets without changing canonical rows",()=>{
+  const locations=[
+    {id:"unit-1",location_type:"UNIT",code:"UNIT_1",display_name:"1호",parent_id:null},
+    {id:"unit-10",location_type:"UNIT",code:"UNIT_10",display_name:"10호",parent_id:null},
+    {id:"unit-101",location_type:"UNIT",code:"DYNAMIC_UNIT_BUILDING_A_101호",display_name:"101호",parent_id:"building-a"},
+    {id:"room",location_type:"ROOM",code:"LIVING",display_name:"거실",parent_id:null}
+  ];
+  const filtered=filterIssueLocationOptions(locations);
+  assert.deepEqual(filtered.filter(row=>row.location_type==="UNIT").map(row=>row.id),["unit-101"]);
+  assert.equal(locations.length,4,"filtering must not mutate or delete canonical rows");
+});
+
+test("location option labels use Korean numeric natural sort without changing IDs",()=>{
+  const values=["1203호","301호","B102호","102호","B101호","201호","101호","103호"].map((display_name,index)=>({id:`id-${index}`,display_name}));
+  const sorted=[...values].sort(naturalLocationSort);
+  assert.deepEqual(sorted.map(value=>value.display_name),["101호","102호","103호","201호","301호","1203호","B101호","B102호"]);
+  assert.deepEqual(new Set(sorted.map(value=>value.id)),new Set(values.map(value=>value.id)));
+  assert.deepEqual(sortIssueLocationOptions(values).map(value=>value.display_name),sorted.map(value=>value.display_name));
+});
+
+test("dynamic units and whole-room options are scoped to their canonical parent",async()=>{
+  const db=database();
+  db.exec("PRAGMA foreign_keys=ON; INSERT INTO companies(id,name,status) VALUES('company','Company','ACTIVE'); INSERT INTO sites(id,company_id,name,status) VALUES('site','company','Site','ACTIVE');");
+  db.exec(read("database/migrations/0006_issue_location_entities.sql"));
+  const adapter={prepare(sql){let values=[];return{bind(...next){values=next;return this},async first(){return db.prepare(sql).get(...values)||null},async run(){return db.prepare(sql).run(...values)}}}};
+  const buildingA=db.prepare("SELECT id FROM site_locations WHERE site_id='site' AND code='BUILDING_1'").get().id;
+  const buildingB=db.prepare("SELECT id FROM site_locations WHERE site_id='site' AND code='BUILDING_2'").get().id;
+  const unitA1=await resolveIssueLocation({DB:adapter},"site",{label:"101호",type:"UNIT",parentId:buildingA,allowDynamic:true});
+  const unitA2=await resolveIssueLocation({DB:adapter},"site",{label:"101호",type:"UNIT",parentId:buildingA,allowDynamic:true});
+  const unitB=await resolveIssueLocation({DB:adapter},"site",{label:"101호",type:"UNIT",parentId:buildingB,allowDynamic:true});
+  assert.equal(unitA1.id,unitA2.id);
+  assert.notEqual(unitA1.id,unitB.id);
+  assert.equal(db.prepare("SELECT parent_id FROM site_locations WHERE id=?").get(unitA1.id).parent_id,buildingA);
+  const wholeA1=await resolveIssueLocation({DB:adapter},"site",{label:"전체",type:"ROOM",parentId:unitA1.id,allowDynamic:true});
+  const wholeA2=await resolveIssueLocation({DB:adapter},"site",{label:"전체",type:"ROOM",parentId:unitA1.id,allowDynamic:true});
+  const wholeB=await resolveIssueLocation({DB:adapter},"site",{label:"전체",type:"ROOM",parentId:unitB.id,allowDynamic:true});
+  assert.equal(wholeA1.id,wholeA2.id);
+  assert.notEqual(wholeA1.id,wholeB.id);
+  assert.equal(db.prepare("SELECT parent_id FROM site_locations WHERE id=?").get(wholeA1.id).parent_id,unitA1.id);
+  assert.equal(db.prepare("SELECT COUNT(*) count FROM site_locations WHERE location_type='ROOM' AND display_name='전체' AND parent_id IS NULL").get().count,0);
+  await assert.rejects(()=>resolveIssueLocation({DB:adapter},"site",{label:"1호",type:"UNIT",parentId:buildingA,allowDynamic:true}),error=>error.code==="ISSUE_UNIT_PRESET_DISALLOWED");
+  db.close();
+});
+
+test("new Issue UI applies one location policy for direct and Today source routes",()=>{
+  const ui=read("apps/web/assets/issues.js"),flow=ui.slice(ui.indexOf("async function createV3"),ui.indexOf("async function createV2"));
+  assert.doesNotMatch(flow,/name="floor"/);
+  assert.doesNotMatch(flow,/name="area" required/);
+  assert.match(flow,/locationOptions\(locations\.buildings,[^\n]+natural:false/);
+  assert.match(worker,/floors:byType\("FLOOR"\)/);
+  assert.match(flow,/locationOptions\(locations\.units/);
+  assert.match(flow,/locationOptions\(locations\.areas/);
+  assert.match(flow,/\["BUILDING","COMMERCIAL"\]\.includes/);
+  assert.match(flow,/unit\.required=unitRequired/);
+  assert.match(flow,/areaLabel=[^;]+\|\|"전체"/);
+  assert.match(flow,/floorLocationId/);
+  assert.match(flow,/sourcePayload=data\.sourceContext/);
+  assert.match(flow,/입력한 위치와 내용은 보존됩니다/);
+  assert.doesNotMatch(flow.slice(flow.indexOf("catch(error)")),/form\.reset\(\)/);
+});
+
+test("SpeechRecognition body remains the established single-result flow",()=>{
+  const ui=read("apps/web/assets/issues.js"),flow=ui.slice(ui.indexOf("async function createV3"),ui.indexOf("async function createV2"));
+  assert.match(flow,/const recognition=new SpeechRecognition\(\)/);
+  assert.match(flow,/recognition\.lang="ko-KR"/);
+  assert.match(flow,/recognition\.onresult=/);
+  assert.match(flow,/recognition\.onend=\(\)=>voice\.disabled=false/);
+  assert.match(flow,/recognition\.start\(\)/);
+  assert.doesNotMatch(flow,/recognition\.stop|recognition\.abort|continuous\s*=|getUserMedia/);
 });
 
 test("photo editor and collapsed list contracts are wired",()=>{
