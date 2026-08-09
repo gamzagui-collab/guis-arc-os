@@ -16,3 +16,6 @@ export function canonicalLocationId(option){
   const value=String(option?.value||"");
   return option?.dataset?.locationId==="true"&&value!=="DIRECT"&&!value.startsWith("dynamic:")?value:"";
 }
+
+const locationCollator=new Intl.Collator("ko-KR",{numeric:true,sensitivity:"base"});
+export const naturalLocationSort=(left,right)=>locationCollator.compare(String(left?.display_name||""),String(right?.display_name||""));

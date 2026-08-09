@@ -1,5 +1,13 @@
 # GUI's Arc 현재 프로젝트 상태
 
+## v0.27.0 Field Adoption Phase 1 로컬 구현 상태 (2026-08-09)
+
+- Today 공사 작업 → 기존 Issue 등록 source Context, stale resolver, ATTACHED/DETACHED fallback과 등록 당시 최소 snapshot을 구현했다.
+- 담당자 응답은 개인 담당자만 기록하며 네 가지 응답, append-only `response_revision`, Audit, Idempotency로 Issue Workflow와 분리했다.
+- Issue 목록·상세 최신 응답과 Today `응답 확인 필요` 최소 표시를 구현했다.
+- Migration `0033_field_adoption_phase1.sql`은 로컬에만 존재하며 Integration D1에는 아직 적용하지 않았다.
+- Worker·Pages·Production·D1·R2·Secret은 변경하지 않았다. Integration 검증 전 Commit·Tag·Integrated ZIP도 확정하지 않는다.
+
 ## v0.25.1 Root Cause Integrity Hotfix 상태 (2026-08-02)
 
 - 확정 분석의 실질 변경은 `CONFIRMED → DRAFT`로 전환하고 `confirmed_by_user_id`, `confirmed_at`을 비워 재확정을 요구한다.

@@ -9,7 +9,8 @@ const addDate=(date,days)=>{
 const planEntry=(plan,date)=>({
  id:plan.id,date,source:"MONTHLY_PLAN",trade:plan.tradeLabel,company:plan.contractorCompanyName,
  location:plan.locationText,description:plan.workDescription,plannedWorkforce:plan.plannedWorkforce,
- startTime:plan.startTime,endTime:plan.endTime,caution:plan.cautionText,status:plan.status
+ startTime:plan.startTime,endTime:plan.endTime,caution:plan.cautionText,status:plan.status,
+ sourceContext:{sourceType:"CONSTRUCTION_MONTHLY_PLAN",sourceId:plan.id,sourceRevision:Number(plan.revision),sourceItemRefs:[]}
 });
 
 export function aggregateMajorWorks(rows=[]){
@@ -42,7 +43,7 @@ export async function constructionProvider({env,ctx,scope}){
  if(!dailyAccess&&!outputAccess)return {code:"construction",label:"오늘 공사일보",implementationStatus:"NO_PERMISSION",state:"NO_PERMISSION",message:"공사일보 열람 권한이 없습니다."};
  const date=kstWorkDate(),tomorrow=addDate(date,1),dayAfterTomorrow=addDate(date,2),plans=dailyAccess?await listMonthlyPlansForRange(env,scope.siteId,date,dayAfterTomorrow):[];
  const activePlans=plans.filter(plan=>plan.status!=="CANCELLED"),report=dailyAccess?await env.DB.prepare("SELECT id,revision,parse_status,status,today_workforce_total,employee_workforce,trade_workforce_total,workforce_warnings_json,content_snapshot_json FROM construction_daily_report_uploads WHERE site_id=?1 AND work_date_kst=?2 AND parse_status='CONFIRMED' AND status='ACTIVE' ORDER BY revision DESC LIMIT 1").bind(scope.siteId,date).first():null;
- let workRows=report?.parse_status==="CONFIRMED"&&report.status==="ACTIVE"?await env.DB.prepare(`SELECT i.work_description,i.workforce_count,i.company_name_snapshot,i.trade_name_snapshot,i.location_text,i.is_fallback_work_item,c.name company_name
+ let workRows=report?.parse_status==="CONFIRMED"&&report.status==="ACTIVE"?await env.DB.prepare(`SELECT i.id,i.section_type,i.source_sheet_name,i.source_cell_range,i.work_description,i.workforce_count,i.company_name_snapshot,i.trade_name_snapshot,i.location_text,i.is_fallback_work_item,c.name company_name
   FROM construction_daily_report_imported_items i LEFT JOIN companies c ON c.id=i.company_id
   WHERE i.upload_id=?1 AND i.section_type='TODAY_PLAN' ORDER BY i.sort_order`).bind(report.id).all():{results:[]};
  let derived=null;
@@ -56,7 +57,7 @@ export async function constructionProvider({env,ctx,scope}){
  const reportStatus=report?.parse_status==="CONFIRMED"&&report.status==="ACTIVE"?"FINALIZED":report?.parse_status||null;
  let workforceWarnings=[];try{workforceWarnings=derived?.workforceWarnings||JSON.parse(report?.workforce_warnings_json||"[]")}catch{}
  const finalized=reportStatus==="FINALIZED",plansFor=target=>activePlans.filter(plan=>plan.startDate<=target&&plan.endDate>=target).map(plan=>planEntry(plan,target));
- const reportEntries=majorWorks.map(work=>({id:work.id,date,source:"CONFIRMED_DAILY_REPORT",trade:(work.trades||[]).join(", "),company:null,location:work.location,description:work.name,plannedWorkforce:work.total,startTime:null,endTime:null,caution:null,status:"CONFIRMED"}));
+ const reportEntries=majorWorks.map(work=>({id:work.id,date,source:"CONFIRMED_DAILY_REPORT",trade:(work.trades||[]).join(", "),company:null,location:work.location,description:work.name,plannedWorkforce:work.total,startTime:null,endTime:null,caution:null,status:"CONFIRMED",sourceContext:{sourceType:"CONSTRUCTION_DAILY_REPORT",sourceId:report.id,sourceRevision:Number(report.revision),sourceItemRefs:work.sourceItemRefs}}));
  const plannedToday=plansFor(date),todayEntries=finalized?reportEntries:plannedToday;
  const schedule={
   today:{date,source:finalized?"CONFIRMED_DAILY_REPORT":"MONTHLY_PLAN",entries:todayEntries,notice:finalized?(plannedToday.length?`확정 공사일보 기준 · 월간계획 ${plannedToday.length}건은 중복 표시하지 않습니다.`:"확정 공사일보 기준"):"오늘 공사일보가 아직 확정되지 않아 월간계획을 표시합니다."},

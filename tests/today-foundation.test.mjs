@@ -120,7 +120,9 @@ test("Today construction work UI stays inline and distinguishes report states", 
   assert.match(client,/\.today-inline-toggle,\.today-work-toggle/);
   assert.match(client,/globalThis\.scrollY/);
   const workRenderer=client.slice(client.indexOf("const constructionWorkRow"),client.indexOf("const buildConstructionWorks"));
-  assert.doesNotMatch(workRenderer,/<a |location\.|window\.location|navigate\(|dialog|modal|popup/i);
+  assert.equal((workRenderer.match(/<a /g)||[]).length,1,"approved v0.27.0 source action is the only work-row navigation");
+  assert.match(workRenderer,/today-work-create-issue/);
+  assert.doesNotMatch(workRenderer,/location\.|window\.location|navigate\(|dialog|modal|popup/i);
 });
 
 test("no mojibake replacement characters exist in Today sources", () => {

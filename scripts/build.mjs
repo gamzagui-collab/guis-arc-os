@@ -10,6 +10,7 @@ for (const dir of ["design-tokens", "ui", "permissions"]) {
 fs.copyFileSync("packages/design-tokens/tokens.css", "dist/packages/design-tokens/tokens.css");
 fs.copyFileSync("packages/ui/components.js", "dist/packages/ui/components.js");
 fs.copyFileSync("packages/permissions/modules.js", "dist/packages/permissions/modules.js");
+fs.copyFileSync("packages/permissions/issue-assignee-response.js", "dist/packages/permissions/issue-assignee-response.js");
 
 // Source files use repository-relative imports for Node tests. After copying to
 // dist/assets those paths would escape the deployed web root, so normalize the

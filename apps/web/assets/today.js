@@ -9,6 +9,7 @@ const empty=message=>`<p class="today-empty">${escapeHtml(message)}</p>`;
 const taskRow=task=>`<a class="today-task-row priority-${escapeHtml(task.priority||"B")}" href="${escapeHtml(task.href)}"><span class="today-task-type">${escapeHtml(task.moduleLabel||"업무")}</span><span class="today-task-title">${escapeHtml(task.label)}</span><strong>${Number(task.count)||0}건</strong><span class="today-row-arrow" aria-hidden="true">›</span></a>`;
 const urgentRow=item=>`<a class="today-urgent-row" href="${escapeHtml(item.href)}"><span class="today-urgent-title">${escapeHtml(item.title)}</span><span class="today-urgent-meta">${escapeHtml(item.location||"위치 미지정")} · ${escapeHtml(item.assignee||"담당자 미지정")}</span><span class="today-urgent-status">${escapeHtml(issueStatus[item.status]||"상태 확인")}</span><span class="today-row-arrow" aria-hidden="true">›</span></a>`;
 const analysisRow=item=>`<a class="today-analysis-row" href="${escapeHtml(item.href)}"><span>${escapeHtml(item.group)} · ${escapeHtml(item.label)}</span><span class="today-analysis-track"><i style="width:${Math.min(100,Math.max(4,Number(item.value)*8))}%"></i></span><strong>${Number(item.value)||0}건</strong></a>`;
+const issueSourceHref=context=>{const query=new URLSearchParams({sourceType:context.sourceType,sourceId:context.sourceId,sourceRevision:String(context.sourceRevision)}),sourceItemIds=(context.sourceItemRefs||[]).map(ref=>ref.itemId).filter(Boolean);if(sourceItemIds.length)query.set("sourceItemIds",sourceItemIds.join(","));return `/issues/new?${query}`};
 const constructionWorkRow=work=>`<div class="today-work-item">
  <button class="today-work-toggle" type="button" aria-expanded="false" aria-controls="${escapeHtml(work.id)}-content">
   <span><span aria-hidden="true">▸</span> ${constructionWorkItemHtml(work)}</span><span class="today-work-chevron" aria-hidden="true">▼</span>
@@ -16,9 +17,10 @@ const constructionWorkRow=work=>`<div class="today-work-item">
  <div class="today-work-content" id="${escapeHtml(work.id)}-content" hidden>
   <dl><div><dt>작업내용</dt><dd>${escapeHtml(work.isFallbackWorkItem?"노코멘트":work.name)}</dd></div><div><dt>작업 위치</dt><dd>${escapeHtml(work.location||"위치 미등록")}</dd></div>${(work.trades||[]).length?`<div><dt>공종</dt><dd>${escapeHtml(work.trades.join(", "))}</dd></div>`:""}<div><dt>예정 인원</dt><dd>${work.workforceRegistered===false||work.total===null?"인원 확인 필요":`${Number(work.total)}명`}</dd></div></dl>
   ${work.companyBreakdownAvailable===false?empty("회사별 인원 정보가 원본 공사일보에 없습니다."):(work.companies||[]).length&&Number(work.total)>0?`<div class="today-work-companies"><h3>회사별 예정 인원</h3>${work.companies.map(company=>`<div><span>${escapeHtml(company.name)}</span><strong>${Number(company.count)||0}명</strong></div>`).join("")}</div>`:empty("예정 인원 정보가 등록되지 않았습니다.")}
+  ${work.canCreateIssue&&work.sourceContext?`<a class="secondary today-work-create-issue" href="${escapeHtml(issueSourceHref(work.sourceContext))}">이 작업으로 이슈 등록</a>`:""}
  </div>
 </div>`;
-const buildConstructionWorks=sections=>{
+const buildConstructionWorks=(sections,canCreateIssue=false)=>{
  const module=(sections.modules||[]).find(item=>item.code==="construction"),construction=sections.constructionSummary;
  if(module?.state==="ERROR")return {count:0,body:empty("공사일보를 불러오지 못했습니다.<br>잠시 후 다시 시도해 주세요.")};
  if(module?.state==="NO_PERMISSION")return {count:0,body:empty("이 정보를 볼 권한이 없습니다.")};
@@ -26,7 +28,7 @@ const buildConstructionWorks=sections=>{
  const planSchedule=construction.schedule?.today,usingPlan=construction.reportStatus!=="FINALIZED"&&planSchedule?.source==="MONTHLY_PLAN";
  if(!usingPlan&&(construction.reportStatus==="ANALYZING"||construction.reportStatus==="ANALYZED"))return {count:0,body:empty("공사일보를 분석하고 있습니다.")};
  if(!usingPlan&&construction.reportStatus==="FAILED")return {count:0,body:empty("공사일보 양식을 인식하지 못했습니다.")};
- const works=usingPlan?(planSchedule.entries||[]).map((entry,index)=>({id:`today-monthly-plan-${entry.id||index}`,name:entry.description,location:entry.location||"위치 정보 없음",trades:entry.trade?[entry.trade]:[],total:entry.plannedWorkforce,workforceRegistered:entry.plannedWorkforce!==null&&entry.plannedWorkforce!==undefined,companies:entry.company&&entry.plannedWorkforce!==null?[{name:entry.company,count:Number(entry.plannedWorkforce)}]:[],companyBreakdownAvailable:Boolean(entry.company),isFallbackWorkItem:false})):(construction.majorWorks||[]);
+ const works=(usingPlan?(planSchedule.entries||[]).map((entry,index)=>({id:`today-monthly-plan-${entry.id||index}`,name:entry.description,location:entry.location||"위치 정보 없음",trades:entry.trade?[entry.trade]:[],total:entry.plannedWorkforce,workforceRegistered:entry.plannedWorkforce!==null&&entry.plannedWorkforce!==undefined,companies:entry.company&&entry.plannedWorkforce!==null?[{name:entry.company,count:Number(entry.plannedWorkforce)}]:[],companyBreakdownAvailable:Boolean(entry.company),isFallbackWorkItem:false,sourceContext:entry.sourceContext})):(construction.majorWorks||[])).map(work=>({...work,canCreateIssue}));
  if(!works.length&&construction.reportStatus!=="FINALIZED")return {count:0,body:empty("등록된 공사 일정이 없습니다.")};
  const total=usingPlan?works.reduce((sum,work)=>sum+Number(work.total||0),0):Number(construction.todayWorkforceTotal)||0;
  const workforceHeader=`<div class="today-workforce-total"><strong>${usingPlan?"총 예정 인원":"금일 총 출력인원"} ${total}명</strong><span>${usingPlan?"월간계획 기준":"공사일보 기준"}</span>${!usingPlan&&Number(construction.employeeWorkforce)>0?`<small>기타 인원 · 직원 ${Number(construction.employeeWorkforce)}명</small>`:""}</div>`;
@@ -121,7 +123,7 @@ async function refreshSummaryCards(content){
   if(!response.ok)throw new Error(errorMessage(data,response.status));
   grid.innerHTML=buildSummaryCards(data.sections||{});
   notices.innerHTML=buildNotices(data.sections||{});
-  const works=buildConstructionWorks(data.sections||{});
+  const works=buildConstructionWorks(data.sections||{},content.dataset.canEditIssue==="true");
   worksList.innerHTML=works.body;
   worksCount.textContent=`${works.count}개 작업`;
   bindInlineAccordions(content);
@@ -142,8 +144,10 @@ export async function renderTodayPage({content,session}){
   mark("today-api-response");
   const data=await response.json();
   if(!response.ok)throw Object.assign(new Error(errorMessage(data,response.status)),{status:response.status,code:data.error});
-  const context=data.context||{},attendance=context.attendance||{},pending=context.approvalStatus==="PENDING",sections=data.sections||{},modules=sections.modules||[],tasks=sections.todayTasks||[],urgentItems=sections.urgentItems||[],alerts=sections.alerts||[],analysis=sections.analysis||[],workforce=sections.workforceSummary,construction=sections.constructionSummary,constructionWorks=buildConstructionWorks(sections);
+  const context=data.context||{},attendance=context.attendance||{},pending=context.approvalStatus==="PENDING",sections=data.sections||{},modules=sections.modules||[],tasks=sections.todayTasks||[],urgentItems=sections.urgentItems||[],alerts=sections.alerts||[],analysis=sections.analysis||[],workforce=sections.workforceSummary,construction=sections.constructionSummary;
   const canEditIssue=["EDIT","MANAGE"].includes(session?.context?.boardAccess?.ISSUE?.accessLevel);
+  content.dataset.canEditIssue=String(canEditIssue);
+  const constructionWorks=buildConstructionWorks(sections,canEditIssue);
   const actions=(data.actions||[]).filter(action=>action.href!=="/issues/new"||canEditIssue);
   const weather=modules.find(module=>module.code==="weather");
   content.innerHTML=`

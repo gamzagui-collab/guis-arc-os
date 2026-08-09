@@ -638,9 +638,14 @@ test("v0.19.5 existing analyzed sessions create Revision 1 then supersede it wit
  assert.equal((await second.json()).results[0].revision,2);
  const revisions=db.prepare("SELECT revision,status,parse_status FROM construction_daily_report_uploads WHERE site_id='site-1' AND work_date_kst=?1 ORDER BY revision").all(todayWorkDate).map(row=>({...row}));
  assert.deepEqual(revisions,[{revision:1,status:"SUPERSEDED",parse_status:"CONFIRMED"},{revision:2,status:"ACTIVE",parse_status:"CONFIRMED"}]);
+ const latestActive=db.prepare("SELECT id FROM construction_daily_report_uploads WHERE site_id='site-1' AND work_date_kst=?1 AND status='ACTIVE'").get(todayWorkDate);
  assert.equal(db.prepare("SELECT COUNT(*) count FROM audit_logs WHERE action IN ('CONSTRUCTION_MONTHLY_NEW_AUTO_APPLIED','CONSTRUCTION_MONTHLY_CHANGED_CONFIRMED')").get().count,2);
  const today=await constructionProvider({env,ctx:{boardAccess:{CONSTRUCTION_DAILY_REPORT:{accessLevel:"EDIT"}}},scope:{siteId:"site-1"}});
  assert.equal(today.schedule.today.source,"CONFIRMED_DAILY_REPORT");
+ assert.equal(today.schedule.today.entries[0].sourceContext.sourceType,"CONSTRUCTION_DAILY_REPORT");
+ assert.equal(today.schedule.today.entries[0].sourceContext.sourceId,latestActive.id);
+ assert.equal(today.schedule.today.entries[0].sourceContext.sourceRevision,2);
+ assert.ok(today.schedule.today.entries[0].sourceContext.sourceItemRefs.every(ref=>ref.itemId&&!ref.itemId.startsWith("construction-work-")));
  assert.match(today.schedule.today.notice,/확정 공사일보 기준/);
  db.close();
 });

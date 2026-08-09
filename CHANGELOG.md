@@ -1,3 +1,11 @@
+# v0.27.0 — Field Adoption Phase 1
+
+- Today 공사 작업의 영구 원본 item 참조를 기존 Issue 등록 화면으로 전달하고, stale 원본은 결정적으로 재식별될 때만 연결한다.
+- 원본 연결이 불가능하거나 모호하면 `DETACHED`로 일반 Issue 등록을 계속하며 사진·위치·내용을 보존한다.
+- 개인 담당자는 네 가지 최소 응답을 append-only `response_revision`으로 기록하며, Issue 상태·담당자·기한은 자동 변경하지 않는다.
+- Issue 목록·상세와 Today에 최신 담당 응답 및 확인 필요 건수를 최소 표시한다.
+- Migration 0033은 로컬 구현만 완료했으며 Integration에는 아직 적용하지 않았다. Worker·Pages·Production은 변경하지 않았다.
+
 # v0.25.1 — Root Cause Integrity Hotfix
 
 - 확정된 분석의 원인·note·재발 방지 메모가 실질적으로 변경되면 `DRAFT`로 되돌리고 확정자·확정 시각을 초기화해 재확정을 요구한다.

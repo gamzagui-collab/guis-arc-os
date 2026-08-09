@@ -1,6 +1,6 @@
 # GUI's Arc Integrated 공식 기준
 
-- 현재 버전: `v0.25.1`
+- 현재 버전: `v0.27.0`
 - 직접 기준본: `GUI_Arc_Integrated_v0.24.4_Integrated.zip`
 - 직접 기준본 SHA-256: `455A993C035AD55722DEC5D71324158894159E11BEB3860BD3F98BDBD5560BA8`
 - 공식 결과물: `GUI_Arc_Integrated_v0.25.1_Integrated.zip`
