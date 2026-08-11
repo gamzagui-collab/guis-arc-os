@@ -84,7 +84,7 @@ test("media authorization and orphan cleanup are fail closed", () => {
 
 test("mobile Issue form is Korean, camera-first, voice-assisted and uses canonical values", () => {
   const ui=read("apps/web/assets/issues.js"),css=read("apps/web/assets/issues.css");
-  for(const label of ["전체 이슈","이슈 등록","미조치","완료 확인","완료","통계","담당자 지정","조치","완료 요청","재조치","취소"])assert.match(ui,new RegExp(label));
+  for(const label of ["전체","이슈 등록","미조치","완료 확인","완료","통계","담당자 지정","조치","완료 요청","재조치","취소"])assert.match(ui,new RegExp(label));
   assert.match(ui,/capture="environment"/);
   assert.match(ui,/accept="image\/\*"/);
   assert.match(ui,/SpeechRecognition\|\|window\.webkitSpeechRecognition/);
@@ -116,6 +116,12 @@ test("speech building numbers convert only in location context", () => {
   assert.equal(extractLocationSpeech("일동 기립",config).buildingLabel,null);
   assert.equal(extractLocationSpeech("202동 1002호 거실",config).buildingLabel,"202동");
   assert.equal(extractLocationSpeech("2동 1002호 거실",{...config,buildingNumberMode:"PHASE_PREFIX",phasePrefix:"20"}).buildingLabel,"202동");
+});
+
+test("speech extracts only explicit room vocabulary and does not promote arbitrary content",()=>{
+  assert.equal(extractLocationSpeech("주차장 슬래브 청소").roomLabel,"슬래브");
+  assert.equal(extractLocationSpeech("2동 101호 거실 벽면 보수").roomLabel,"거실");
+  assert.equal(extractLocationSpeech("주차장 깨끗하게 청소해주세요").roomLabel,null);
 });
 
 test("temporary location options send labels without fake IDs",()=>{
@@ -306,6 +312,29 @@ test("new Issue UI applies one location policy for direct and Today source route
   assert.doesNotMatch(flow.slice(flow.indexOf("catch(error)")),/form\.reset\(\)/);
 });
 
+test("speech room selection reuses exact parent option or selects a dynamic ROOM without overriding manual input",()=>{
+  const ui=read("apps/web/assets/issues.js"),flow=ui.slice(ui.indexOf("function parseSpeech"),ui.indexOf("function bindPhotoInputs"));
+  assert.match(flow,/currentLocationParentId/);
+  assert.match(flow,/normalizeLocationLabel\(value\.textContent\)===normalizeLocationLabel\(parsed\.roomLabel\)/);
+  assert.match(flow,/value\.dataset\.parentId===parentId/);
+  assert.match(flow,/addAndSelect\(form\.elements\.area,parsed\.roomLabel,"ROOM",parentId\)/);
+  assert.match(flow,/if\(parsed\.roomLabel&&!hasManualArea\)/);
+});
+
+test("standalone PWA launch emphasizes the existing camera action once without an automatic picker",()=>{
+  const ui=read("apps/web/assets/issues.js"),css=read("apps/web/assets/issues.css"),flow=ui.slice(ui.indexOf("const PWA_CAMERA_LAUNCH_KEY"),ui.indexOf("const OFFLINE"));
+  assert.match(flow,/window\.matchMedia\("\(display-mode: standalone\)"\)\.matches\|\|window\.navigator\.standalone===true/);
+  assert.match(flow,/sessionStorage\.getItem\(PWA_CAMERA_LAUNCH_KEY\)/);
+  assert.match(flow,/sessionStorage\.setItem\(PWA_CAMERA_LAUNCH_KEY,"1"\)/);
+  assert.match(flow,/form\.elements\.description\?\.value\.trim\(\)/);
+  assert.match(flow,/input\.files\?\.length/);
+  assert.match(flow,/cameraAction\.classList\.add\("pwa-camera-ready"\)/);
+  assert.match(flow,/cameraAction\.focus\(\{preventScroll:false\}\)/);
+  assert.doesNotMatch(flow,/\.click\(|showPicker\(/);
+  assert.match(ui,/focusPwaCameraFallback\(form\)/);
+  assert.match(css,/\.camera-action\.pwa-camera-ready\{/);
+});
+
 test("SpeechRecognition body remains the established single-result flow",()=>{
   const ui=read("apps/web/assets/issues.js"),flow=ui.slice(ui.indexOf("async function createV3"),ui.indexOf("async function createV2"));
   assert.match(flow,/const recognition=new SpeechRecognition\(\)/);
@@ -318,9 +347,27 @@ test("SpeechRecognition body remains the established single-result flow",()=>{
 
 test("photo editor and collapsed list contracts are wired",()=>{
   const ui=read("apps/web/assets/issues.js"),css=read("apps/web/assets/issues.css");
-  for(const token of ["동그라미","화살표","직선","자유펜","실행 취소","전체 지우기","issue-expand","다시 접기","상세 작업 열기"])assert.match(ui,new RegExp(token));
+  for(const tool of ["circle","arrow","line","pen"])assert.match(ui,new RegExp(`data-edit-tool="${tool}"`));
+  for(const token of ["issue-expand"])assert.match(ui,new RegExp(token));
   assert.match(css,/touch-action:none/);
   assert.match(css,/issue-card-collapsed/);
+});
+
+test("mobile photo editor defaults to NONE and preserves tool geometry contracts",()=>{
+  const ui=read("apps/web/assets/issues.js"),css=read("apps/web/assets/issues.css"),editor=ui.slice(ui.indexOf("function bindPhotoEditor"),ui.indexOf("const locationOptions"));
+  assert.doesNotMatch(ui,/edit-mode-toggle|edit-mode-status/);
+  assert.match(editor,/mobileEditor=matchMedia\("\(max-width:760px\)"\)\.matches\|\|matchMedia\("\(pointer:coarse\)"\)\.matches/);
+  assert.match(editor,/tool=mobileEditor\?"none":"circle"/);
+  assert.match(editor,/if\(!original\|\|tool==="none"\)return;event\.preventDefault\(\);canvas\.setPointerCapture/);
+  assert.match(editor,/setTool=next=>/);
+  assert.match(editor,/button\.onclick=\(\)=>setTool\(button\.dataset\.editTool\)/);
+  for(const tool of ["none","circle","rectangle","ellipse","arrow","line","pen"])assert.match(ui,new RegExp(`data-edit-tool="${tool}"`));
+  assert.match(editor,/ctx\.rect\(from\.x-Math\.abs\(dx\),from\.y-Math\.abs\(dy\),Math\.abs\(dx\)\*2,Math\.abs\(dy\)\*2\)/);
+  assert.match(editor,/ctx\.ellipse\(\(from\.x\+to\.x\)\/2,\(from\.y\+to\.y\)\/2,Math\.abs\(dx\)\/2,Math\.abs\(dy\)\/2/);
+  assert.match(editor,/ctx\.moveTo\(from\.x,from\.y\);ctx\.lineTo\(to\.x,to\.y\)/);
+  assert.match(ui,/<option value="2">[^<]+<\/option><option value="10" selected>[^<]+<\/option><option value="18">[^<]+<\/option>/);
+  assert.match(css,/\.photo-editor-wrap canvas\{touch-action:pan-y/);
+  assert.match(css,/\.photo-editor-wrap\.drawing-enabled canvas\{touch-action:none/);
 });
 
 test("collapsed Issue rows stay two-line, photo-free, and location-free",()=>{
@@ -365,4 +412,56 @@ test("location management and multi-trade schema preserve audit and history",()=
   assert.ok(db.prepare("SELECT 1 FROM permissions WHERE code='issue.manage_locations'").get());
   assert.ok(db.prepare("SELECT 1 FROM company_site_contract_trades WHERE trade_code='DIRECT' AND status='ACTIVE'").get());
   for(const token of ["ISSUE_LOCATION_CREATED","ISSUE_LOCATION_DEACTIVATED","ISSUE_LOCATION_DELETED","ISSUE_CONTRACT_TRADES_UPDATED"])assert.match(worker,new RegExp(token));
+});
+
+test("resolveIssueLocation ROOM는 동일 building 기준 기존값 재사용 및 동적 생성",async()=>{
+  const db=database();
+  db.exec("PRAGMA foreign_keys=ON;");
+  db.exec("INSERT INTO companies(id,name,status) VALUES('company-a','A','ACTIVE'),('company-b','B','ACTIVE'); INSERT INTO sites(id,company_id,name,status) VALUES('site-a','company-a','A','ACTIVE'),('site-b','company-b','B','ACTIVE');");
+  db.exec(read("database/migrations/0006_issue_location_entities.sql"));
+  const env={
+    DB:{
+      prepare(sql){
+        let values=[];
+        return {
+          bind(...next){values=next;return this},
+          async first(){return db.prepare(sql).get(...values)||null},
+          async all(){return db.prepare(sql).all(...values)},
+          async run(){return db.prepare(sql).run(...values)},
+        };
+      },
+    },
+  };
+  const buildingA=db.prepare("SELECT id FROM site_locations WHERE site_id='site-a' AND code='BUILDING_1'").get().id;
+  const buildingB=db.prepare("SELECT id FROM site_locations WHERE site_id='site-b' AND code='BUILDING_1'").get().id;
+  const roomA1=await resolveIssueLocation(env,"site-a",{label:"벽돌쌓기",type:"ROOM",parentId:buildingA,allowDynamic:true});
+  const roomA2=await resolveIssueLocation(env,"site-a",{label:"벽돌쌓기",type:"ROOM",parentId:buildingA,allowDynamic:true});
+  const roomB=await resolveIssueLocation(env,"site-b",{label:"벽돌쌓기",type:"ROOM",parentId:buildingB,allowDynamic:true});
+  assert.equal(roomA1.id,roomA2.id);
+  assert.notEqual(roomA1.id,roomB.id);
+  assert.equal(db.prepare("SELECT COUNT(*) count FROM site_locations WHERE site_id='site-a' AND location_type='ROOM' AND display_name='벽돌쌓기' AND parent_id=?").get(buildingA).count,1);
+  assert.equal(db.prepare("SELECT code FROM site_locations WHERE id=?").get(roomA1.id)?.code.slice(0,8),"DYNAMIC_");
+  db.close();
+});
+
+test("v0.27.1 createV3는 기본 상세위치 라벨 \"전체 (자동)\"을 \"전체\"로 정규화",()=>{
+  const ui=read("apps/web/assets/issues.js");
+  const flow=ui.slice(ui.indexOf("async function createV3"),ui.indexOf("async function createV2"));
+  assert.ok(flow.includes('normalizedAreaLabel=roomOption?.textContent==="기타"?areaOther.value.trim():roomOption?.textContent,areaLabel=normalizedAreaLabel==="전체 (자동)"?"전체":(normalizedAreaLabel||"전체");'));
+});
+
+test("NONE allows scrolling and a selected tool enables drawing without changing desktop default",()=>{
+ const ui=read("apps/web/assets/issues.js"),editor=ui.slice(ui.indexOf("function bindPhotoEditor"),ui.indexOf("const locationOptions"));assert.match(editor,/wrap\.classList\.toggle\("drawing-enabled",tool!=="none"\)/);assert.match(editor,/if\(!drawing\|\|tool==="none"\)return/);assert.match(editor,/setTool\(mobileEditor\?"none":"circle"\)/);
+});
+test("ROOM speech treats only trusted area changes as manual selection",()=>{
+ const ui=read("apps/web/assets/issues.js"),flow=ui.slice(ui.indexOf("function parseSpeech"),ui.indexOf("function bindPhotoInputs"));assert.match(flow,/form\.dataset\.manualArea==="true"/);assert.match(ui,/event\.isTrusted.*manualArea/);assert.match(flow,/addAndSelect\(form\.elements\.area,parsed\.roomLabel,"ROOM",parentId\)/);
+});
+
+
+test("annotation palette has seven colors with red selected by default",()=>{
+ const ui=read("apps/web/assets/issues.js"),palettes=[...ui.matchAll(/<select id="edit-color">([\s\S]*?)<\/select>/g)].map(match=>match[1]);assert.equal(palettes.length,2);for(const palette of palettes){assert.equal((palette.match(/<option /g)||[]).length,7);assert.match(palette,/^<option value="#e11d2e" selected>/)}assert.match(ui,/color="#e11d2e"/);for(const tool of ["none","circle","rectangle","ellipse","arrow","line","pen"])assert.match(ui,new RegExp(`data-edit-tool="${tool}"`));
+});
+
+test("assignment trade labels use safe slash separators and preserve canonical option ids",()=>{
+ const ui=read("apps/web/assets/issues.js"),css=read("apps/web/assets/issues.css");assert.match(ui,/const tradeOptionLabel=value=>/);assert.match(ui,/join\(" \/ "\)/);assert.equal((ui.match(/new Option\(tradeOptionLabel\(value\),value\.id\)/g)||[]).length,2);assert.doesNotMatch(ui,/value\.displayName} \? \$\{value\.path/);assert.match(css,/#assign select,#issue-bulk-form select\{min-width:0;max-width:100%;text-overflow:ellipsis\}/);
 });

@@ -1,3 +1,9 @@
+# v0.27.1 - Issue FIELD_USABLE Baseline
+
+- Mobile Photo Work View, server-side UNHANDLED/department filtering, lazy pagination and dedupe를 확정했다.
+- 모바일 공통 header, PWA 설치/start URL/camera CTA, annotation, ROOM 음성 위치, Site 생성, Issue 삭제를 FIELD_USABLE로 확정했다.
+- Migration 0033 적용 상태를 유지하며 Production은 변경하지 않았다.
+
 # v0.27.0 — Field Adoption Phase 1
 
 - Today 공사 작업의 영구 원본 item 참조를 기존 Issue 등록 화면으로 전달하고, stale 원본은 결정적으로 재식별될 때만 연결한다.

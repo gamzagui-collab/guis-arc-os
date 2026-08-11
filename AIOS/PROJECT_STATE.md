@@ -1,5 +1,15 @@
 # GUI's Arc 현재 프로젝트 상태
 
+## v0.27.1 Issue FIELD_USABLE Baseline (2026-08-11)
+
+- 사용자 실기기와 자동 검증을 통과한 Issue v0.27.1 공식 기준선이다.
+- Integration Worker: `2c336a52-6cef-46aa-b3bf-1b95dfce0ce7`
+- Integration Pages: `f318497a-d4c8-450f-9dbf-df9ac925a087`
+- Migration 0033: APPLIED
+- Issue Feature Freeze: YES
+- Production: NOT_CHANGED
+
+
 ## v0.27.0 Field Adoption Phase 1 로컬 구현 상태 (2026-08-09)
 
 - Today 공사 작업 → 기존 Issue 등록 source Context, stale resolver, ATTACHED/DETACHED fallback과 등록 당시 최소 snapshot을 구현했다.

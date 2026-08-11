@@ -1,10 +1,10 @@
 {
     "product":  "GUI\u0027s Arc Integrated",
-    "version":  "0.27.0",
+    "version":  "0.27.1",
     "baselineVersion":  "0.24.4",
     "baselineSha256":  "455A993C035AD55722DEC5D71324158894159E11BEB3860BD3F98BDBD5560BA8",
-    "branch":  "codex/v0.27.0-field-adoption-phase1",
+    "branch":  "v0.27.0-official",
     "releaseType":  "INTEGRATED",
-    "integrationStatus":  "PENDING",
+    "integrationStatus":  "FIELD_USABLE",
     "productionChanged":  false
 }

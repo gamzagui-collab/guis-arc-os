@@ -1,4 +1,4 @@
-# GUI's Arc Integrated v0.27.0
+# GUI's Arc Integrated v0.27.1
 
 v0.25.1은 확정된 Root Cause 분석의 실질 변경을 초안으로 되돌려 재확정을 요구하고, 상태별 편집 UI와 API 권한을 일치시키는 정합성 Hotfix입니다. Migration·Engine·Construction Rule과 Production은 변경하지 않습니다.
 

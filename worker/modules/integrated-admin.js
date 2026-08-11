@@ -12,6 +12,7 @@ const ROLE_COMPATIBILITY={
 };
 const DEFAULT_BOARD_ACCESS={INTEGRATED_OWNER:{ISSUE:"MANAGE",WORKFORCE_PROFILE:"MANAGE",WORKFORCE_ATTENDANCE:"MANAGE",WORKFORCE_DAILY_OUTPUT:"MANAGE",ADMINISTRATION:"MANAGE"},PLATFORM_OWNER:{ISSUE:"MANAGE",WORKFORCE_PROFILE:"MANAGE",WORKFORCE_ATTENDANCE:"MANAGE",WORKFORCE_DAILY_OUTPUT:"MANAGE",ADMINISTRATION:"MANAGE"},SITE_MANAGER:{ISSUE:"MANAGE",WORKFORCE_PROFILE:"MANAGE",WORKFORCE_ATTENDANCE:"MANAGE",WORKFORCE_DAILY_OUTPUT:"MANAGE",ADMINISTRATION:"MANAGE"},GENERAL_CONTRACTOR_FOREMAN:{ISSUE:"EDIT",WORKFORCE_ATTENDANCE:"VIEW"},CONTRACTOR_MANAGER:{ISSUE:"EDIT",WORKFORCE_ATTENDANCE:"VIEW",WORKFORCE_DAILY_OUTPUT:"EDIT"}};
 const audit=(env,actor,action,id,meta)=>env.DB.prepare("INSERT INTO audit_logs(id,actor_user_id,action,outcome,request_id,metadata_json) VALUES(?1,?2,?3,'ALLOWED',?4,?5)").bind(crypto.randomUUID(),actor,action,id,JSON.stringify(meta));
+const defaultBoardGrantStatements=(env,userId,siteId,roleCode="SITE_MANAGER")=>Object.entries(DEFAULT_BOARD_ACCESS[roleCode]||{}).map(([boardKey,accessLevel])=>env.DB.prepare("INSERT OR IGNORE INTO board_access_grants(id,site_id,board_id,user_id,access_level,granted_by_user_id) SELECT ?1,?2,id,?3,?4,?3 FROM board_definitions WHERE board_key=?5 AND is_active=1").bind(crypto.randomUUID(),siteId,userId,accessLevel,boardKey));
 const safetyGrantStatements=(env,userId,siteId)=>[
  env.DB.prepare(`INSERT OR IGNORE INTO board_access_grants(id,site_id,board_id,user_id,access_level,granted_by_user_id)
  SELECT lower(hex(randomblob(16))),?2,b.id,?1,
@@ -55,6 +56,20 @@ async function authorize(request,env,{write=false,siteId=null,masterOnly=false}=
  if(!master&&activeSite!==ctx.selectedSiteId)throw new ApiError(403,"ADMIN_SITE_SCOPE_DENIED","현재 현장만 관리할 수 있습니다.");
  await requireBoardAccess(env,{userId:row.user_id,siteId:activeSite,boardKey:"ADMINISTRATION",required:"MANAGE",requestId:requestId(request)});
  return {row,ctx,siteId:activeSite,roles,master};
+}
+async function createSite(request,env){
+ const body=await parseJson(request),auth=await authorize(request,env,{write:true,masterOnly:true}),companyId=String(body.companyId||"").trim(),siteName=String(body.siteName||"").trim().replace(/\s+/g," ");
+ if(!companyId)throw new ApiError(400,"SITE_COMPANY_REQUIRED","회사를 선택해 주세요.");
+ if(!siteName)throw new ApiError(400,"SITE_NAME_REQUIRED","현장명을 입력해 주세요.");
+ if(siteName.length>120)throw new ApiError(400,"SITE_NAME_TOO_LONG","현장명은 120자 이하로 입력해 주세요.");
+ const company=await env.DB.prepare("SELECT c.id FROM companies c JOIN memberships m ON m.company_id=c.id WHERE c.id=?1 AND c.status='ACTIVE' AND m.user_id=?2 AND m.site_id=?3 AND m.status='ACTIVE' AND m.approval_status='APPROVED'").bind(companyId,auth.row.user_id,auth.siteId).first();
+ if(!company)throw new ApiError(404,"SITE_COMPANY_NOT_FOUND","연결 가능한 회사를 찾을 수 없습니다.");
+ const duplicate=await env.DB.prepare("SELECT 1 found FROM sites WHERE company_id=?1 AND lower(trim(name))=lower(?2) AND status='ACTIVE' LIMIT 1").bind(companyId,siteName).first();
+ if(duplicate)throw new ApiError(409,"SITE_NAME_DUPLICATE","같은 회사에 동일한 현장명이 있습니다.");
+ const role=await env.DB.prepare("SELECT id FROM roles WHERE code='SITE_MANAGER'").first();
+ if(!role)throw new ApiError(500,"SITE_ROLE_UNAVAILABLE","현장 관리자 역할을 찾을 수 없습니다.");
+ const siteId=crypto.randomUUID(),statements=[env.DB.prepare("INSERT INTO sites(id,company_id,name,status) VALUES(?1,?2,?3,'ACTIVE')").bind(siteId,companyId,siteName),env.DB.prepare("INSERT INTO memberships(id,user_id,company_id,site_id,status,approval_status) VALUES(?1,?2,?3,?4,'ACTIVE','APPROVED') ON CONFLICT(user_id,company_id,site_id) DO UPDATE SET status='ACTIVE',approval_status='APPROVED'").bind(crypto.randomUUID(),auth.row.user_id,companyId,siteId),env.DB.prepare("INSERT INTO user_site_roles(id,user_id,role_id,company_id,site_id,status) VALUES(?1,?2,?3,?4,?5,'ACTIVE')").bind(crypto.randomUUID(),auth.row.user_id,role.id,companyId,siteId),...defaultBoardGrantStatements(env,auth.row.user_id,siteId),env.DB.prepare("UPDATE users SET context_version=context_version+1 WHERE id=?1").bind(auth.row.user_id),env.DB.prepare("UPDATE sessions SET context_version=context_version+1 WHERE user_id=?1 AND revoked_at IS NULL").bind(auth.row.user_id),audit(env,auth.row.user_id,"SITE_CREATED",requestId(request),{siteId,companyId,siteName,roleCode:"SITE_MANAGER"})];
+ await env.DB.batch(statements);return json({site:{id:siteId,companyId,name:siteName},contextVersion:auth.ctx.contextVersion+1},201);
 }
 async function tradeOptions(request,env,url){
  const includeInactive=url.searchParams.get("all")==="1";await authorize(request,env,{masterOnly:includeInactive});
@@ -205,6 +220,7 @@ export async function handleIntegratedAdminRequest(request,env,url){
  if(path==="/api/v1/admin/trades"&&method==="POST")return manageTrade(request,env);
  const trade=path.match(/^\/api\/v1\/admin\/trades\/([^/]+)$/);if(trade&&method==="PUT")return manageTrade(request,env,trade[1]);
  if(path==="/api/v1/admin/companies"&&["GET","POST"].includes(method))return companies(request,env,url);
+ if(path==="/api/v1/admin/sites"&&method==="POST")return createSite(request,env);
  const company=path.match(/^\/api\/v1\/admin\/companies\/([^/]+)$/);if(company&&method==="PATCH")return updateCompany(request,env,company[1]);
  const companyTrades=path.match(/^\/api\/v1\/admin\/companies\/([^/]+)\/trades$/);if(companyTrades&&method==="PUT")return updateCompanyTrades(request,env,companyTrades[1]);
  if(path==="/api/v1/admin/site-contracts"&&["GET","POST"].includes(method))return contracts(request,env,url);
