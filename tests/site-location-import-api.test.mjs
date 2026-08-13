@@ -5,6 +5,7 @@ import crypto from "node:crypto";
 import {DatabaseSync} from "node:sqlite";
 import {handleSiteLocationImportRequest} from "../worker/modules/site-location-import.js";
 import worker from "../worker/index.js";
+import {applyLocationImport} from "../worker/modules/site-location-import/apply.js";
 
 const template=fs.readFileSync("apps/web/templates/GUI_Arc_현장위치마스터_기본서식_v1.xlsx");
 const digest=crypto.createHash("sha256").update(template).digest("hex");
@@ -135,4 +136,68 @@ test("validation returns bounded preview and writes compact metadata only",async
   const body=await response.json();
   assert.equal(response.status,200);assert.equal(typeof body.applyAllowed,"boolean");assert.ok(body.counts);assert.ok(Array.isArray(body.operations));assert.ok(Array.isArray(body.errors));assert.ok(body.errors.length<=100);
   assert.equal(writes.filter(([kind])=>kind==="master").length,before);assert.equal(writes.at(-1)[0],"validation");assert.equal("operations" in writes.at(-1)[1],false);
+});
+
+const applyDiff=operations=>({operations,counts:{added:operations.filter(v=>v.type==="ADD").length,updated:operations.filter(v=>v.type==="UPDATE").length,unchanged:0,inactivated:operations.filter(v=>v.type==="INACTIVE").length,aliasAdded:operations.filter(v=>v.type==="ALIAS_ADD").length,aliasUpdated:operations.filter(v=>v.type==="ALIAS_UPDATE").length,aliasInactivated:operations.filter(v=>v.type==="ALIAS_INACTIVE").length,error:0},baseMasterFingerprint:"base-a",previewHash:"preview-a"});
+const location=(id,overrides={})=>({id,siteId:"site-a",parentId:null,locationType:"ROOM",canonicalKey:`key-${id}`,displayName:id,sortOrder:0,source:"IMPORT",isActive:1,...overrides});
+const alias=(id,locationId,overrides={})=>({id,siteId:"site-a",locationId,aliasText:id,normalizedAlias:id.toLowerCase(),aliasType:"FIELD_NAME",source:"IMPORT",isActive:1,...overrides});
+function applyHarness({diff=applyDiff([]),row={},replayed=null,failAt=0}={}){
+  const executed=[];let batchCalls=0,status="READY";
+  const statement=(sql,args=[])=>({sql,args,bind(...values){return statement(sql,values)}});
+  const env={DB:{prepare:sql=>statement(sql),async batch(statements){batchCalls++;for(const [index,item] of statements.entries()){if(failAt&&index+1===failAt)throw new Error("FORCED_MID_FAILURE");executed.push(item)}return statements.map(()=>({success:true,meta:{changes:1}}))}}};
+  const repository={
+    getApplyReplay:async()=>replayed,
+    beginLocationImportApply:async()=>{if(status!=="READY")return false;status="APPLYING";return true},
+    markLocationImportApplyFailed:async()=>{if(status==="APPLYING")status="FAILED"},
+    buildLocationImportApplyStatements:async(args)=>args.buildStatements(env,args),
+  };
+  return {env,repository,executed,get batchCalls(){return batchCalls},get status(){return status},row:{id:"import-a",site_id:"site-a",status:"READY",file_hash:"file-a",base_master_fingerprint:"base-a",preview_hash:"preview-a",...row},diff};
+}
+
+test("apply uses exact server recomputed operations and commits location, alias, audit, status and idempotency in one batch",async()=>{
+  const diff=applyDiff([
+    {type:"ADD",id:"new",after:location("new")},
+    {type:"UPDATE",id:"old",after:location("old",{displayName:"renamed",isActive:1})},
+    {type:"INACTIVE",id:"gone",before:location("gone"),after:location("gone",{isActive:0})},
+    {type:"ALIAS_ADD",id:"alias-new",after:alias("alias-new","new")},
+    {type:"ALIAS_UPDATE",id:"alias-old",after:alias("alias-old","old",{aliasText:"changed",isActive:1})},
+    {type:"ALIAS_INACTIVE",id:"alias-gone",before:alias("alias-gone","gone"),after:alias("alias-gone","gone",{isActive:0})}
+  ]),value=applyHarness({diff});
+  const result=await applyLocationImport({env:value.env,repository:value.repository,importRow:value.row,siteId:"site-a",userId:"user-a",idempotencyKey:"apply-1",payloadHash:"payload-a",diff,requestId:"request-a"});
+  assert.equal(value.batchCalls,1);assert.equal(result.status,"APPLIED");assert.deepEqual(result.counts,diff.counts);
+  const sql=value.executed.map(item=>item.sql).join("\n");
+  assert.match(sql,/INSERT INTO site_locations/);assert.match(sql,/UPDATE site_locations/);assert.match(sql,/INSERT INTO site_location_aliases/);assert.match(sql,/UPDATE site_location_aliases/);assert.match(sql,/SITE_LOCATION_IMPORT_APPLIED/);assert.match(sql,/site_location_imports/);assert.match(sql,/idempotency/i);assert.doesNotMatch(sql,/\bDELETE\b/i);
+});
+
+test("re-import reactivates IMPORT rows while omission never mutates LEGACY or MANUAL rows",async()=>{
+  const diff=applyDiff([{type:"UPDATE",id:"reactivate",before:location("reactivate",{isActive:0}),after:location("reactivate",{isActive:1})}]),value=applyHarness({diff});
+  await applyLocationImport({env:value.env,repository:value.repository,importRow:value.row,siteId:"site-a",userId:"user-a",idempotencyKey:"apply-2",payloadHash:"payload-b",diff,requestId:"request-b"});
+  const update=value.executed.find(item=>/UPDATE site_locations/.test(item.sql)&&item.args.includes("reactivate"));assert.ok(update);assert.ok(update.args.includes(1));
+  assert.equal(value.executed.some(item=>item.args.includes("legacy-omitted")||item.args.includes("manual-omitted")),false);
+});
+
+test("apply rejects stale file, base and preview hashes before CAS or D1 batch",async()=>{
+  for(const mismatch of [{fileHash:"other"},{baseMasterFingerprint:"other"},{previewHash:"other"}]){const value=applyHarness();await assert.rejects(()=>applyLocationImport({env:value.env,repository:value.repository,importRow:value.row,siteId:"site-a",userId:"user-a",idempotencyKey:"stale",payloadHash:"payload",diff:{...value.diff,...mismatch},fileHash:mismatch.fileHash??"file-a",requestId:"request"}),error=>error.status===409&&error.code==="LOCATION_IMPORT_PREVIEW_STALE");assert.equal(value.batchCalls,0);assert.equal(value.status,"READY")}
+});
+
+test("duplicate apply replays the stored result and mismatched payload is rejected",async()=>{
+  const stored={payload_hash:"payload-a",response_json:JSON.stringify({status:"APPLIED",counts:{added:1}})},same=applyHarness({replayed:stored});
+  assert.deepEqual(await applyLocationImport({env:same.env,repository:same.repository,importRow:same.row,siteId:"site-a",userId:"user-a",idempotencyKey:"same",payloadHash:"payload-a",diff:same.diff,fileHash:"file-a",requestId:"r"}),{status:"APPLIED",counts:{added:1}});assert.equal(same.batchCalls,0);
+  const mismatch=applyHarness({replayed:stored});await assert.rejects(()=>applyLocationImport({env:mismatch.env,repository:mismatch.repository,importRow:mismatch.row,siteId:"site-a",userId:"user-a",idempotencyKey:"same",payloadHash:"payload-b",diff:mismatch.diff,fileHash:"file-a",requestId:"r"}),error=>error.status===409&&error.code==="IDEMPOTENCY_PAYLOAD_MISMATCH");assert.equal(mismatch.batchCalls,0);
+});
+
+test("forced middle failure leaves no committed state and closes APPLYING separately as FAILED",async()=>{
+  const value=applyHarness({diff:applyDiff([{type:"ADD",id:"a",after:location("a")},{type:"ADD",id:"b",after:location("b")}]),failAt:2});
+  await assert.rejects(()=>applyLocationImport({env:value.env,repository:value.repository,importRow:value.row,siteId:"site-a",userId:"user-a",idempotencyKey:"failure",payloadHash:"payload",diff:value.diff,fileHash:"file-a",requestId:"r"}),/FORCED_MID_FAILURE/);
+  assert.equal(value.batchCalls,1);assert.equal(value.status,"FAILED");
+});
+
+test("1700-row apply stays in one atomic D1 batch with bounded multi-row statements",async()=>{
+  const operations=Array.from({length:1700},(_,index)=>{
+    const id=`loc-${String(index).padStart(4,"0")}`;
+    return {type:"ADD",id,after:location(id)};
+  });
+  const value=applyHarness({diff:applyDiff(operations)});
+  await applyLocationImport({env:value.env,repository:value.repository,importRow:value.row,siteId:"site-a",userId:"user-a",idempotencyKey:"large",payloadHash:"payload",diff:value.diff,fileHash:"file-a",requestId:"r"});
+  assert.equal(value.batchCalls,1);const inserts=value.executed.filter(item=>/INSERT INTO site_locations/.test(item.sql));assert.ok(inserts.length>1);assert.ok(inserts.every(item=>item.args.length<=90));
 });

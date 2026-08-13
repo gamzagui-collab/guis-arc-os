@@ -7,6 +7,7 @@ import {parseSiteLocationWorkbook} from "./site-location-import/xlsx-parser.js";
 import {validateLocationImport} from "./site-location-import/validation.js";
 import {buildLocationImportDiff} from "./site-location-import/diff.js";
 import * as defaultRepository from "./site-location-import/repository.js";
+import {applyLocationImport} from "./site-location-import/apply.js";
 
 const MIME="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
 const TEMPLATE="GUI_Arc_현장위치마스터_기본서식_v1.xlsx";
@@ -40,6 +41,24 @@ export async function handleSiteLocationImportRequest(request,env,url=new URL(re
   }
   if(method==="GET"&&path==="/api/v1/admin/site-locations/imports"){
     const auth=await authorizeRequest(request,env,{required:"VIEW"});return json({items:await repository.loadRecentLocationImports(env,auth.siteId,20)});
+  }
+  const applyMatch=path.match(/^\/api\/v1\/admin\/site-locations\/imports\/([^/]+)\/apply$/);
+  if(method==="POST"&&applyMatch){
+    const auth=await authorizeRequest(request,env,{required:"MANAGE",write:true}),body=await parseJson(request),idempotencyKey=String(request.headers.get("idempotency-key")||"").trim();
+    if(!idempotencyKey||idempotencyKey.length>120)throw new ApiError(400,"IDEMPOTENCY_KEY_REQUIRED","A valid Idempotency-Key is required.");
+    const row=await repository.getLocationImport(env,auth.siteId,applyMatch[1]);if(!row)throw new ApiError(404,"LOCATION_IMPORT_NOT_FOUND","The import was not found in the active site.");
+    const previewHash=String(body.previewHash||""),baseMasterFingerprint=String(body.baseMasterFingerprint||"");
+    const payloadHash=await hash(new TextEncoder().encode(JSON.stringify({importId:row.id,siteId:auth.siteId,previewHash,baseMasterFingerprint})).buffer);
+    const replay=await repository.getApplyReplay(env,{siteId:auth.siteId,userId:auth.userId,importId:row.id,idempotencyKey});
+    if(replay){if(replay.payload_hash!==payloadHash)throw new ApiError(409,"IDEMPOTENCY_PAYLOAD_MISMATCH","The Idempotency-Key was already used with a different payload.");return json(replay.response)}
+    if(row.status!=="READY")throw new ApiError(409,"LOCATION_IMPORT_STATE_INVALID","The import is not ready to apply.");
+    if(!String(row.r2_object_key||"").startsWith(`sites/${auth.siteId}/location-imports/${row.id}/`))throw new ApiError(409,"LOCATION_IMPORT_OBJECT_SCOPE_INVALID","The uploaded object is outside the active site.");
+    const object=await env.FILES.get(row.r2_object_key);if(!object)throw new ApiError(409,"LOCATION_IMPORT_PREVIEW_STALE","The preview file no longer exists.");
+    const bytes=await object.arrayBuffer(),fileHash=await hash(bytes);if(fileHash!==row.file_hash)throw new ApiError(409,"LOCATION_IMPORT_PREVIEW_STALE","The preview file changed.");
+    let workbook;try{workbook=parseSiteLocationWorkbook(bytes)}catch{throw new ApiError(409,"LOCATION_IMPORT_PREVIEW_STALE","The preview file can no longer be parsed.")}
+    const current=await repository.loadLocationMasterSnapshot(env,auth.siteId),checked=validateLocationImport({siteId:auth.siteId,workbook,current}),diff=buildLocationImportDiff({siteId:auth.siteId,normalized:checked.normalized,current});
+    if(checked.errors.length||diff.counts.error||previewHash!==row.preview_hash||baseMasterFingerprint!==row.base_master_fingerprint)throw new ApiError(409,"LOCATION_IMPORT_PREVIEW_STALE","The file, master, or preview changed.");
+    return json(await applyLocationImport({env,repository,importRow:row,siteId:auth.siteId,userId:auth.userId,idempotencyKey,payloadHash,diff,fileHash,requestId:requestId(request)}));
   }
   if(method==="GET"&&path==="/api/v1/admin/site-locations/template"){
     await authorizeRequest(request,env,{required:"VIEW"});if(!env.ASSETS?.fetch)throw new ApiError(503,"LOCATION_IMPORT_TEMPLATE_UNAVAILABLE","기본서식을 불러올 수 없습니다.");

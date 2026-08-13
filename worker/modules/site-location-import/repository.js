@@ -41,3 +41,20 @@ export async function updateLocationImportValidation(env,row){
     WHERE id=?1 AND site_id=?2 AND status='VALIDATING'`).bind(row.id,row.siteId,row.status,row.baseMasterFingerprint??null,row.previewHash??null,row.counts.added??0,row.counts.updated??0,row.counts.unchanged??0,row.counts.inactivated??0,row.counts.aliasAdded??0,row.counts.aliasUpdated??0,row.counts.aliasInactivated??0,row.counts.error??0).run();
   return Number(result?.meta?.changes||0)===1;
 }
+
+export async function getApplyReplay(env,{siteId,userId,importId,idempotencyKey}){
+  const row=await env.DB.prepare(`SELECT x.payload_hash,i.status,i.added_count,i.updated_count,i.unchanged_count,i.inactivated_count,i.alias_added_count,i.alias_updated_count,i.alias_inactivated_count
+    FROM issue_idempotency x JOIN site_location_imports i ON i.id=x.resource_id AND i.site_id=?1
+    WHERE x.user_id=?2 AND x.idempotency_key=?3 AND x.operation=?4 AND (x.expires_at IS NULL OR datetime(x.expires_at)>datetime('now'))`).bind(siteId,userId,idempotencyKey,`SITE_LOCATION_IMPORT_APPLY:${importId}`).first();
+  if(!row)return null;
+  return {...row,response:{importId,status:row.status,counts:{added:Number(row.added_count),updated:Number(row.updated_count),unchanged:Number(row.unchanged_count),inactivated:Number(row.inactivated_count),aliasAdded:Number(row.alias_added_count),aliasUpdated:Number(row.alias_updated_count),aliasInactivated:Number(row.alias_inactivated_count),error:0},newMasterFingerprint:null,idempotent:true}};
+}
+
+export async function beginLocationImportApply(env,siteId,importId){
+  const result=await env.DB.prepare("UPDATE site_location_imports SET status='APPLYING' WHERE id=?1 AND site_id=?2 AND status='READY'").bind(importId,siteId).run();
+  return Number(result?.meta?.changes||0)===1;
+}
+
+export async function markLocationImportApplyFailed(env,siteId,importId){
+  return env.DB.prepare("UPDATE site_location_imports SET status='FAILED' WHERE id=?1 AND site_id=?2 AND status='APPLYING'").bind(importId,siteId).run();
+}
