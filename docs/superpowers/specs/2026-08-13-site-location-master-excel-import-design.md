@@ -106,7 +106,6 @@ Add only the metadata required for stable identity and safe re-import:
 ```text
 canonical_key TEXT NULL
 source TEXT NOT NULL DEFAULT 'LEGACY'
-last_import_id TEXT NULL
 ```
 
 `source` accepts only:
@@ -122,9 +121,10 @@ Rules:
 - Existing rows are backfilled by the column default as `LEGACY`; they are not inferred, renamed, moved, or inactivated.
 - `canonical_key` is required for new `IMPORT` rows and remains nullable for pre-existing Legacy rows until separately curated.
 - Add a partial unique index on `(site_id, canonical_key)` where `canonical_key IS NOT NULL`.
-- `last_import_id` records the most recent successful import that inserted or updated the row. It supports omission/inactivation audit without storing full revision snapshots.
 - `id` remains the authoritative stable `location_id`.
 - `code`, `name`, `display_name`, `sort_order`, `parent_id`, and `is_active` are mutable attributes subject to identity validation.
+
+`site_locations` stores only the current operational state of a physical location. It does not store a row-level last Import revision. Import revision history belongs exclusively to `site_location_imports`. The exact database enforcement for `source` (CHECK constraint or an existing project enum pattern) is decided during the separately approved implementation planning and Migration review.
 
 `canonical_key` identifies the physical space, not its current display label. Example:
 
@@ -162,7 +162,6 @@ normalized_alias TEXT NOT NULL
 alias_type TEXT NOT NULL
 source TEXT NOT NULL DEFAULT 'IMPORT'
 is_active INTEGER NOT NULL DEFAULT 1
-last_import_id TEXT NULL
 created_at TEXT NOT NULL
 updated_at TEXT NOT NULL
 ```
@@ -175,6 +174,8 @@ Constraints and indexes:
 - `alias_type` v1 values are `OFFICIAL_VARIANT`, `FIELD_NAME`, and `LEGACY_NAME`.
 - Only aliases explicitly approved in the workbook are stored in v1.
 - No confidence, evidence, risk, AI source, or automatic promotion fields are added.
+
+Alias rows likewise keep current operational state only. Import attempt/revision metadata is not coupled to individual alias rows.
 
 Normalization is deterministic: Unicode normalization, outer/duplicate whitespace removal, and locale-safe case normalization for Latin characters. It does not perform fuzzy matching, semantic expansion, number inference, or Korean pronunciation conversion.
 
@@ -252,7 +253,6 @@ The Import parser reads only `01_위치마스터` and `02_위치별칭`. All oth
 ### `01_위치마스터` required headers
 
 ```text
-site_id
 location_id
 parent_location_id
 location_type
@@ -263,7 +263,7 @@ sort_order
 
 Rules:
 
-- `site_id` must equal the site selected in the authenticated server context for every row.
+- The authenticated server-side current site context is the only Import target. The sheet cannot select or change the target site.
 - `location_id` is required and stable. New IDs use the approved project ID format; Import does not silently generate missing IDs.
 - `parent_location_id` is blank only for valid roots.
 - `location_type` uses the existing supported site-location enum.
@@ -277,7 +277,6 @@ Review-only workbook columns such as `space_category`, `floor_code`, `floor_name
 ### `02_위치별칭` required headers
 
 ```text
-site_id
 alias_id
 location_id
 alias_text
@@ -286,7 +285,7 @@ alias_type
 
 Rules:
 
-- `site_id` must match the selected site.
+- The authenticated server-side current site context is applied to every alias operation; the sheet cannot select another site.
 - `alias_id` is stable across re-imports; new aliases require an approved ID.
 - `location_id` must resolve to an incoming or active existing location in the same site.
 - `alias_text` is required and is preserved for display.
@@ -307,7 +306,7 @@ Structural errors that block Apply:
 - Self parent.
 - Parent cycle, detected over the final candidate graph.
 - Unsupported `location_type` or invalid parent/type relationship.
-- A row whose `site_id` differs from the selected site.
+- A workbook site name, site code, or site ID metadata value that conflicts with the authenticated current site, when such optional review metadata is present. This value is warning/error evidence only and never selects the DB target.
 - An ID already owned by another site.
 - Same `location_id` with a different existing `canonical_key`.
 - Same `canonical_key` assigned to a different existing `location_id`.
@@ -358,6 +357,8 @@ AND absent from the newly validated full master
 ```
 
 becomes `INACTIVE` unless retained by a required parent relationship. `LEGACY` and `MANUAL` rows are never automatically inactivated by omission. The first Import therefore cannot mass-inactivate current Legacy/dynamic rows.
+
+`same site` always means the authenticated server-side current site context. It is never derived from workbook content. A stable imported row and every historical Issue reference to it remain intact after inactivation; no omission path performs hard delete.
 
 ### Aliases
 
@@ -496,7 +497,7 @@ All endpoints are site-context scoped and re-authorized by the Worker; the front
 
 Recommended contract using the current administration model:
 
-- Read current counts/history and download a site-bound template: active site member with `ADMINISTRATION` board `VIEW`.
+- Read current counts/history and download the general v1 template: active site member with `ADMINISTRATION` board `VIEW`.
 - Upload, validate, preview, and Apply: `ADMINISTRATION` board `MANAGE` plus an existing administrative role allowed by current policy: `PLATFORM_OWNER`, `INTEGRATED_OWNER`, or `SITE_MANAGER` for that site.
 - Users with View-only grants cannot upload or Apply.
 - Cross-site IDs, aliases, import IDs, R2 keys, and context versions are rejected server-side.
@@ -539,7 +540,7 @@ The response is a generated `.xlsx` attachment named:
 GUI_Arc_현장위치마스터_기본서식_v1.xlsx
 ```
 
-The template is site-bound: the server pre-fills the authenticated selected `site_id` in instructions/examples and identifies template version `LOCATION_MASTER_V1`. This makes cross-site contamination detectable without adding a site-code column to the core schema.
+The template is a general-purpose workbook. The download response may place the current site name in an instruction cell for user convenience and identifies template version `LOCATION_MASTER_V1`, but no workbook value controls database identity or target scope. The authenticated server-side current site context remains authoritative throughout upload, validation, preview, and Apply.
 
 Implementation should reuse `fflate` and a checked-in deterministic OpenXML template/generator rather than introduce a broad spreadsheet library solely for this feature. Generated workbook properties and ZIP entry order are deterministic so template tests can compare required sheets and headers.
 
@@ -629,26 +630,56 @@ No PDF, OCR, AI engine, drawing analysis, or automatic resolver work is part of 
 
 ## IMPLEMENTATION PHASES
 
-Implementation requires separate user approval and should proceed in bounded phases:
+Implementation requires separate user approval and proceeds in this fixed order:
 
-1. Contract tests and Migration design review for minimal metadata, aliases, imports, and indexes.
-2. Migration implementation and Local/Test data-integrity validation only.
-3. Deterministic v1 template generator and bounded XLSX parser reuse.
-4. Read-only upload, validation, and diff-preview APIs with temporary R2 lifecycle.
-5. Atomic Apply API, idempotency, audit, and stale-preview protection.
-6. Minimal integrated-admin Location Information screen.
-7. Legacy coexistence and historical Issue display regression verification.
-8. Separate Issue Create dynamic-location retirement, preserving optional location and core-workflow availability.
-9. Integration-only Migration/deployment and device/admin smoke after explicit approval.
+### PHASE A - SITE LOCATION MASTER EXCEL IMPORT
+
+- Contract tests and Migration review for `canonical_key`, `source`, aliases, imports, and indexes.
+- Deterministic general-purpose template download.
+- Bounded XLSX upload and parsing.
+- Validation, deterministic diff, changed-row preview, and explicit Apply.
+- Alias import and compact Import history.
+- Legacy coexistence and historical Issue display regression verification.
+
+Phase A is complete only after Integration verifies location ADD, UPDATE, INACTIVE, alias operations, and re-import behavior without changing Legacy/Manual rows by omission.
+
+### PHASE B - ISSUE LOCATION LOOKUP-ONLY CUTOVER
+
+- Remove every Issue Create path that automatically inserts `site_locations`, including label-only `resolveLocation()` insertion.
+- Allow only references to existing canonical location IDs or null canonical IDs.
+- If no location is found, continue Issue Create with all unresolved canonical IDs null.
+- Prohibit dynamic BUILDING, FLOOR, UNIT, and ROOM creation during Issue Create.
+- Preserve all Legacy rows and existing Issue references; perform no hard delete.
+- Exclude inactive locations from new form options while preserving historical Issue display.
+
+Phase B is complete only when location-free Issue creation succeeds, existing canonical selection succeeds, Issue Create does not unexpectedly increase the `site_locations` row count, and existing Issue workflows pass regression verification.
+
+### PHASE C - FINAL DESCRIPTION LOCATION RESOLVER
+
+- Analyze only the user-corrected and confirmed final description.
+- Read Fixed Location Master and approved aliases without writing them.
+- Auto-select only a unique exact or explicitly safe match.
+- Do not auto-select ambiguous or unresolved candidates.
+- Isolate resolver failures so they never block Issue Create.
+
+Phase C starts only after Phase B lookup-only cutover is complete. Resolver implementation must not precede or bypass the removal of Issue-time location insertion.
+
+### PHASE D AND LATER
+
+- PDF AI Draft Import and other separately approved capabilities.
+- Every future source uses deterministic validation, preview, user confirmation, and Apply.
 
 Production is not changed by this design and must require a separate release approval after Integration validation.
 
 ## DESIGN SELF REVIEW
 
 - No unresolved design placeholder remains.
+- No row-level Import revision field remains in the location or alias model; Import revision history is centralized in `site_location_imports`.
+- Authenticated server-side current site context is the sole target scope; Excel cannot select or change a site.
 - `location_id` is stable row identity; `canonical_key` is immutable physical-space identity validation. Their roles are distinct.
 - First Import cannot automatically inactivate `LEGACY` or `MANUAL` rows.
 - Issue Create is explicitly separated from Location Master creation and remains possible without location IDs.
+- Phase B lookup-only cutover is mandatory after Phase A and before the Phase C resolver.
 - No hard-delete path exists for locations or aliases.
 - Alias scope, uniqueness, approval source, and future resolver boundary are explicit.
 - Review-only Excel fields and sheets are not copied into database columns or trusted by Import.
