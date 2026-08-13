@@ -84,6 +84,8 @@ test("0036 adds the minimal import schema while preserving legacy location ident
   const revisionBefore=db.prepare("SELECT revision FROM site_location_master_revisions WHERE site_id='site-1'").get().revision;
   db.exec("UPDATE site_locations SET display_name='Changed' WHERE id='legacy-room'");
   assert.equal(db.prepare("SELECT revision FROM site_location_master_revisions WHERE site_id='site-1'").get().revision,revisionBefore+1);
+  db.exec("INSERT INTO sites(id,company_id,name) VALUES('future-empty-site','company-1','Future empty site')");
+  assert.deepEqual({...db.prepare("SELECT site_id,revision FROM site_location_master_revisions WHERE site_id='future-empty-site'").get()},{site_id:"future-empty-site",revision:0});
   assert.throws(() => db.exec("INSERT INTO site_location_imports(id,site_id,file_name,file_hash,template_version,status,created_by) VALUES('import-bad','site-1','x.xlsx','hash','v1','UNKNOWN','user-1')"), /CHECK/);
   for (const countColumn of countColumns) {
     assert.throws(() => db.exec(`INSERT INTO site_location_imports(id,site_id,file_name,file_hash,template_version,status,created_by,${countColumn}) VALUES('import-negative-${countColumn}','site-1','x.xlsx','hash','v1','UPLOADED','user-1',-1)`), /CHECK/, countColumn);

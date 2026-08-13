@@ -11,6 +11,11 @@ WHERE canonical_key IS NOT NULL;
 CREATE UNIQUE INDEX idx_site_locations_site_id ON site_locations(site_id,id);
 CREATE TABLE site_location_master_revisions (site_id TEXT PRIMARY KEY REFERENCES sites(id),revision INTEGER NOT NULL DEFAULT 0 CHECK(revision >= 0));
 INSERT INTO site_location_master_revisions(site_id,revision) SELECT id,0 FROM sites;
+CREATE TRIGGER sites_location_master_revision_insert AFTER INSERT ON sites BEGIN INSERT INTO site_location_master_revisions(site_id,revision) VALUES(NEW.id,0) ON CONFLICT(site_id) DO NOTHING; END;
+
+CREATE TABLE site_location_import_apply_guards (id TEXT PRIMARY KEY,guard_value TEXT NOT NULL);
+CREATE TRIGGER site_location_import_apply_guard_reject BEFORE INSERT ON site_location_import_apply_guards WHEN NEW.guard_value<>'VALID' BEGIN SELECT RAISE(ABORT,'LOCATION_IMPORT_PREVIEW_STALE'); END;
+CREATE TRIGGER site_location_import_apply_guard_cleanup AFTER INSERT ON site_location_import_apply_guards BEGIN DELETE FROM site_location_import_apply_guards WHERE id=NEW.id; END;
 
 CREATE TABLE site_location_aliases (
   id TEXT PRIMARY KEY,

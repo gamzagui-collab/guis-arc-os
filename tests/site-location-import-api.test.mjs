@@ -240,8 +240,23 @@ test("real SQLite guard and injected middle SQL failure roll back status and eve
     assert.deepEqual(db.prepare("SELECT id,display_name,is_active FROM site_locations WHERE site_id='apply-site' ORDER BY id").all(),before);assert.notEqual(db.prepare("SELECT status FROM site_location_imports WHERE id='atomic-import'").get().status,"APPLYING");db.close()}
 });
 
+test("future empty site can atomically apply its first location at master revision zero",async()=>{
+  const db=database();db.exec("INSERT INTO companies(id,name,status) VALUES('future-company','Company','ACTIVE'); INSERT INTO sites(id,company_id,name,status) VALUES('future-site','future-company','Future','ACTIVE'); INSERT INTO users(id,login_identifier,display_name,credential_hash,credential_salt,credential_iterations,status,context_version) VALUES('future-user','future-user','User','h','s',100000,'ACTIVE',1);");
+  assert.equal(db.prepare("SELECT revision FROM site_location_master_revisions WHERE site_id='future-site'").get().revision,0);
+  db.exec("INSERT INTO site_location_imports(id,site_id,file_name,file_hash,template_version,status,base_master_fingerprint,preview_hash,base_master_revision,created_by) VALUES('future-import','future-site','x.xlsx','file','v1','READY','base','preview',0,'future-user')");
+  const env={DB:transactionalD1(db)},root=location("future-root",{siteId:"future-site",locationType:"BUILDING"}),diff={...applyDiff([{type:"ADD",id:root.id,after:root}]),baseMasterFingerprint:"base",previewHash:"preview"};
+  const result=await applyLocationImport({env,repository:locationRepository,importRow:{id:"future-import",file_hash:"file",base_master_fingerprint:"base",preview_hash:"preview",base_master_revision:0},siteId:"future-site",userId:"future-user",idempotencyKey:"future-key",payloadHash:"payload",diff,fileHash:"file",requestId:"request",currentSnapshot:{locations:[],aliases:[],revision:0}});
+  assert.equal(result.status,"APPLIED");assert.equal(db.prepare("SELECT code FROM site_locations WHERE id='future-root'").get().code,"future-root");db.close();
+});
+
+test("DB revision guard failure maps to stable stale-preview 409 and remains retry-ready",async()=>{
+  const {db,revision}=seedAtomicApply();db.exec("UPDATE site_locations SET display_name='concurrent' WHERE id='old'");const env={DB:transactionalD1(db)},diff={...applyDiff([{type:"ADD",id:"new",after:location("new",{siteId:"apply-site",locationType:"BUILDING"})}]),baseMasterFingerprint:"base",previewHash:"preview"};
+  await assert.rejects(()=>applyLocationImport({env,repository:locationRepository,importRow:{id:"atomic-import",file_hash:"file",base_master_fingerprint:"base",preview_hash:"preview",base_master_revision:revision},siteId:"apply-site",userId:"apply-user",idempotencyKey:"stale-guard-key",payloadHash:"payload",diff,fileHash:"file",requestId:"request",currentSnapshot:{locations:[],aliases:[],revision}}),error=>error.status===409&&error.code==="LOCATION_IMPORT_PREVIEW_STALE");
+  assert.equal(db.prepare("SELECT status FROM site_location_imports WHERE id='atomic-import'").get().status,"READY");assert.equal(db.prepare("SELECT COUNT(*) count FROM site_locations WHERE id='new'").get().count,0);db.close();
+});
+
 test("status CAS guard is load-bearing and every prepared statement remains below D1 parameter cap",()=>{
   const value=applyHarness({diff:applyDiff(Array.from({length:1700},(_,index)=>({type:"ADD",id:`x-${index}`,after:location(`x-${index}`)})))}),response={newMasterFingerprint:"post"};
   const statements=buildLocationImportApplyStatements(value.env,{importRow:{id:"import-a",base_master_revision:0},siteId:"site-a",userId:"user-a",idempotencyKey:"key",payloadHash:"payload",diff:value.diff,requestId:"request",response});
-  assert.match(statements[0].sql,/status='READY'/);assert.match(statements[1].sql,/json_extract/);assert.ok(statements.every(item=>item.args.length<=90));
+  assert.match(statements[0].sql,/status='READY'/);assert.match(statements[1].sql,/site_location_import_apply_guards/);assert.ok(statements.every(item=>item.args.length<=90));
 });
