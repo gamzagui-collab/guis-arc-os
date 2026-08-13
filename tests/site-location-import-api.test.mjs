@@ -82,7 +82,8 @@ test("validation checks actual R2 size before reading the object",async()=>{
 });
 
 test("validation CAS never reopens terminal or in-progress imports",async()=>{
-  for(const status of ["VALIDATING","APPLYING","APPLIED","CANCELLED","FAILED"]){const value=fixture({status});await assert.rejects(()=>handleSiteLocationImportRequest(request("/api/v1/admin/site-locations/upload-sessions/import-a/validate",{method:"POST",headers:{"x-context-version":"7"}}),value.env,undefined,value.deps),error=>error.code==="LOCATION_IMPORT_STATE_INVALID");assert.equal(value.writes.length,0)}
+  for(const status of ["APPLYING","APPLIED","CANCELLED","FAILED"]){const value=fixture({status});await assert.rejects(()=>handleSiteLocationImportRequest(request("/api/v1/admin/site-locations/upload-sessions/import-a/validate",{method:"POST",headers:{"x-context-version":"7"}}),value.env,undefined,value.deps),error=>error.code==="LOCATION_IMPORT_STATE_INVALID");assert.equal(value.writes.length,0)}
+  const active=fixture({status:"VALIDATING"});await assert.rejects(()=>handleSiteLocationImportRequest(request("/api/v1/admin/site-locations/upload-sessions/import-a/validate",{method:"POST",headers:{"x-context-version":"7"}}),active.env,undefined,active.deps),error=>error.code==="LOCATION_IMPORT_STATE_INVALID");assert.deepEqual(active.writes,[['begin']]);
 });
 
 test("unexpected post-CAS failures preserve the original error and never leave VALIDATING",async()=>{
@@ -390,19 +391,19 @@ test("successful Apply preserves a per-import hash artifact and tracks reusable 
   assert.equal(row.r2_object_key,key);assert.equal(row.artifact_object_key,expected);assert.equal(value.objects.has(key),false);assert.deepEqual(value.objects.get(expected),Buffer.from(bytes));assert.equal(value.metadata.get(expected).sha256,fileHash);
   const audit=JSON.parse(value.db.prepare("SELECT metadata_json FROM audit_logs WHERE action='SITE_LOCATION_IMPORT_APPLIED' ORDER BY created_at DESC LIMIT 1").get().metadata_json);assert.equal(audit.fileHash,fileHash);
   value.objects.set(key,Buffer.from("signed PUT reused"));await cleanupAbandonedLocationImportObjects(value.env,locationRepository,"site-a");assert.equal(value.objects.has(key),true);assert.equal(value.db.prepare("SELECT r2_object_key FROM site_location_imports WHERE id='artifact-import'").get().r2_object_key,key);
-  value.db.prepare("UPDATE site_location_imports SET created_at=datetime('now','-16 minutes') WHERE id='artifact-import'").run();await cleanupAbandonedLocationImportObjects(value.env,locationRepository,"site-a");assert.equal(value.objects.has(key),false);assert.equal(value.db.prepare("SELECT r2_object_key FROM site_location_imports WHERE id='artifact-import'").get().r2_object_key,null);assert.equal(value.objects.has(expected),true);value.db.close();
+  value.db.prepare("UPDATE site_location_imports SET applied_at=datetime('now','-16 minutes') WHERE id='artifact-import'").run();await cleanupAbandonedLocationImportObjects(value.env,locationRepository,"site-a");assert.equal(value.objects.has(key),false);assert.equal(value.db.prepare("SELECT r2_object_key FROM site_location_imports WHERE id='artifact-import'").get().r2_object_key,null);assert.equal(value.objects.has(expected),true);value.db.close();
 });
 
 test("new upload removes expired invalid and abandoned temporary objects without touching artifacts",async()=>{
   const value=await realEnv("MANAGE"),key="sites/site-a/location-imports/abandoned/original.xlsx",invalidKey="sites/site-a/location-imports/invalid/original.xlsx",artifact="sites/site-a/location-imports/applied/artifacts/hash.xlsx";value.objects.set(key,Buffer.from("old"));value.objects.set(invalidKey,Buffer.from("invalid reused PUT"));value.objects.set(artifact,Buffer.from("keep"));
-  value.db.exec("INSERT INTO site_location_imports(id,site_id,file_name,file_hash,r2_object_key,template_version,status,created_by,created_at) VALUES('abandoned','site-a','old.xlsx','oldhash','sites/site-a/location-imports/abandoned/original.xlsx','v1','READY','user-a',datetime('now','-2 days')),('invalid','site-a','invalid.xlsx','invalidhash','sites/site-a/location-imports/invalid/original.xlsx','v1','INVALID','user-a',datetime('now','-16 minutes'))");
+  value.db.exec("INSERT INTO site_location_imports(id,site_id,file_name,file_hash,r2_object_key,template_version,status,created_by,created_at,validated_at) VALUES('abandoned','site-a','old.xlsx','oldhash','sites/site-a/location-imports/abandoned/original.xlsx','v1','READY','user-a',datetime('now','-2 days'),datetime('now','-2 days')),('invalid','site-a','invalid.xlsx','invalidhash','sites/site-a/location-imports/invalid/original.xlsx','v1','INVALID','user-a',datetime('now','-16 minutes'),datetime('now','-16 minutes'))");
   const response=await handleSiteLocationImportRequest(request("/api/v1/admin/site-locations/upload-sessions",{method:"POST",body:{fileName:"new.xlsx",sizeBytes:template.length,sha256:digest},headers:value.headers}),value.env,undefined,{signUpload:async()=>"https://upload.test/new"});
   assert.equal(response.status,201);assert.equal(value.objects.has(key),false);assert.equal(value.objects.has(invalidKey),false);assert.equal(value.objects.has(artifact),true);const row=value.db.prepare("SELECT status,r2_object_key FROM site_location_imports WHERE id='abandoned'").get(),invalid=value.db.prepare("SELECT status,r2_object_key FROM site_location_imports WHERE id='invalid'").get();assert.equal(row.status,"CANCELLED");assert.equal(row.r2_object_key,null);assert.equal(invalid.status,"INVALID");assert.equal(invalid.r2_object_key,null);value.db.close();
 });
 
 test("Apply ownership makes a stale cleanup candidate skip every R2 object",async()=>{
   const value=await realEnv("MANAGE"),key="sites/site-a/location-imports/apply-wins/original.xlsx",artifact="sites/site-a/location-imports/apply-wins/artifacts/hash.xlsx";
-  value.db.exec("INSERT INTO site_location_imports(id,site_id,file_name,file_hash,r2_object_key,artifact_object_key,template_version,status,base_master_revision,created_by,created_at) VALUES('apply-wins','site-a','apply.xlsx','hash','sites/site-a/location-imports/apply-wins/original.xlsx','sites/site-a/location-imports/apply-wins/artifacts/hash.xlsx','v1','READY',0,'user-a',datetime('now','-2 days'))");
+  value.db.exec("INSERT INTO site_location_imports(id,site_id,file_name,file_hash,r2_object_key,artifact_object_key,template_version,status,base_master_revision,created_by,created_at,validated_at) VALUES('apply-wins','site-a','apply.xlsx','hash','sites/site-a/location-imports/apply-wins/original.xlsx','sites/site-a/location-imports/apply-wins/artifacts/hash.xlsx','v1','READY',0,'user-a',datetime('now','-2 days'),datetime('now','-2 days'))");
   value.objects.set(key,Buffer.from("upload"));value.objects.set(artifact,Buffer.from("artifact"));value.env.DB=transactionalD1(value.db);
   const stale=(await locationRepository.loadLocationImportCleanupCandidates(value.env,"site-a",20))[0];
   assert.equal(await locationRepository.beginLocationImportApply(value.env,"site-a","apply-wins","apply-owner"),true);
@@ -413,7 +414,7 @@ test("Apply ownership makes a stale cleanup candidate skip every R2 object",asyn
 
 test("cleanup ownership blocks Apply until successful R2 deletion completes",async()=>{
   const value=await realEnv("MANAGE"),key="sites/site-a/location-imports/cleanup-wins/original.xlsx";
-  value.db.exec("INSERT INTO site_location_imports(id,site_id,file_name,file_hash,r2_object_key,template_version,status,base_master_revision,created_by,created_at) VALUES('cleanup-wins','site-a','cleanup.xlsx','hash','sites/site-a/location-imports/cleanup-wins/original.xlsx','v1','READY',0,'user-a',datetime('now','-2 days'))");
+  value.db.exec("INSERT INTO site_location_imports(id,site_id,file_name,file_hash,r2_object_key,template_version,status,base_master_revision,created_by,created_at,validated_at) VALUES('cleanup-wins','site-a','cleanup.xlsx','hash','sites/site-a/location-imports/cleanup-wins/original.xlsx','v1','READY',0,'user-a',datetime('now','-2 days'),datetime('now','-2 days'))");
   value.objects.set(key,Buffer.from("upload"));value.env.DB=transactionalD1(value.db);
   let releaseDelete,deleteStartedResolve;const deleteStarted=new Promise(resolve=>{deleteStartedResolve=resolve}),release=new Promise(resolve=>{releaseDelete=resolve});
   value.env.FILES.delete=async objectKeys=>{deleteStartedResolve();await release;for(const item of Array.isArray(objectKeys)?objectKeys:[objectKeys])value.objects.delete(item)};
@@ -425,7 +426,7 @@ test("cleanup ownership blocks Apply until successful R2 deletion completes",asy
 
 test("failed R2 cleanup releases ownership and preserves retryable DB state",async()=>{
   const value=await realEnv("MANAGE"),key="sites/site-a/location-imports/delete-fails/original.xlsx",artifact="sites/site-a/location-imports/delete-fails/artifacts/hash.xlsx";
-  value.db.exec("INSERT INTO site_location_imports(id,site_id,file_name,file_hash,r2_object_key,artifact_object_key,template_version,status,base_master_revision,created_by,created_at) VALUES('delete-fails','site-a','failed.xlsx','hash','sites/site-a/location-imports/delete-fails/original.xlsx','sites/site-a/location-imports/delete-fails/artifacts/hash.xlsx','v1','READY',0,'user-a',datetime('now','-2 days'))");
+  value.db.exec("INSERT INTO site_location_imports(id,site_id,file_name,file_hash,r2_object_key,artifact_object_key,template_version,status,base_master_revision,created_by,created_at,validated_at) VALUES('delete-fails','site-a','failed.xlsx','hash','sites/site-a/location-imports/delete-fails/original.xlsx','sites/site-a/location-imports/delete-fails/artifacts/hash.xlsx','v1','READY',0,'user-a',datetime('now','-2 days'),datetime('now','-2 days'))");
   value.objects.set(key,Buffer.from("upload"));value.objects.set(artifact,Buffer.from("artifact"));value.env.DB=transactionalD1(value.db);value.env.FILES.delete=async()=>{throw new Error("R2_DELETE_FAILED")};
   await cleanupAbandonedLocationImportObjects(value.env,locationRepository,"site-a");
   let row=value.db.prepare("SELECT status,r2_object_key,cleanup_claim_token FROM site_location_imports WHERE id='delete-fails'").get();assert.equal(row.status,"READY");assert.equal(row.r2_object_key,key);assert.equal(row.cleanup_claim_token,null);assert.equal(value.objects.has(key),true);assert.equal(value.objects.has(artifact),true);
@@ -462,5 +463,41 @@ test("expired Apply lease recovers a worker-death strand and rejects the stale o
   assert.equal(row.status,"APPLIED");assert.equal(row.apply_claim_token,null);assert.equal(row.apply_claimed_at,null);
   assert.equal(value.db.prepare("SELECT COUNT(*) count FROM site_location_import_idempotency WHERE import_id='lease-import' AND idempotency_key='owner-key'").get().count,1);
   assert.equal((await locationRepository.loadLocationImportCleanupCandidates(value.env,"site-a",20)).some(item=>item.id==="lease-import"),false);
+  value.db.close();
+});
+
+test("expired validation lease recovers worker death and rejects the stale owner",async()=>{
+  const value=await realEnv("MANAGE");
+  value.db.exec("INSERT INTO site_location_imports(id,site_id,file_name,file_hash,r2_object_key,template_version,status,created_by) VALUES('validation-lease','site-a','lease.xlsx','hash','sites/site-a/location-imports/validation-lease/original.xlsx','v1','UPLOADED','user-a')");
+  value.env.DB=transactionalD1(value.db);
+
+  assert.equal(await locationRepository.beginLocationImportValidation(value.env,"site-a","validation-lease","validator-one"),true);
+  let row=value.db.prepare("SELECT status,validation_claim_token,validation_claimed_at FROM site_location_imports WHERE id='validation-lease'").get();
+  assert.equal(row.status,"VALIDATING");assert.equal(row.validation_claim_token,"validator-one");assert.ok(row.validation_claimed_at);
+  assert.equal(await locationRepository.beginLocationImportValidation(value.env,"site-a","validation-lease","validator-two"),false);
+  assert.equal((await locationRepository.loadLocationImportCleanupCandidates(value.env,"site-a",20)).some(item=>item.id==="validation-lease"),false);
+
+  value.db.prepare("UPDATE site_location_imports SET validation_claimed_at=datetime('now','-16 minutes') WHERE id='validation-lease'").run();
+  assert.equal(await locationRepository.beginLocationImportValidation(value.env,"site-a","validation-lease","validator-two"),true);
+  assert.equal(await locationRepository.updateLocationImportValidation(value.env,{id:"validation-lease",siteId:"site-a",status:"READY",counts:{},validationClaimToken:"validator-one"}),false);
+  row=value.db.prepare("SELECT status,validation_claim_token FROM site_location_imports WHERE id='validation-lease'").get();
+  assert.equal(row.status,"VALIDATING");assert.equal(row.validation_claim_token,"validator-two");
+
+  assert.equal(await locationRepository.updateLocationImportValidation(value.env,{id:"validation-lease",siteId:"site-a",status:"READY",counts:{},validationClaimToken:"validator-two"}),true);
+  row=value.db.prepare("SELECT status,validation_claim_token,validation_claimed_at,validated_at FROM site_location_imports WHERE id='validation-lease'").get();
+  assert.equal(row.status,"READY");assert.equal(row.validation_claim_token,null);assert.equal(row.validation_claimed_at,null);assert.ok(row.validated_at);
+  value.db.close();
+});
+
+test("cleanup ages READY imports from validated activity rather than upload creation",async()=>{
+  const value=await realEnv("MANAGE");
+  value.db.exec(`INSERT INTO site_location_imports(id,site_id,file_name,file_hash,r2_object_key,template_version,status,created_by,created_at,validated_at)
+    VALUES
+      ('fresh-preview','site-a','fresh.xlsx','hash','sites/site-a/location-imports/fresh-preview/original.xlsx','v1','READY','user-a',datetime('now','-2 days'),CURRENT_TIMESTAMP),
+      ('stale-preview','site-a','stale.xlsx','hash','sites/site-a/location-imports/stale-preview/original.xlsx','v1','READY','user-a',datetime('now','-2 days'),datetime('now','-2 days'))`);
+  value.env.DB=transactionalD1(value.db);
+  const candidates=await locationRepository.loadLocationImportCleanupCandidates(value.env,"site-a",20);
+  assert.equal(candidates.some(item=>item.id==="fresh-preview"),false);
+  assert.equal(candidates.some(item=>item.id==="stale-preview"),true);
   value.db.close();
 });

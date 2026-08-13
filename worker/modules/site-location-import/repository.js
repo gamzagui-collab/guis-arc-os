@@ -38,7 +38,13 @@ export async function loadRecentLocationImports(env,siteId,limit=20){
 export async function loadLocationImportCleanupCandidates(env,siteId,limit=20){
   const bounded=Math.max(1,Math.min(20,Number(limit)||20));
   return results(await env.DB.prepare(`SELECT id,site_id,file_name,file_hash,r2_object_key,artifact_object_key,status FROM site_location_imports
-    WHERE site_id=?1 AND r2_object_key IS NOT NULL AND (cleanup_claim_token IS NULL OR datetime(cleanup_claimed_at)<=datetime('now','-1 day')) AND ((status IN ('APPLIED','INVALID','CANCELLED') AND datetime(created_at)<=datetime('now','-16 minutes')) OR (status IN ('UPLOADED','READY','FAILED') AND datetime(created_at)<=datetime('now','-1 day')))
+    WHERE site_id=?1 AND r2_object_key IS NOT NULL AND (cleanup_claim_token IS NULL OR datetime(cleanup_claimed_at)<=datetime('now','-1 day')) AND (
+      (status='UPLOADED' AND datetime(created_at)<=datetime('now','-1 day')) OR
+      (status IN ('READY','FAILED') AND datetime(validated_at)<=datetime('now','-1 day')) OR
+      (status='INVALID' AND datetime(validated_at)<=datetime('now','-16 minutes')) OR
+      (status='APPLIED' AND datetime(applied_at)<=datetime('now','-16 minutes')) OR
+      (status='CANCELLED' AND datetime(created_at)<=datetime('now','-16 minutes'))
+    )
     ORDER BY created_at LIMIT ?2`).bind(siteId,bounded).all());
 }
 
@@ -78,15 +84,17 @@ export async function createLocationImport(env,row){
   return row;
 }
 
-export async function beginLocationImportValidation(env,siteId,importId){
-  const result=await env.DB.prepare("UPDATE site_location_imports SET status='VALIDATING' WHERE id=?1 AND site_id=?2 AND status IN ('UPLOADED','INVALID','READY') AND cleanup_claim_token IS NULL").bind(importId,siteId).run();
+export async function beginLocationImportValidation(env,siteId,importId,claimToken){
+  if(!claimToken)return false;
+  const result=await env.DB.prepare(`UPDATE site_location_imports SET status='VALIDATING',validation_claim_token=?3,validation_claimed_at=CURRENT_TIMESTAMP
+    WHERE id=?1 AND site_id=?2 AND cleanup_claim_token IS NULL AND ((status IN ('UPLOADED','INVALID','READY') AND validation_claim_token IS NULL) OR (status='VALIDATING' AND validation_claim_token IS NOT NULL AND datetime(validation_claimed_at)<=datetime('now','-15 minutes')))` ).bind(importId,siteId,claimToken).run();
   return Number(result?.meta?.changes||0)===1;
 }
 
 export async function updateLocationImportValidation(env,row){
   const result=await env.DB.prepare(`UPDATE site_location_imports SET status=?3,base_master_fingerprint=?4,preview_hash=?5,validated_at=CURRENT_TIMESTAMP,
     added_count=?6,updated_count=?7,unchanged_count=?8,inactivated_count=?9,alias_added_count=?10,alias_updated_count=?11,alias_inactivated_count=?12,error_count=?13
-    ,base_master_revision=?14 WHERE id=?1 AND site_id=?2 AND status='VALIDATING'`).bind(row.id,row.siteId,row.status,row.baseMasterFingerprint??null,row.previewHash??null,row.counts.added??0,row.counts.updated??0,row.counts.unchanged??0,row.counts.inactivated??0,row.counts.aliasAdded??0,row.counts.aliasUpdated??0,row.counts.aliasInactivated??0,row.counts.error??0,row.baseMasterRevision??null).run();
+    ,base_master_revision=?14,validation_claim_token=NULL,validation_claimed_at=NULL WHERE id=?1 AND site_id=?2 AND status='VALIDATING' AND validation_claim_token=?15`).bind(row.id,row.siteId,row.status,row.baseMasterFingerprint??null,row.previewHash??null,row.counts.added??0,row.counts.updated??0,row.counts.unchanged??0,row.counts.inactivated??0,row.counts.aliasAdded??0,row.counts.aliasUpdated??0,row.counts.aliasInactivated??0,row.counts.error??0,row.baseMasterRevision??null,row.validationClaimToken).run();
   return Number(result?.meta?.changes||0)===1;
 }
 

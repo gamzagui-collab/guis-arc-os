@@ -84,11 +84,14 @@ test("0036 adds the minimal import schema while preserving legacy location ident
   assert.ok(columns("site_location_imports").includes("base_master_revision"));
   assert.ok(columns("site_location_imports").includes("post_master_fingerprint"));
   assert.ok(columns("site_location_imports").includes("artifact_object_key"));
+  assert.ok(columns("site_location_imports").includes("validation_claim_token"));
+  assert.ok(columns("site_location_imports").includes("validation_claimed_at"));
   assert.ok(columns("site_location_imports").includes("apply_claim_token"));
   assert.ok(columns("site_location_imports").includes("apply_claimed_at"));
   assert.throws(() => db.exec("INSERT INTO site_locations(id,site_id,location_type,code,name,display_name,canonical_key,source) VALUES('import-empty-key','site-1','ROOM','EMPTY','Empty','Empty','','IMPORT')"), /SITE_LOCATION_IMPORT_CANONICAL_KEY_REQUIRED/);
   assert.throws(() => db.exec("UPDATE site_locations SET source='IMPORT',canonical_key=NULL WHERE id='legacy-room'"), /SITE_LOCATION_IMPORT_CANONICAL_KEY_REQUIRED/);
   db.exec("INSERT INTO site_location_imports(id,site_id,file_name,file_hash,template_version,status,created_by) VALUES('import-one','site-1','x.xlsx','h','v1','READY','user-1'),('import-two','site-1','x.xlsx','h','v1','READY','user-1')");
+  assert.throws(() => db.exec("UPDATE site_location_imports SET validation_claim_token='owner-without-time' WHERE id='import-one'"), /CHECK/);
   assert.throws(() => db.exec("UPDATE site_location_imports SET apply_claim_token='owner-without-time' WHERE id='import-one'"), /CHECK/);
   db.exec("INSERT INTO site_location_import_idempotency(site_id,import_id,user_id,idempotency_key,payload_hash,response_json,expires_at) VALUES('site-1','import-one','user-1','shared-key','one','{}','2099-01-01'),('site-1','import-two','user-1','shared-key','two','{}','2099-01-01')");
   assert.equal(db.prepare("SELECT COUNT(*) count FROM site_location_import_idempotency WHERE user_id='user-1' AND idempotency_key='shared-key'").get().count,2);

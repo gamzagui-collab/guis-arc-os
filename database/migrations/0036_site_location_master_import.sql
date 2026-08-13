@@ -56,6 +56,8 @@ CREATE TABLE site_location_imports (
   artifact_object_key TEXT,
   cleanup_claim_token TEXT,
   cleanup_claimed_at TEXT,
+  validation_claim_token TEXT,
+  validation_claimed_at TEXT,
   apply_claim_token TEXT,
   apply_claimed_at TEXT,
   template_version TEXT NOT NULL,
@@ -78,6 +80,9 @@ CREATE TABLE site_location_imports (
   alias_inactivated_count INTEGER NOT NULL DEFAULT 0 CHECK(alias_inactivated_count >= 0),
   error_count INTEGER NOT NULL DEFAULT 0 CHECK(error_count >= 0),
   CHECK((cleanup_claim_token IS NULL) = (cleanup_claimed_at IS NULL)),
+  CHECK((validation_claim_token IS NULL) = (validation_claimed_at IS NULL)),
+  CHECK(status = 'VALIDATING' OR validation_claim_token IS NULL),
+  CHECK(status <> 'VALIDATING' OR validation_claim_token IS NOT NULL),
   CHECK((apply_claim_token IS NULL) = (apply_claimed_at IS NULL)),
   CHECK(status = 'APPLYING' OR apply_claim_token IS NULL),
   CHECK(status <> 'APPLYING' OR apply_claim_token IS NOT NULL)
