@@ -78,6 +78,19 @@ test("validation CAS never reopens terminal or in-progress imports",async()=>{
   for(const status of ["VALIDATING","APPLYING","APPLIED","CANCELLED","FAILED"]){const value=fixture({status});await assert.rejects(()=>handleSiteLocationImportRequest(request("/api/v1/admin/site-locations/upload-sessions/import-a/validate",{method:"POST",headers:{"x-context-version":"7"}}),value.env,undefined,value.deps),error=>error.code==="LOCATION_IMPORT_STATE_INVALID");assert.equal(value.writes.length,0)}
 });
 
+test("unexpected post-CAS failures preserve the original error and never leave VALIDATING",async()=>{
+  for(const stage of ["get","arrayBuffer","snapshot"]){
+    let state="UPLOADED";const masterWrites=[];const original=new Error(`boom-${stage}`),repository={
+      getLocationImport:async()=>({id:"import-a",site_id:"site-a",file_hash:digest,r2_object_key:"sites/site-a/location-imports/import-a/original.xlsx",status:state}),
+      beginLocationImportValidation:async()=>{state="VALIDATING";return true},
+      updateLocationImportValidation:async(_env,row)=>{if(state!=="VALIDATING")return false;state=row.status;return true},
+      loadLocationMasterSnapshot:async()=>{if(stage==="snapshot")throw original;return{locations:[],aliases:[]}}
+    },env={FILES:{get:async()=>{if(stage==="get")throw original;return{size:template.length,arrayBuffer:async()=>{if(stage==="arrayBuffer")throw original;return template}}}}};
+    await assert.rejects(()=>handleSiteLocationImportRequest(request("/api/v1/admin/site-locations/upload-sessions/import-a/validate",{method:"POST",headers:{"x-context-version":"7"}}),env,undefined,{authorize:auth("MANAGE"),repository}),error=>error===original);
+    assert.equal(state,"FAILED",stage);assert.deepEqual(masterWrites,[]);
+  }
+});
+
 function database(){const db=new DatabaseSync(":memory:");for(const name of fs.readdirSync("database/migrations").filter(name=>name.endsWith(".sql")).sort())db.exec(fs.readFileSync(`database/migrations/${name}`,"utf8"));return db}
 function recordingD1(db){const sqlLog=[];const statement=(sql,args=[])=>({sql,args,bind(...values){return statement(sql,values)},async first(){return db.prepare(sql).get(...args)||null},async all(){return{results:db.prepare(sql).all(...args)}},async run(){sqlLog.push(sql);if(/^\s*(INSERT|UPDATE|DELETE)\s+(?:INTO\s+)?site_location(?:s|_aliases)\b/i.test(sql))throw new Error("MASTER_WRITE_FORBIDDEN");const result=db.prepare(sql).run(...args);return{success:true,meta:{changes:Number(result.changes)}}}});return{sqlLog,prepare:sql=>statement(sql)}}
 async function realEnv(access="MANAGE"){
@@ -105,6 +118,13 @@ test("real valid and invalid validation paths perform zero Location/Alias master
   let response=await worker.fetch(request("/api/v1/admin/site-locations/upload-sessions/valid/validate",{method:"POST",headers:value.headers}),value.env);assert.equal(response.status,200);assert.ok(["READY","INVALID"].includes((await response.json()).status));
   response=await worker.fetch(request("/api/v1/admin/site-locations/upload-sessions/invalid/validate",{method:"POST",headers:value.headers}),value.env);assert.equal(response.status,400);assert.equal((await response.json()).error,"LOCATION_XLSX_INVALID");
   assert.deepEqual({locations:value.db.prepare("SELECT COUNT(*) count FROM site_locations").get().count,aliases:value.db.prepare("SELECT COUNT(*) count FROM site_location_aliases").get().count},before);
+  assert.equal(value.env.DB.sqlLog.some(sql=>/^\s*(INSERT|UPDATE|DELETE)\s+(?:INTO\s+)?site_location(?:s|_aliases)\b/i.test(sql)),false);value.db.close();
+});
+
+test("real CAS closes R2 get and arrayBuffer failures as FAILED without master writes",async()=>{
+  const value=await realEnv("MANAGE"),insert=id=>value.db.prepare("INSERT INTO site_location_imports(id,site_id,file_name,file_hash,r2_object_key,template_version,status,created_by) VALUES(?,'site-a','locations.xlsx',?,?,'v1','UPLOADED','user-a')").run(id,digest,`sites/site-a/location-imports/${id}/original.xlsx`);insert("get-failure");insert("buffer-failure");
+  value.env.FILES.get=async key=>{if(key.includes("get-failure"))throw new Error("R2_GET_FAILED");return{size:template.length,arrayBuffer:async()=>{throw new Error("R2_BUFFER_FAILED")}}};
+  for(const id of ["get-failure","buffer-failure"]){const response=await worker.fetch(request(`/api/v1/admin/site-locations/upload-sessions/${id}/validate`,{method:"POST",headers:value.headers}),value.env);assert.equal(response.status,500);assert.equal((await response.json()).error,"INTERNAL_ERROR");assert.equal(value.db.prepare("SELECT status FROM site_location_imports WHERE id=?").get(id).status,"FAILED")}
   assert.equal(value.env.DB.sqlLog.some(sql=>/^\s*(INSERT|UPDATE|DELETE)\s+(?:INTO\s+)?site_location(?:s|_aliases)\b/i.test(sql)),false);value.db.close();
 });
 

@@ -62,3 +62,24 @@
 - `node --test tests/site-location-import-api.test.mjs tests/site-location-import-migration.test.mjs tests/site-location-import-parser.test.mjs tests/site-location-import-validation.test.mjs`
 - Result: 29/29 PASS.
 - Apply, UI, Phase B+, deployment, and Production remain excluded.
+
+## Fix Round 2 of 5
+
+### Finding addressed
+
+- The complete owned post-CAS pipeline is now inside a failure boundary. Unexpected R2 `get`, `arrayBuffer`, digest, snapshot, validation, or diff failures attempt a same-site/same-import `VALIDATING -> FAILED` CAS before rethrowing the original error.
+- Recovery is best-effort and never replaces the original error response.
+- The existing final update is scoped to `id`, `site_id`, and `status='VALIDATING'`, so recovery cannot overwrite `APPLYING`, `APPLIED`, `CANCELLED`, `FAILED`, or any concurrently changed state.
+- Expected validation failures that already close as `INVALID` are not overwritten because the FAILED transition uses the same CAS.
+
+### RED
+
+- The new post-CAS failure test observed R2 `get` failure leaving the import permanently `VALIDATING`.
+
+### GREEN
+
+- Direct handler tests cover R2 `get`, `arrayBuffer`, and snapshot exceptions, preserve the original exception object, and end at `FAILED`.
+- Real Worker/repository/SQLite tests cover R2 `get` and `arrayBuffer` failures, assert final `500 INTERNAL_ERROR`, persist `FAILED`, and record zero `site_locations` or `site_location_aliases` mutation SQL.
+- Focused command: `node --test tests/site-location-import-api.test.mjs tests/site-location-import-migration.test.mjs tests/site-location-import-parser.test.mjs tests/site-location-import-validation.test.mjs`
+- Result: 31/31 PASS.
+- Apply remains absent.

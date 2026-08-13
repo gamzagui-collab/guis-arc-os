@@ -62,6 +62,7 @@ export async function handleSiteLocationImportRequest(request,env,url=new URL(re
     if(!["UPLOADED","INVALID","READY"].includes(row.status))throw new ApiError(409,"LOCATION_IMPORT_STATE_INVALID","현재 상태에서는 다시 검증할 수 없습니다.");
     if(!String(row.r2_object_key||"").startsWith(`sites/${auth.siteId}/location-imports/${row.id}/`))throw new ApiError(409,"LOCATION_IMPORT_OBJECT_SCOPE_INVALID","업로드 파일의 현장 범위가 올바르지 않습니다.");
     if(!await repository.beginLocationImportValidation(env,auth.siteId,row.id))throw new ApiError(409,"LOCATION_IMPORT_STATE_INVALID","업로드 상태가 변경되었습니다. 새로고침해 주세요.");
+    try{
     const object=await env.FILES.get(row.r2_object_key);if(!object){await repository.updateLocationImportValidation(env,{id:row.id,siteId:auth.siteId,status:"INVALID",counts:{error:1}});throw new ApiError(409,"LOCATION_IMPORT_OBJECT_MISSING","업로드 파일을 찾을 수 없습니다.");}
     const objectSize=Number(object.size);if(!Number.isInteger(objectSize)||objectSize<=0||objectSize>LOCATION_IMPORT_LIMITS.compressedBytes){await repository.updateLocationImportValidation(env,{id:row.id,siteId:auth.siteId,status:"INVALID",counts:{error:1}});throw new ApiError(413,"LOCATION_IMPORT_OBJECT_SIZE_INVALID","업로드된 파일 크기가 허용 범위를 벗어났습니다.");}
     const bytes=await object.arrayBuffer(),signature=new Uint8Array(bytes,0,Math.min(4,bytes.byteLength));
@@ -74,6 +75,7 @@ export async function handleSiteLocationImportRequest(request,env,url=new URL(re
     const status=errors.length?"INVALID":"READY";
     if(!await repository.updateLocationImportValidation(env,{id:row.id,siteId:auth.siteId,status,baseMasterFingerprint:diff.baseMasterFingerprint,previewHash:diff.previewHash,counts}))throw new ApiError(409,"LOCATION_IMPORT_STATE_INVALID","검증 중 업로드 상태가 변경되었습니다.");
     return json({importId:row.id,status,applyAllowed:status==="READY",fileHash:row.file_hash,baseMasterFingerprint:diff.baseMasterFingerprint,previewHash:diff.previewHash,counts,operations:diff.operations.filter(item=>item.type!=="ERROR"),errors});
+    }catch(error){try{await repository.updateLocationImportValidation(env,{id:row.id,siteId:auth.siteId,status:"FAILED",counts:{error:1}})}catch{}throw error}
   }
   return null;
 }
