@@ -28,7 +28,7 @@ const isIssueBuildingFormPresetHidden=(row)=>{
 const isIssueRoomFormPresetHidden=(row)=>{
   if(row.location_type!=="ROOM") return false;
   if(isDynamicOrCustomCode(row.code)) return false;
-  if(row.code==="ROOM_ALL"||String(row.display_name||"").trim()==="전체") return false;
+  if(row.code==="ROOM_ALL"||String(row.display_name||"").trim()==="전체") return true;
   if(new Set(["ENTRANCE","LIVING","KITCHEN","BEDROOM_1","BEDROOM_2","BEDROOM_3","BEDROOM_4","MASTER_BATH","COMMON_BATH","BATH_1","BATH_2","BALCONY","UTILITY","DRESS_ROOM"]).has(row.code)) return true;
   return false;
 };

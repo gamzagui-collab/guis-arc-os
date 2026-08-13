@@ -219,11 +219,11 @@ test("form options hides common ROOM presets except preserved shared types and d
   assert.equal(ids.includes("room-dynamic"),true);
   assert.equal(ids.includes("room-custom"),true);
   assert.equal(ids.includes("room-corridor"),true);
-  assert.equal(ids.includes("room-whole"),true);
+  assert.equal(ids.includes("room-whole"),false);
   assert.ok(isIssueRoomFormPresetHidden({location_type:"ROOM",code:"BEDROOM_1"}));
   assert.ok(!isIssueRoomFormPresetHidden({location_type:"ROOM",code:"DYNAMIC_ROOM_BUILDING_1"}));
   assert.ok(!isIssueRoomFormPresetHidden({location_type:"ROOM",code:"CUSTOM_ROOM_001"}));
-  assert.ok(!isIssueRoomFormPresetHidden({location_type:"ROOM",code:"ROOM_ALL",display_name:"전체"}));
+  assert.ok(isIssueRoomFormPresetHidden({location_type:"ROOM",code:"ROOM_ALL",display_name:"전체"}));
   assert.ok(!isIssueRoomFormPresetHidden({location_type:"ROOM",code:"CORRIDOR"}));
 });
 
