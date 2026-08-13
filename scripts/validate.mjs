@@ -1,4 +1,6 @@
 import fs from "node:fs";
+import {unzipSync} from "fflate";
+import {parseSiteLocationWorkbook} from "../worker/modules/site-location-import/xlsx-parser.js";
 const read=file=>fs.readFileSync(file,"utf8");
 const required=["AGENTS.md","DEVELOPMENT_RULES.md","VERSION.md","README.md","CHANGELOG.md","BASELINE.json","build-metadata.json","AIOS/PROJECT_STATE.md","AIOS/NEXT_TASK.md",".agents/skills/guis-arc-review/SKILL.md",".agents/skills/guis-arc-implement/SKILL.md",".agents/skills/guis-arc-verify/SKILL.md",".agents/skills/guis-arc-deploy/SKILL.md",".agents/skills/guis-arc-package/SKILL.md","docs/00_CONSTITUTION.md","docs/01_ARCHITECTURE.md","docs/02_MODULE_BOUNDARIES.md","docs/03_DATA_OWNERSHIP.md","docs/05_PERMISSION_MODEL.md","docs/08_VERSION_MATRIX.json","docs/21_WORKFORCE_MODULE_CONTRACT.md","docs/22_WORKFORCE_QR_CONTRACT.md","docs/23_WORKFORCE_ATTENDANCE_POLICY.md","docs/24_WORKFORCE_PRIVACY.md","docs/31_CONSTRUCTION_EXCEL_AND_OUTPUT_ARCHIVE_CONTRACT.md","docs/38_ENGINE_CONSTITUTION_V1.md","docs/98_NEXT_CHAT_HANDOFF.md","docs/99_START_NEXT_CHAT.md","docs/30_MINIMAL_CHANGE_WORKFLOW.md","scripts/task-scope.mjs"];
 for(const file of required)if(!fs.existsSync(file))throw new Error(`Missing ${file}`);
@@ -20,4 +22,14 @@ for(const token of ["최소 범위 수정","관련된 파일만","Production"])i
 if(!read("AGENTS.md").includes("VERSION.md")||!read("AGENTS.md").includes("DEVELOPMENT_RULES.md"))throw new Error("AGENTS startup contract missing");
 for(const token of ["construction_daily_report_uploads","construction_daily_report_imported_items","construction_output_sheet_documents","construction_output_sheet_media"])if(!read("database/migrations/0018_construction_excel_and_output_archive.sql").includes(token))throw new Error(`Construction Excel schema contract missing ${token}`);
 for(const token of ["construction_departments","construction_department_rules","issue_department_recommendations"])if(!read("database/migrations/0026_construction_department_engine.sql").includes(token))throw new Error(`Construction Engine schema missing ${token}`);
+const phaseAMigration="database/migrations/0036_site_location_master_import.sql",phaseATemplate="apps/web/templates/GUI_Arc_현장위치마스터_기본서식_v1.xlsx";
+for(const file of [phaseAMigration,phaseATemplate])if(!fs.existsSync(file))throw new Error(`Phase A artifact missing ${file}`);
+for(const token of ["canonical_key","site_location_aliases","site_location_imports","site_location_import_idempotency"])if(!read(phaseAMigration).includes(token))throw new Error(`Phase A schema contract missing ${token}`);
+const phaseAWorkbook=await parseSiteLocationWorkbook(fs.readFileSync(phaseATemplate));
+for(const sheet of ["01_위치마스터","02_위치별칭"])if(!phaseAWorkbook.workbookMeta.sheetNames.includes(sheet))throw new Error(`Phase A template sheet missing ${sheet}`);
+const phaseAOpenXml=Object.values(unzipSync(fs.readFileSync(phaseATemplate))).map(bytes=>Buffer.from(bytes).toString("utf8")).join("\n");
+for(const header of ["location_id","parent_location_id","location_type","canonical_key","display_name","sort_order","alias_id","alias_text","alias_type"])if(!phaseAOpenXml.includes(header))throw new Error(`Phase A template header missing ${header}`);
+const adminApp=read("apps/web/assets/integrated-admin.js"),workerIndex=read("worker/index.js");
+if(!adminApp.includes('/admin/site-locations')||!adminApp.includes('site-location-import.js')||!workerIndex.includes('handleSiteLocationImportRequest'))throw new Error("Phase A route wiring missing");
+for(const file of ["worker/modules/site-location-import.js","worker/modules/site-location-import/contracts.js","worker/modules/site-location-import/xlsx-parser.js","worker/modules/site-location-import/validation.js","worker/modules/site-location-import/diff.js","worker/modules/site-location-import/repository.js","worker/modules/site-location-import/apply.js","apps/web/assets/site-location-import.js"]){const source=read(file);if(/location resolver|pdf parsing|ocr|automatic alias learning|confidence scoring|speech resolver/i.test(source))throw new Error(`Phase B+ marker forbidden in ${file}`)}
 console.log("Integrated v0.27.1 Quality validation passed.");

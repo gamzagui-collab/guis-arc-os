@@ -8,7 +8,7 @@ import worker from "../worker/index.js";
 import {applyLocationImport,buildLocationImportApplyStatements} from "../worker/modules/site-location-import/apply.js";
 import * as locationRepository from "../worker/modules/site-location-import/repository.js";
 import {fingerprintLocationMaster} from "../worker/modules/site-location-import/diff.js";
-import {strToU8,zipSync} from "fflate";
+import {strToU8,unzipSync,zipSync} from "fflate";
 import {ALIAS_HEADERS,LOCATION_HEADERS,REQUIRED_SHEETS} from "../worker/modules/site-location-import/contracts.js";
 
 const template=fs.readFileSync("apps/web/templates/GUI_Arc_현장위치마스터_기본서식_v1.xlsx");
@@ -285,4 +285,33 @@ test("production route fingerprint equals the committed canonical DB snapshot",a
 test("same user and idempotency key are scoped independently by import",async()=>{
   const db=database();db.exec("INSERT INTO companies(id,name,status) VALUES('idem-company','Company','ACTIVE'); INSERT INTO sites(id,company_id,name,status) VALUES('idem-site','idem-company','Site','ACTIVE'); INSERT INTO users(id,login_identifier,display_name,credential_hash,credential_salt,credential_iterations,status,context_version) VALUES('idem-user','idem-user','User','h','s',100000,'ACTIVE',1); INSERT INTO site_location_imports(id,site_id,file_name,file_hash,template_version,status,created_by) VALUES('idem-one','idem-site','x','h','v1','APPLIED','idem-user'),('idem-two','idem-site','x','h','v1','APPLIED','idem-user'); INSERT INTO site_location_import_idempotency(site_id,import_id,user_id,idempotency_key,payload_hash,response_json,expires_at) VALUES('idem-site','idem-one','idem-user','same','one','{\"importId\":\"idem-one\"}','2099-01-01'),('idem-site','idem-two','idem-user','same','two','{\"importId\":\"idem-two\"}','2099-01-01')");const env={DB:transactionalD1(db)};
   assert.equal((await locationRepository.getApplyReplay(env,{siteId:"idem-site",importId:"idem-one",userId:"idem-user",idempotencyKey:"same"})).response.importId,"idem-one");assert.equal((await locationRepository.getApplyReplay(env,{siteId:"idem-site",importId:"idem-two",userId:"idem-user",idempotencyKey:"same"})).response.importId,"idem-two");db.close();
+});
+
+const repackTemplate=mutate=>{const entries=unzipSync(template),copy=Object.fromEntries(Object.entries(entries).map(([name,bytes])=>[name,new Uint8Array(bytes)]));mutate(copy);return zipSync(copy)};
+const locationSheetEntry=entries=>Object.keys(entries).find(name=>/^xl\/worksheets\/sheet\d+\.xml$/.test(name)&&Buffer.from(entries[name]).toString("utf8").includes("location_id"));
+
+test("malformed and adversarial XLSX payloads return stable 4xx errors with zero master writes",async()=>{
+  const malformed=new Uint8Array([0x50,0x4b,0x03,0x04,0xff,0xff]);
+  const oversized=repackTemplate(entries=>{const name=locationSheetEntry(entries);entries[name]=strToU8(`<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"><sheetData>${"<row><c t=\"inlineStr\"><is><t>x</t></is></c></row>".repeat(220000)}</sheetData></worksheet>`)});
+  const duplicateHeader=repackTemplate(entries=>{const name=locationSheetEntry(entries),xml=Buffer.from(entries[name]).toString("utf8");entries[name]=strToU8(xml.replace("parent_location_id","location_id"))});
+  for(const [id,bytes,expected] of [["malformed",malformed,"LOCATION_XLSX_INVALID"],["expanded",oversized,"LOCATION_XLSX_REQUIRED_HEADER_MISSING"],["duplicate-header",duplicateHeader,"LOCATION_XLSX_DUPLICATE_HEADER"]]){
+    const value=await realEnv("MANAGE"),hash=crypto.createHash("sha256").update(bytes).digest("hex"),key=`sites/site-a/location-imports/${id}/original.xlsx`;
+    value.db.prepare("INSERT INTO site_location_imports(id,site_id,file_name,file_hash,r2_object_key,template_version,status,created_by) VALUES(?,'site-a','locations.xlsx',?,?,'v1','UPLOADED','user-a')").run(id,hash,key);
+    value.env.FILES.get=async()=>({size:bytes.length,arrayBuffer:async()=>bytes});
+    const before=value.db.prepare("SELECT (SELECT COUNT(*) FROM site_locations) locations,(SELECT COUNT(*) FROM site_location_aliases) aliases").get();
+    const response=await worker.fetch(request(`/api/v1/admin/site-locations/upload-sessions/${id}/validate`,{method:"POST",headers:value.headers}),value.env),body=await response.json();
+    assert.ok(response.status>=400&&response.status<500,`${id}: ${response.status}`);assert.equal(body.error,expected,id);
+    assert.deepEqual(value.db.prepare("SELECT (SELECT COUNT(*) FROM site_locations) locations,(SELECT COUNT(*) FROM site_location_aliases) aliases").get(),before,id);
+    value.db.close();
+  }
+});
+
+test("inactive imported locations preserve historical Issue references but disappear from current form options",()=>{
+  const db=database();
+  db.exec("INSERT INTO companies(id,name,status) VALUES('history-company','Company','ACTIVE'); INSERT INTO sites(id,company_id,name,status) VALUES('history-site','history-company','Site','ACTIVE'); INSERT INTO users(id,login_identifier,display_name,credential_hash,credential_salt,credential_iterations,status,context_version) VALUES('history-user','history-user','User','h','s',100000,'ACTIVE',1);");
+  db.exec("INSERT INTO site_locations(id,site_id,location_type,code,name,display_name,sort_order,is_active,canonical_key,source) VALUES('history-room','history-site','ROOM','ROOM_HISTORY','기존 위치명','기존 위치명',1,1,'history/room','IMPORT');");
+  db.exec("INSERT INTO issue_items(id,site_id,created_by_user_id,created_by_name_snapshot,title,location_text,description,category_code,priority,status,room_location_id) VALUES('history-issue','history-site','history-user','User','Issue','기존 위치명','Description','UNCLASSIFIED','NORMAL','OPEN','history-room');");
+  db.exec("UPDATE site_locations SET is_active=0 WHERE id='history-room' AND site_id='history-site' AND source='IMPORT'");
+  const location=db.prepare("SELECT id,is_active,display_name FROM site_locations WHERE id='history-room'").get(),issue=db.prepare("SELECT room_location_id FROM issue_items WHERE id='history-issue'").get(),historical=db.prepare("SELECT l.display_name FROM issue_items i JOIN site_locations l ON l.id=i.room_location_id WHERE i.id='history-issue'").get(),options=db.prepare("SELECT id FROM site_locations WHERE site_id='history-site' AND is_active=1 ORDER BY sort_order,display_name").all();
+  assert.equal(location.is_active,0);assert.equal(issue.room_location_id,location.id);assert.equal(historical.display_name,"기존 위치명");assert.equal(options.some(row=>row.id===location.id),false);db.close();
 });

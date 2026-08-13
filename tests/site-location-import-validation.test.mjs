@@ -152,3 +152,24 @@ test("diff distinguishes adds, unchanged aliases, and inactive import reactivati
   assert.equal(result.counts.aliasUpdated,1);
   assert.equal(result.counts.unchanged,2);
 });
+
+test("adversarial foreign-site identities, aliases, and forged metadata never enter the authenticated site diff",()=>{
+  const foreign=current([
+    storedLocation("foreign-id",{site_id:"site-b",canonical_key:"foreign/key"}),
+    storedLocation("foreign-key-owner",{site_id:"site-b",canonical_key:"claimed/key"})
+  ],[storedAlias("foreign-alias","foreign-id",{site_id:"site-b",normalized_alias:"foreign phrase"})]);
+  const foreignId=validate(workbook([location("foreign-id","","BUILDING","new/key")]),foreign);
+  assert.equal(foreignId.applyAllowed,false);assert.ok(codes(foreignId).includes("LOCATION_IMPORT_CROSS_SITE_REFERENCE"));
+  const siteNamespaced=validate(workbook([location("incoming","","BUILDING","foreign/key")]),foreign);
+  assert.equal(siteNamespaced.applyAllowed,true);assert.ok(siteNamespaced.normalized.locations.every(row=>row.siteId===siteId));
+  const foreignAlias=validate(workbook([location("incoming")],[alias("foreign-alias","incoming","new phrase")]),foreign);
+  assert.equal(foreignAlias.applyAllowed,false);assert.ok(codes(foreignAlias).includes("LOCATION_IMPORT_CROSS_SITE_REFERENCE"));
+  const forged=validate({...workbook(),workbookMeta:{...workbook().workbookMeta,siteId:"site-b",siteCode:"FORGED",siteName:"Foreign Site"}},foreign);
+  assert.equal(forged.applyAllowed,false);assert.ok(codes(forged).includes("LOCATION_IMPORT_CROSS_SITE_REFERENCE"));
+});
+
+test("foreign snapshot rows cannot be updated or inactivated by an authenticated-site workbook",()=>{
+  const snapshot=current([storedLocation("root"),storedLocation("foreign-only",{site_id:"site-b",canonical_key:"foreign/only"})],[storedAlias("foreign-alias","foreign-only",{site_id:"site-b"})]);
+  const validated=validate(workbook([location("root")]),snapshot),diff=buildLocationImportDiff({siteId,normalized:validated.normalized,current:snapshot});
+  assert.equal(validated.applyAllowed,true);assert.equal(diff.operations.some(operation=>operation.id==="foreign-only"||operation.id==="foreign-alias"),false);
+});
