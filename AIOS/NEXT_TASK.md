@@ -1,5 +1,15 @@
 # GUI's Arc 다음 단일 작업
 
+## 현재 단일 작업: Phase B Issue Location Lookup-only Cutover
+
+- 공식 source는 v0.27.2 Issue Recovery와 Simple Location List Phase A가 통합된 `v0.27.0-official` branch다.
+- Phase A 상태: `SIMPLE_LOCATION_LIST_PHASE_A_IMPLEMENTED_INTEGRATION_VERIFIED`.
+- Issue Create 중 `site_locations` 자동 INSERT를 제거하고 기존 canonical location ID만 조회·참조한다.
+- 위치를 찾지 못하면 canonical IDs를 null로 두고 Issue 등록은 정상 진행한다.
+- 기존 LEGACY/IMPORT/MANUAL row와 과거 Issue 위치 표시는 보존하며 hard delete하지 않는다.
+- Phase C description resolver는 Phase B 완료 전 시작하지 않는다.
+- Production: `NOT_CHANGED`
+
 ## v0.24.15 현재 작업
 
 - 부서 enum과 Issue 생성 상태 이력의 한국어 표시를 최종 검증한다.

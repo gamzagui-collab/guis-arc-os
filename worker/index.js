@@ -14,6 +14,7 @@ import {handleSafetyRequest} from "./modules/safety.js";
 import {handleQualityRequest} from "./modules/quality.js";
 import {handleBoardAccessAdminRequest} from "./modules/board-access-admin.js";
 import {handleIntegratedAdminRequest} from "./modules/integrated-admin.js";
+import {handleSiteLocationImportRequest} from "./modules/site-location-import.js";
 
 const audit=(env,actor,action,outcome,id,meta={})=>env.DB.prepare("INSERT INTO audit_logs(id,actor_user_id,action,outcome,request_id,metadata_json) VALUES(?1,?2,?3,?4,?5,?6)").bind(crypto.randomUUID(),actor||null,action,outcome,id,JSON.stringify(meta)).run();
 const moduleStatus=code=>({code,label:code,implementationStatus:MODULE_IMPLEMENTATION[code]});
@@ -33,6 +34,7 @@ export default{async fetch(request,env){const id=requestId(request),url=new URL(
  if(method==="GET"&&url.pathname==="/api/v1/modules"){const row=await authenticate(request,env),ctx=await context(env,row);return json({modules:MODULES.map(moduleStatus).filter(v=>(ctx.menuModules||ctx.modules).includes(v.code))})}
  if(method==="POST"&&url.pathname==="/api/v1/context/site"){const row=await authenticate(request,env,{csrf:true}),body=await parseJson(request),siteId=String(body.siteId||""),allowed=await env.DB.prepare("SELECT 1 AS allowed FROM memberships m JOIN sites s ON s.id=m.site_id WHERE m.user_id=?1 AND m.site_id=?2 AND m.status='ACTIVE' AND m.approval_status='APPROVED' AND s.status='ACTIVE'").bind(row.user_id,siteId).first();if(!allowed)throw new ApiError(403,"SITE_SCOPE_DENIED","The selected site is not allowed.");await env.DB.prepare("UPDATE sessions SET selected_site_id=?2 WHERE id=?1").bind(row.id,siteId).run();await audit(env,row.user_id,"SITE_CONTEXT_CHANGED","ALLOWED",id,{siteId});return json({ok:true})}
  const integratedAdminResponse=await handleIntegratedAdminRequest(request,env,url);if(integratedAdminResponse)return integratedAdminResponse;
+ const siteLocationImportResponse=await handleSiteLocationImportRequest(request,env,url);if(siteLocationImportResponse)return siteLocationImportResponse;
  const boardAccessResponse=await handleBoardAccessAdminRequest(request,env,url);if(boardAccessResponse)return boardAccessResponse;
  const issueResponse=await handleIssueRequest(request,env,url);if(issueResponse)return issueResponse;
  const workforceResponse=await handleWorkforceRequest(request,env,url);if(workforceResponse)return workforceResponse;

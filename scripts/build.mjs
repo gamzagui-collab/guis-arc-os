@@ -3,6 +3,8 @@ import path from "node:path";
 
 fs.rmSync("dist", { recursive: true, force: true });
 fs.cpSync("apps/web", "dist", { recursive: true });
+fs.mkdirSync("dist/templates", { recursive: true });
+fs.copyFileSync("apps/web/templates/GUI_Arc_현장위치목록_기본서식_v2.xlsx", "dist/templates/GUI_Arc_현장위치목록_기본서식_v2.xlsx");
 
 for (const dir of ["design-tokens", "ui", "permissions"]) {
   fs.mkdirSync(`dist/packages/${dir}`, { recursive: true });

@@ -1,5 +1,17 @@
 # GUI's Arc 현재 프로젝트 상태
 
+## v0.27.2 공식 개발 Source 통합 상태 (2026-08-14)
+
+- 공식 개발 branch: `v0.27.0-official`
+- Issue Recovery 입력 HEAD: `57c15e1049f2ddd25cb7591e0fa395a99dc18a39`
+- Simple Location List Phase A 입력 HEAD: `00ae369b8c9628da3397b3ba081442dc87a06d97`
+- v0.27.2 Issue Recovery와 `SIMPLE_LOCATION_LIST_PHASE_A_IMPLEMENTED_INTEGRATION_VERIFIED`를 공식 root에 통합했다.
+- Issue 신규등록은 `createV3()` 단일 경로이며 Speech Safe Mode, raw transcript 보존, 위치 optional, multi-photo와 action/completion 정책을 유지한다.
+- Migration `0034`, `0035`, `0036`이 공식 source에 존재한다. Integration의 `0036`은 적용 완료 상태이며 이번 통합에서 재적용하지 않았다.
+- Static asset/service-worker revision: `v0.27.1-r19`.
+- Production: `NOT_CHANGED`
+- 다음 단일 작업: Phase B Issue Location Lookup-only Cutover. Phase C Resolver는 `NOT_STARTED`다.
+
 ## v0.27.1 Issue FIELD_USABLE Baseline (2026-08-11)
 
 - 사용자 실기기와 자동 검증을 통과한 Issue v0.27.1 공식 기준선이다.
