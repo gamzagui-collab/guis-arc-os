@@ -86,3 +86,68 @@ test("diff emits identity collisions as ERROR rather than UPDATE",()=>{
   assert.equal(result.operations[0].code,"LOCATION_IMPORT_IDENTITY_REUSED");
   assert.equal(result.counts.error,1);
 });
+
+test("fingerprints include recursively canonicalized nested field values",()=>{
+  const normalized={locations:[{id:"x",siteId,parentId:null,locationType:"SITE",canonicalKey:"key/x",displayName:"New",sortOrder:0}],aliases:[]};
+  const one=current([storedLocation("x",{display_name:"Old one"})]);
+  const two=current([storedLocation("x",{display_name:"Old two"})]);
+  const first=buildLocationImportDiff({siteId,normalized,current:one});
+  const second=buildLocationImportDiff({siteId,normalized,current:two});
+  assert.deepEqual(first.counts,second.counts);
+  assert.notEqual(first.baseMasterFingerprint,second.baseMasterFingerprint);
+  assert.notEqual(first.previewHash,second.previewHash);
+});
+
+test("validation rejects claiming legacy or manual location identities",()=>{
+  for(const source of ["LEGACY","MANUAL"]){
+    const snapshot=current([storedLocation("claimed",{source})]);
+    const result=validate(workbook([location("claimed")]),snapshot);
+    assert.equal(result.applyAllowed,false);
+    assert.ok(codes(result).includes("LOCATION_IMPORT_IDENTITY_REUSED"));
+  }
+});
+
+test("validation rejects aliases targeting omitted imported locations",()=>{
+  const snapshot=current([storedLocation("omitted")]);
+  const result=validate(workbook([location("root")],[alias("a","omitted")]),snapshot);
+  assert.equal(result.applyAllowed,false);
+  assert.ok(codes(result).includes("LOCATION_IMPORT_ALIAS_TARGET_MISSING"));
+});
+
+test("validation rejects conflicts with existing same-site normalized aliases",()=>{
+  const snapshot=current([storedLocation("root")],[storedAlias("existing","root",{normalized_alias:"shared"})]);
+  const result=validate(workbook([location("root")],[alias("incoming","root"," SHARED ")]),snapshot);
+  assert.equal(result.applyAllowed,false);
+  assert.ok(codes(result).includes("LOCATION_IMPORT_IDENTITY_REUSED"));
+});
+
+test("diff distinguishes adds, unchanged aliases, and inactive import reactivation",()=>{
+  const normalized={
+    locations:[
+      {id:"new",siteId,parentId:null,locationType:"SITE",canonicalKey:"key/new",displayName:"new",sortOrder:0},
+      {id:"same",siteId,parentId:null,locationType:"SITE",canonicalKey:"key/same",displayName:"same",sortOrder:0},
+      {id:"wake",siteId,parentId:null,locationType:"SITE",canonicalKey:"key/wake",displayName:"wake",sortOrder:0}
+    ],
+    aliases:[
+      {id:"alias-new",siteId,locationId:"new",aliasText:"New alias",normalizedAlias:"new alias",aliasType:"FIELD_NAME"},
+      {id:"alias-same",siteId,locationId:"same",aliasText:"Same alias",normalizedAlias:"same alias",aliasType:"FIELD_NAME"},
+      {id:"alias-wake",siteId,locationId:"wake",aliasText:"Wake alias",normalizedAlias:"wake alias",aliasType:"FIELD_NAME"}
+    ]
+  };
+  const snapshot=current([
+    storedLocation("same"),storedLocation("wake",{is_active:0})
+  ],[
+    storedAlias("alias-same","same",{alias_text:"Same alias",normalized_alias:"same alias"}),
+    storedAlias("alias-wake","wake",{alias_text:"Wake alias",normalized_alias:"wake alias",is_active:0})
+  ]);
+  const result=buildLocationImportDiff({siteId,normalized,current:snapshot});
+  assert.ok(result.operations.some(op=>op.type==="ADD"&&op.id==="new"));
+  assert.ok(result.operations.some(op=>op.type==="ALIAS_ADD"&&op.id==="alias-new"));
+  assert.ok(result.operations.some(op=>op.type==="UPDATE"&&op.id==="wake"));
+  assert.ok(result.operations.some(op=>op.type==="ALIAS_UPDATE"&&op.id==="alias-wake"));
+  assert.equal(result.counts.added,1);
+  assert.equal(result.counts.aliasAdded,1);
+  assert.equal(result.counts.updated,1);
+  assert.equal(result.counts.aliasUpdated,1);
+  assert.equal(result.counts.unchanged,2);
+});

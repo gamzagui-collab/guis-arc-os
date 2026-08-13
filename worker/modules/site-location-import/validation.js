@@ -36,6 +36,7 @@ export function validateLocationImport({siteId,workbook,current={}}){
     if(row.parentId===row.id)errors.push(error("LOCATION_IMPORT_PARENT_SELF",row,"parent_location_id"));
     const old=byExistingId.get(row.id);
     if(old&&value(old,"siteId","site_id")!==siteId)errors.push(error("LOCATION_IMPORT_CROSS_SITE_REFERENCE",row,"location_id"));
+    else if(old&&value(old,"source","source")!=="IMPORT")errors.push(error("LOCATION_IMPORT_IDENTITY_REUSED",row,"location_id"));
     else if(old&&value(old,"canonicalKey","canonical_key")&&value(old,"canonicalKey","canonical_key")!==row.canonicalKey)errors.push(error("LOCATION_IMPORT_IDENTITY_REUSED",row,"canonical_key"));
     const keyOwner=sameSiteKey.get(row.canonicalKey);
     if(keyOwner&&value(keyOwner,"id","id")!==row.id)errors.push(error("LOCATION_IMPORT_CANONICAL_KEY_REUSED",row,"canonical_key"));
@@ -64,11 +65,15 @@ export function validateLocationImport({siteId,workbook,current={}}){
     if(aliasIds.has(row.id))errors.push(error("LOCATION_IMPORT_IDENTITY_REUSED",row,"alias_id"));aliasIds.add(row.id);
     if(aliasTexts.has(row.normalizedAlias)&&aliasTexts.get(row.normalizedAlias)!==row.id)errors.push(error("LOCATION_IMPORT_IDENTITY_REUSED",row,"alias_text"));else aliasTexts.set(row.normalizedAlias,row.id);
     const target=incomingById.get(row.locationId)??byExistingId.get(row.locationId);
-    if(!target||(!incomingById.has(row.locationId)&&(!active(target)||value(target,"siteId","site_id")!==siteId)))errors.push(error(target?"LOCATION_IMPORT_CROSS_SITE_REFERENCE":"LOCATION_IMPORT_ALIAS_TARGET_MISSING",row,"location_id"));
+    if(!target)errors.push(error("LOCATION_IMPORT_ALIAS_TARGET_MISSING",row,"location_id"));
+    else if(!incomingById.has(row.locationId)&&(value(target,"siteId","site_id")!==siteId||!active(target)))errors.push(error("LOCATION_IMPORT_CROSS_SITE_REFERENCE",row,"location_id"));
+    else if(!incomingById.has(row.locationId)&&value(target,"source","source")==="IMPORT")errors.push(error("LOCATION_IMPORT_ALIAS_TARGET_MISSING",row,"location_id"));
     if(!ALIAS_TYPES.has(row.aliasType))errors.push(error("LOCATION_IMPORT_TYPE_UNSUPPORTED",row,"alias_type"));
     const old=existingAliases.find(item=>value(item,"id","id")===row.id);
     if(old&&value(old,"siteId","site_id")!==siteId)errors.push(error("LOCATION_IMPORT_CROSS_SITE_REFERENCE",row,"alias_id"));
     else if(old&&(value(old,"normalizedAlias","normalized_alias")!==row.normalizedAlias||value(old,"locationId","location_id")!==row.locationId))errors.push(error("LOCATION_IMPORT_IDENTITY_REUSED",row,"alias_id"));
+    const normalizedOwner=existingAliases.find(item=>value(item,"siteId","site_id")===siteId&&value(item,"normalizedAlias","normalized_alias")===row.normalizedAlias);
+    if(normalizedOwner&&value(normalizedOwner,"id","id")!==row.id)errors.push(error("LOCATION_IMPORT_IDENTITY_REUSED",row,"alias_text"));
   }
   normalizedLocations.sort((a,b)=>a.id.localeCompare(b.id));normalizedAliases.sort((a,b)=>a.id.localeCompare(b.id));
   return {errors,applyAllowed:errors.length===0,normalized:{locations:normalizedLocations,aliases:normalizedAliases}};
