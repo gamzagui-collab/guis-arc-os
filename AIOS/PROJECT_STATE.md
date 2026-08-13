@@ -306,3 +306,15 @@ v0.24.4는 기존 5개 상위 Skill과 10개 전문 Skill, 정적 Validator와 T
 - Integration Pages deployment: `f35d81d2`; canonical URL uses static revision `r20`.
 - Phase C Final Description to Location Resolver: `NOT_STARTED`.
 - Production: `NOT_CHANGED`.
+
+# v0.27.2 Candidate Phase C verified (2026-08-14)
+
+- Step 0 legacy ROOM `전체` is hidden from new Issue form options; historical Issue display remains unchanged.
+- Phase C Final Description to Location Resolver: `INTEGRATION_VERIFIED`.
+- Resolver runs only from explicit `내용 적용` using the final edited description.
+- Resolver is read-only, site-scoped, active-master-only, and never creates or updates `site_locations`.
+- Exact canonical BUILDING/FLOOR/UNIT/ROOM and site-confirmed alias resolution are supported; ambiguous or unresolved input safely falls back.
+- Integration Worker Version ID: `cce2dae7-e0c4-4dba-86f0-3c78cccf6546`.
+- Integration Pages deployment: `a4ee3fea`; canonical URL uses static revision `r21`.
+- Integration test-site `site_locations` total remained `1757`; unintended row growth was `0`.
+- Production: `NOT_CHANGED`.

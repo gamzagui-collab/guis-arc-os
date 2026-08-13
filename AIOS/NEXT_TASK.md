@@ -93,6 +93,7 @@
 
 - Phase A Simple Location List: `INTEGRATION_VERIFIED`.
 - Phase B Issue Location Lookup-only: `INTEGRATION_VERIFIED`.
-- Next: Phase C Final Description to Location Resolver.
-- Phase C: `NOT_STARTED`; begin only after Source Review approval.
+- Phase C Final Description to Location Resolver: `INTEGRATION_VERIFIED`.
+- Next: ChatGPT Source Review of `GUI_Arc_Integrated_Source_Review_PhaseC.zip`.
+- Do not begin a new product phase before explicit user approval.
 - Production: `NOT_CHANGED`.
