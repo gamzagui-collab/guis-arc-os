@@ -33,7 +33,7 @@ test("v0.21.0 creator can read an unassigned Issue without exposing it to anothe
 });
 
 test("v0.21.0 quick form and manager assignment are separate contracts",()=>{
-  const flow=ui.slice(ui.indexOf("async function createV3"),ui.indexOf("async function createV2"));
+  const flow=ui.slice(ui.indexOf("async function createV3"),ui.indexOf("async function detail"));
   for(const value of ["사진 촬영","파일 선택","건물·구역","세부 위치","name=\"description\"","이슈 등록"])assert.ok(flow.includes(value),value);
   assert.doesNotMatch(flow,/name="contractorCompanyId"|name="tradeCode"|name="assigneeUserId"|name="categoryCode"/);
   for(const value of ["업체·공종·담당자 배정","contractorCompanyId","tradeId","assigneeUserId","업체 미배정","공종 미지정","담당자 미배정"])assert.ok(ui.includes(value),value);

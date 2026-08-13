@@ -151,15 +151,17 @@ test("resolveLocation validates canonical UNIT IDs and reuses dynamic labels",as
   db.close();
 });
 
-test("location policy requires units only for BUILDING and COMMERCIAL",()=>{
+test("location metadata is optional while canonical parent scope stays enforced",()=>{
   assert.equal(isIssueUnitRequired("BUILDING"),true);
   assert.equal(isIssueUnitRequired("COMMERCIAL"),true);
   for(const type of ["PARKING","COMMON","FACILITY","EXTERIOR","OTHER"]){
     assert.equal(isIssueUnitRequired(type),false,type);
     assert.doesNotThrow(()=>validateIssueLocationSelection({building:{location_type:type},unit:null}));
   }
-  assert.throws(()=>validateIssueLocationSelection({building:{location_type:"BUILDING"},unit:null}),error=>error.code==="ISSUE_UNIT_REQUIRED");
-  assert.throws(()=>validateIssueLocationSelection({building:{location_type:"COMMERCIAL"},unit:null}),error=>error.code==="ISSUE_UNIT_REQUIRED");
+  assert.doesNotThrow(()=>validateIssueLocationSelection({building:{id:"building",location_type:"BUILDING"},unit:null}));
+  assert.doesNotThrow(()=>validateIssueLocationSelection({building:{id:"commercial",location_type:"COMMERCIAL"},unit:null}));
+  assert.doesNotThrow(()=>validateIssueLocationSelection({building:null,floor:null,unit:null,room:null}));
+  assert.throws(()=>validateIssueLocationSelection({building:{id:"building"},floor:{id:"floor",parent_id:"other"}}),error=>error.code==="ISSUE_FLOOR_SCOPE_INVALID");
 });
 
 test("form option filter hides legacy residential BUILDING_1~15 presets",()=>{
@@ -296,30 +298,23 @@ test("dynamic units and whole-room options are scoped to their canonical parent"
 });
 
 test("new Issue UI applies one location policy for direct and Today source routes",()=>{
-  const ui=read("apps/web/assets/issues.js"),flow=ui.slice(ui.indexOf("async function createV3"),ui.indexOf("async function createV2"));
-  assert.doesNotMatch(flow,/name="floor"/);
+  const ui=read("apps/web/assets/issues.js"),flow=ui.slice(ui.indexOf("async function createV3"),ui.indexOf("async function detail"));
+  assert.match(flow,/name="floor"/);
   assert.doesNotMatch(flow,/name="area" required/);
   assert.match(flow,/locationOptions\(locations\.buildings,[^\n]+natural:false/);
   assert.match(worker,/floors:byType\("FLOOR"\)/);
   assert.match(flow,/locationOptions\(locations\.units/);
   assert.match(flow,/locationOptions\(locations\.areas/);
-  assert.match(flow,/\["BUILDING","COMMERCIAL"\]\.includes/);
-  assert.match(flow,/unit\.required=unitRequired/);
-  assert.match(flow,/areaLabel=[^;]+\|\|"전체"/);
+  assert.doesNotMatch(flow,/name="building" required/);
+  assert.match(flow,/unit\.required=false/);
+  assert.match(flow,/areaLabel=normalizedAreaLabel/);
   assert.match(flow,/floorLocationId/);
   assert.match(flow,/sourcePayload=data\.sourceContext/);
   assert.match(flow,/입력한 위치와 내용은 보존됩니다/);
   assert.doesNotMatch(flow.slice(flow.indexOf("catch(error)")),/form\.reset\(\)/);
 });
 
-test("speech room selection reuses exact parent option or selects a dynamic ROOM without overriding manual input",()=>{
-  const ui=read("apps/web/assets/issues.js"),flow=ui.slice(ui.indexOf("function parseSpeech"),ui.indexOf("function bindPhotoInputs"));
-  assert.match(flow,/currentLocationParentId/);
-  assert.match(flow,/normalizeLocationLabel\(value\.textContent\)===normalizeLocationLabel\(parsed\.roomLabel\)/);
-  assert.match(flow,/value\.dataset\.parentId===parentId/);
-  assert.match(flow,/addAndSelect\(form\.elements\.area,parsed\.roomLabel,"ROOM",parentId\)/);
-  assert.match(flow,/if\(parsed\.roomLabel&&!hasManualArea\)/);
-});
+test("speech parser remains evidence-only and cannot create or select ROOM",()=>{const ui=read("apps/web/assets/issues.js"),createFlow=ui.slice(ui.indexOf("async function createV3"),ui.indexOf("async function detail")),onresult=createFlow.slice(createFlow.indexOf("recognition.onresult"),createFlow.indexOf("recognition.onerror"));assert.match(onresult,/extractLocationSpeech\(rawTranscript/);assert.doesNotMatch(onresult,/currentLocationParentId|addAndSelect|form\.elements\.area\.value/);assert.match(onresult,/description\.value=rawTranscript/)})
 
 test("standalone PWA launch emphasizes the existing camera action once without an automatic picker",()=>{
   const ui=read("apps/web/assets/issues.js"),css=read("apps/web/assets/issues.css"),flow=ui.slice(ui.indexOf("const PWA_CAMERA_LAUNCH_KEY"),ui.indexOf("const OFFLINE"));
@@ -336,7 +331,7 @@ test("standalone PWA launch emphasizes the existing camera action once without a
 });
 
 test("SpeechRecognition body remains the established single-result flow",()=>{
-  const ui=read("apps/web/assets/issues.js"),flow=ui.slice(ui.indexOf("async function createV3"),ui.indexOf("async function createV2"));
+  const ui=read("apps/web/assets/issues.js"),flow=ui.slice(ui.indexOf("async function createV3"),ui.indexOf("async function detail"));
   assert.match(flow,/const recognition=new SpeechRecognition\(\)/);
   assert.match(flow,/recognition\.lang="ko-KR"/);
   assert.match(flow,/recognition\.onresult=/);
@@ -391,11 +386,11 @@ test("mobile shell header separates brand and site-user context",()=>{
 });
 
 test("v0.21.0 mobile Issue flow keeps only photo location and content before assignment",()=>{
-  const ui=read("apps/web/assets/issues.js"),css=read("apps/web/assets/issues.css"),flow=ui.slice(ui.indexOf("async function createV3"),ui.indexOf("async function createV2"));
-  assert.doesNotMatch(flow,/name="floor"/);
+  const ui=read("apps/web/assets/issues.js"),css=read("apps/web/assets/issues.css"),flow=ui.slice(ui.indexOf("async function createV3"),ui.indexOf("async function detail"));
+  assert.match(flow,/name="floor"/);
   assert.doesNotMatch(flow,/name="contractorCompanyId"|name="tradeCode"|name="assigneeUserId"|name="categoryCode"/);
   for(const token of ["사진 촬영","파일 선택","직접 입력","name=\"description\"","이슈 등록","UNCLASSIFIED","ISSUE_LOCATION"])assert.ok((flow+worker).includes(token));
-  assert.match(flow,/payload\.set\("floorLocationId",""\)/);
+  assert.match(flow,/payload\.set\("floorLocationId",canonicalLocationId\(floorOption\)\)/);
   assert.match(flow,/join\(" \/ "\)/);
   assert.match(ui,/업체·공종·담당자 배정/);
   assert.match(ui,/업체 미배정/);
@@ -446,20 +441,19 @@ test("resolveIssueLocation ROOM는 동일 building 기준 기존값 재사용 �
 
 test("v0.27.1 createV3는 기본 상세위치 라벨 \"전체 (자동)\"을 \"전체\"로 정규화",()=>{
   const ui=read("apps/web/assets/issues.js");
-  const flow=ui.slice(ui.indexOf("async function createV3"),ui.indexOf("async function createV2"));
-  assert.ok(flow.includes('normalizedAreaLabel=roomOption?.textContent==="기타"?areaOther.value.trim():roomOption?.textContent,areaLabel=normalizedAreaLabel==="전체 (자동)"?"전체":(normalizedAreaLabel||"전체");'));
+  const flow=ui.slice(ui.indexOf("async function createV3"),ui.indexOf("async function detail"));
+  assert.match(flow,/normalizedAreaLabel=roomOption\?\.textContent/);
+  assert.match(flow,/areaLabel=normalizedAreaLabel/);
 });
 
 test("NONE allows scrolling and a selected tool enables drawing without changing desktop default",()=>{
  const ui=read("apps/web/assets/issues.js"),editor=ui.slice(ui.indexOf("function bindPhotoEditor"),ui.indexOf("const locationOptions"));assert.match(editor,/wrap\.classList\.toggle\("drawing-enabled",tool!=="none"\)/);assert.match(editor,/if\(!drawing\|\|tool==="none"\)return/);assert.match(editor,/setTool\(mobileEditor\?"none":"circle"\)/);
 });
-test("ROOM speech treats only trusted area changes as manual selection",()=>{
- const ui=read("apps/web/assets/issues.js"),flow=ui.slice(ui.indexOf("function parseSpeech"),ui.indexOf("function bindPhotoInputs"));assert.match(flow,/form\.dataset\.manualArea==="true"/);assert.match(ui,/event\.isTrusted.*manualArea/);assert.match(flow,/addAndSelect\(form\.elements\.area,parsed\.roomLabel,"ROOM",parentId\)/);
-});
+test("manual ROOM selection remains independent from speech evidence collection",()=>{const ui=read("apps/web/assets/issues.js"),createFlow=ui.slice(ui.indexOf("async function createV3"),ui.indexOf("async function detail")),onresult=createFlow.slice(createFlow.indexOf("recognition.onresult"),createFlow.indexOf("recognition.onerror"));assert.match(createFlow,/form\.dataset\.manualArea/);assert.doesNotMatch(onresult,/dataset\.manualArea|speechRoomValue|form\.elements\.area/)})
 
 
 test("annotation palette has seven colors with red selected by default",()=>{
- const ui=read("apps/web/assets/issues.js"),palettes=[...ui.matchAll(/<select id="edit-color">([\s\S]*?)<\/select>/g)].map(match=>match[1]);assert.equal(palettes.length,2);for(const palette of palettes){assert.equal((palette.match(/<option /g)||[]).length,7);assert.match(palette,/^<option value="#e11d2e" selected>/)}assert.match(ui,/color="#e11d2e"/);for(const tool of ["none","circle","rectangle","ellipse","arrow","line","pen"])assert.match(ui,new RegExp(`data-edit-tool="${tool}"`));
+ const ui=read("apps/web/assets/issues.js"),palettes=[...ui.matchAll(/<select id="edit-color">([\s\S]*?)<\/select>/g)].map(match=>match[1]);assert.equal(palettes.length,1);for(const palette of palettes){assert.equal((palette.match(/<option /g)||[]).length,7);assert.match(palette,/^<option value="#e11d2e" selected>/)}assert.match(ui,/color="#e11d2e"/);for(const tool of ["none","circle","rectangle","ellipse","arrow","line","pen"])assert.match(ui,new RegExp(`data-edit-tool="${tool}"`));
 });
 
 test("assignment trade labels use safe slash separators and preserve canonical option ids",()=>{

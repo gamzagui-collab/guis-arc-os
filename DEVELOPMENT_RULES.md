@@ -1,5 +1,17 @@
 # GUI's Arc 핵심 개발규칙
 
+## 보조 엔진 독립 계약
+
+`AUXILIARY ENGINE FAILURE MUST NOT BLOCK CORE WORKFLOW`
+
+`UNKNOWN LOCATION MUST NOT FORCE FALSE CANONICAL LOCATION`
+
+보조 엔진의 미설정, 실패, 불확실, 오류는 핵심 현장 업무를 차단해서는 안 된다. SST/STT 위치 보조, Site Space Resolver, Speech Correction Learning과 향후 OCR, 사진 분석, AI 자동분류는 Issue Core의 선택적 보조계층이다. 사진, 내용, 수동 위치, Issue Create, 공유, 조치, 확인, 완료는 보조 엔진의 존재 여부나 성공 여부와 무관하게 동작해야 한다.
+
+보조 결과는 잘못된 canonical ID를 저장해서는 안 되며, 해결되지 않은 값은 null과 원문 보존으로 안전하게 fallback한다. SpeechRecognition raw transcript는 immutable source로 취급하고 parser, resolver, correction 결과가 description 원문을 덮어쓰지 않도록 한다.
+
+목록에 실제 위치가 없다는 이유로 사용자가 잘못된 canonical 위치를 선택하도록 강제해서는 안 된다. 위치의 우선순위는 정확한 canonical, 정확한 manual text, 위치 미지정, 잘못된 canonical 순서이며 마지막 상태는 UI가 유도하지 않는다.
+
 ## ChatGPT와 Codex의 개발 역할
 
 GUI's Arc의 기본 개발 운영은 ChatGPT와 Codex의 역할을 분리한다.
