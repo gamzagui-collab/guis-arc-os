@@ -5,21 +5,26 @@ import {
   ACTION_STATES,
   beginLocationImportAction,
   canApplyLocationImport,
+  completeAppliedState,
   confirmationMessage,
+  ensureApplyIntent,
   finishLocationImportAction,
+  hasLocationImportManageAccess,
+  recoverApplyFailure,
+  replaceLocationImportPreview,
   visiblePreviewItems
 } from "../apps/web/assets/site-location-import.js";
 
 const read=file=>fs.readFileSync(file,"utf8");
 
-test("admin route is reachable from the site information navigation and loads without a revision bump",()=>{
+test("admin route has one loader and uses the established revision without incrementing it",()=>{
   const app=read("apps/web/assets/app.js"),admin=read("apps/web/assets/integrated-admin.js"),html=read("apps/web/index.html");
   assert.match(app,/현장정보/);
   assert.match(app,/\/admin\/site-locations/);
-  assert.match(app,/import\("\.\/site-location-import\.js"\)/);
+  assert.doesNotMatch(app,/import\("\.\/site-location-import\.js/);
+  assert.match(admin,/import\("\.\/site-location-import\.js\?v=0\.27\.1-r1"\)/);
   assert.match(admin,/renderSiteLocationImportPage/);
-  assert.match(html,/\/assets\/site-location-import\.css"/);
-  assert.doesNotMatch(html,/site-location-import\.css\?v=/);
+  assert.match(html,/\/assets\/site-location-import\.css\?v=0\.27\.1-r1"/);
 });
 
 test("state machine allows only exact transitions and blocks duplicate requests",()=>{
@@ -44,6 +49,39 @@ test("Apply requires a server-ready zero-error preview and remains disabled for 
   assert.equal(canApplyLocationImport({phase:ACTION_STATES.READY,busy:null,preview:{...ready,counts:{error:1}}}),false);
   assert.equal(canApplyLocationImport({phase:ACTION_STATES.READY,busy:"apply",preview:ready}),false);
   assert.equal(canApplyLocationImport({phase:ACTION_STATES.INVALID,busy:null,preview:ready}),false);
+});
+
+test("mutation controls require ADMINISTRATION MANAGE from context",()=>{
+  assert.equal(hasLocationImportManageAccess({boardAccess:{ADMINISTRATION:{accessLevel:"MANAGE"}}}),true);
+  assert.equal(hasLocationImportManageAccess({boardAccess:{ADMINISTRATION:{accessLevel:"VIEW"}}}),false);
+  assert.equal(hasLocationImportManageAccess({boardAccess:{}}),false);
+});
+
+test("confirmed apply intent keeps one idempotency key across ambiguous retries",()=>{
+  const preview={importId:"import-1",previewHash:"preview-1",status:"READY",applyAllowed:true,counts:{error:0}};
+  let state=replaceLocationImportPreview({phase:"VALIDATING",busy:null,applyIntent:null},preview);
+  state=ensureApplyIntent(state,()=>"stable-key");
+  assert.equal(state.applyIntent.key,"stable-key");
+  state=recoverApplyFailure({...state,phase:"APPLYING",busy:"apply"},new TypeError("network failed"));
+  assert.equal(state.phase,"READY");
+  assert.equal(state.applyIntent.key,"stable-key");
+  assert.equal(ensureApplyIntent(state,()=>"wrong-new-key").applyIntent.key,"stable-key");
+});
+
+test("stale apply rejects the preview and explicitly requires re-preview",()=>{
+  const state={phase:"APPLYING",busy:"apply",applyIntent:{key:"old",previewHash:"p"},preview:{status:"READY",applyAllowed:true,counts:{error:0}}};
+  const recovered=recoverApplyFailure(state,Object.assign(new Error("stale"),{status:409,code:"LOCATION_IMPORT_PREVIEW_STALE"}));
+  assert.equal(recovered.phase,"READY");
+  assert.equal(recovered.preview.applyAllowed,false);
+  assert.equal(recovered.applyIntent,null);
+  assert.match(recovered.error,/다시 업로드.*검증/);
+});
+
+test("committed Apply remains APPLIED when nonfatal refresh later fails",()=>{
+  const committed=completeAppliedState({phase:"APPLYING",busy:"apply",applyIntent:{key:"k"},preview:{status:"READY"}},{status:"APPLIED",counts:{added:1}});
+  assert.equal(committed.phase,"APPLIED");
+  assert.equal(committed.applyIntent,null);
+  assert.equal(committed.preview.status,"APPLIED");
 });
 
 test("preview exposes changed rows and errors but keeps UNCHANGED count-only",()=>{
