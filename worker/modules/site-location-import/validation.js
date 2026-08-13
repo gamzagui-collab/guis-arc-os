@@ -9,7 +9,7 @@ const value=(row,camel,snake)=>row?.[camel]??row?.[snake];
 const active=row=>Number(value(row,"isActive","is_active"))===1;
 const error=(code,row,field)=>({code,field,sourceSheetName:row?.sourceSheetName??null,sourceRow:row?.sourceRow??null});
 
-export function validateLocationImport({siteId,workbook,current={}}){
+export function validateLocationImport({siteId,workbook,current={},identityGuards={}}){
   const errors=[];
   const locations=Array.isArray(workbook?.locations)?workbook.locations:[];
   const aliases=Array.isArray(workbook?.aliases)?workbook.aliases:[];
@@ -20,6 +20,8 @@ export function validateLocationImport({siteId,workbook,current={}}){
 
   const existingLocations=Array.isArray(current.locations)?current.locations:[];
   const existingAliases=Array.isArray(current.aliases)?current.aliases:[];
+  const foreignLocationIds=identityGuards.foreignLocationIds??new Set();
+  const foreignAliasIds=identityGuards.foreignAliasIds??new Set();
   const byExistingId=new Map(existingLocations.map(row=>[value(row,"id","id"),row]));
   const sameSiteKey=new Map(existingLocations.filter(row=>value(row,"siteId","site_id")===siteId&&value(row,"canonicalKey","canonical_key")).map(row=>[value(row,"canonicalKey","canonical_key"),row]));
   const normalizedLocations=locations.map(row=>({
@@ -33,6 +35,8 @@ export function validateLocationImport({siteId,workbook,current={}}){
     if(incomingById.has(row.id))errors.push(error("LOCATION_IMPORT_LOCATION_ID_DUPLICATE",row,"location_id"));else incomingById.set(row.id,row);
     if(incomingByKey.has(row.canonicalKey))errors.push(error("LOCATION_IMPORT_CANONICAL_KEY_DUPLICATE",row,"canonical_key"));else incomingByKey.set(row.canonicalKey,row);
     if(!TYPES.has(row.locationType))errors.push(error("LOCATION_IMPORT_TYPE_UNSUPPORTED",row,"location_type"));
+    if(foreignLocationIds.has(row.id))errors.push(error("LOCATION_IMPORT_CROSS_SITE_REFERENCE",row,"location_id"));
+    if(row.parentId&&foreignLocationIds.has(row.parentId))errors.push(error("LOCATION_IMPORT_CROSS_SITE_REFERENCE",row,"parent_location_id"));
     if(row.parentId===row.id)errors.push(error("LOCATION_IMPORT_PARENT_SELF",row,"parent_location_id"));
     const old=byExistingId.get(row.id);
     if(old&&value(old,"siteId","site_id")!==siteId)errors.push(error("LOCATION_IMPORT_CROSS_SITE_REFERENCE",row,"location_id"));
@@ -63,6 +67,8 @@ export function validateLocationImport({siteId,workbook,current={}}){
   const aliasIds=new Set(),aliasTexts=new Map();
   for(const row of normalizedAliases){
     if(aliasIds.has(row.id))errors.push(error("LOCATION_IMPORT_IDENTITY_REUSED",row,"alias_id"));aliasIds.add(row.id);
+    if(foreignAliasIds.has(row.id))errors.push(error("LOCATION_IMPORT_CROSS_SITE_REFERENCE",row,"alias_id"));
+    if(foreignLocationIds.has(row.locationId))errors.push(error("LOCATION_IMPORT_CROSS_SITE_REFERENCE",row,"location_id"));
     if(aliasTexts.has(row.normalizedAlias)&&aliasTexts.get(row.normalizedAlias)!==row.id)errors.push(error("LOCATION_IMPORT_IDENTITY_REUSED",row,"alias_text"));else aliasTexts.set(row.normalizedAlias,row.id);
     const target=incomingById.get(row.locationId)??byExistingId.get(row.locationId);
     if(!target)errors.push(error("LOCATION_IMPORT_ALIAS_TARGET_MISSING",row,"location_id"));

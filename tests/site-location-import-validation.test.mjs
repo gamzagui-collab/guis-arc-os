@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import fs from "node:fs";
 import test from "node:test";
 import { validateLocationImport } from "../worker/modules/site-location-import/validation.js";
 import { buildLocationImportDiff } from "../worker/modules/site-location-import/diff.js";
@@ -172,4 +173,11 @@ test("foreign snapshot rows cannot be updated or inactivated by an authenticated
   const snapshot=current([storedLocation("root"),storedLocation("foreign-only",{site_id:"site-b",canonical_key:"foreign/only"})],[storedAlias("foreign-alias","foreign-only",{site_id:"site-b"})]);
   const validated=validate(workbook([location("root")]),snapshot),diff=buildLocationImportDiff({siteId,normalized:validated.normalized,current:snapshot});
   assert.equal(validated.applyAllowed,true);assert.equal(diff.operations.some(operation=>operation.id==="foreign-only"||operation.id==="foreign-alias"),false);
+});
+
+test("repository validation enforces a bounded Phase A implementation boundary",()=>{
+  const source=fs.readFileSync("scripts/validate.mjs","utf8");
+  assert.match(source,/PHASE_A_SOURCE_FILES/);
+  assert.match(source,/PHASE_A_FORBIDDEN_IMPLEMENTATION/);
+  assert.match(source,/Phase A scope violation/);
 });

@@ -35,4 +35,20 @@ const adminApp=read("apps/web/assets/integrated-admin.js"),workerIndex=read("wor
 for(const token of ['/admin/site-locations','site-location-import.js','renderSiteLocationImportPage'])if(!adminApp.includes(token))throw new Error(`Phase A admin route wiring missing ${token}`);
 for(const token of ['handleSiteLocationImportRequest','./modules/site-location-import.js'])if(!workerIndex.includes(token))throw new Error(`Phase A Worker dispatch wiring missing ${token}`);
 for(const token of ['/api/v1/admin/site-locations','upload-sessions','/apply'])if(!locationImportHandler.includes(token))throw new Error(`Phase A Worker route contract missing ${token}`);
+const PHASE_A_SOURCE_FILES=[
+  "worker/modules/site-location-import.js",
+  ...fs.readdirSync("worker/modules/site-location-import").filter(name=>name.endsWith(".js")).map(name=>`worker/modules/site-location-import/${name}`),
+  "apps/web/assets/site-location-import.js"
+];
+const PHASE_A_FORBIDDEN_IMPLEMENTATION=[
+  ["Issue location lookup-only",/\b(?:ISSUE_LOCATION_LOOKUP_ONLY|lookupOnlyLocation|enforceLocationLookupOnly)\b/],
+  ["Location Resolver",/\b(?:SiteLocationResolver|resolveSiteLocation|resolveLocationAlias|resolveLocation)\s*\(/],
+  ["PDF, OCR, or AI import",/(?:\b(?:PDFDocument|pdfParse|pdfjsLib|Tesseract|createLocationDraftFromPdf|AI_LOCATION_DRAFT)\b|from\s+["'][^"']*(?:pdf|tesseract|openai)[^"']*["'])/i]
+];
+for(const file of PHASE_A_SOURCE_FILES){
+  if(!fs.existsSync(file))throw new Error(`Phase A source missing ${file}`);
+  if(fs.statSync(file).size>256*1024)throw new Error(`Phase A source validation bound exceeded ${file}`);
+  const source=read(file);
+  for(const [label,pattern] of PHASE_A_FORBIDDEN_IMPLEMENTATION)if(pattern.test(source))throw new Error(`Phase A scope violation (${label}): ${file}`);
+}
 console.log("Integrated v0.27.1 Quality validation passed.");

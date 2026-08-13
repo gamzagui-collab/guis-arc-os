@@ -56,7 +56,7 @@ export async function handleSiteLocationImportRequest(request,env,url=new URL(re
     const object=await env.FILES.get(row.r2_object_key);if(!object)throw new ApiError(409,"LOCATION_IMPORT_PREVIEW_STALE","The preview file no longer exists.");
     const bytes=await object.arrayBuffer(),fileHash=await hash(bytes);if(fileHash!==row.file_hash)throw new ApiError(409,"LOCATION_IMPORT_PREVIEW_STALE","The preview file changed.");
     let workbook;try{workbook=parseSiteLocationWorkbook(bytes)}catch{throw new ApiError(409,"LOCATION_IMPORT_PREVIEW_STALE","The preview file can no longer be parsed.")}
-    const current=await repository.loadLocationMasterSnapshot(env,auth.siteId),checked=validateLocationImport({siteId:auth.siteId,workbook,current}),diff=buildLocationImportDiff({siteId:auth.siteId,normalized:checked.normalized,current});
+    const [current,identityGuards]=await Promise.all([repository.loadLocationMasterSnapshot(env,auth.siteId),repository.loadLocationImportIdentityGuards?.(env,auth.siteId,workbook)??{}]),checked=validateLocationImport({siteId:auth.siteId,workbook,current,identityGuards}),diff=buildLocationImportDiff({siteId:auth.siteId,normalized:checked.normalized,current});
     if(checked.errors.length||diff.counts.error||previewHash!==row.preview_hash||baseMasterFingerprint!==row.base_master_fingerprint||Number(current.revision)!==Number(row.base_master_revision))throw new ApiError(409,"LOCATION_IMPORT_PREVIEW_STALE","The file, master, or preview changed.");
     return json(await applyLocationImport({env,repository,importRow:row,siteId:auth.siteId,userId:auth.userId,idempotencyKey,payloadHash,diff,fileHash,requestId:requestId(request),currentSnapshot:current}));
   }
@@ -88,7 +88,7 @@ export async function handleSiteLocationImportRequest(request,env,url=new URL(re
     if(bytes.byteLength!==objectSize||signature[0]!==0x50||signature[1]!==0x4b||signature[2]!==0x03||signature[3]!==0x04){await repository.updateLocationImportValidation(env,{id:row.id,siteId:auth.siteId,status:"INVALID",counts:{error:1}});throw new ApiError(400,"LOCATION_XLSX_INVALID","?щ컮瑜?XLSX ?뚯씪???꾨떃?덈떎.");}
     if(await hash(bytes)!==row.file_hash){await repository.updateLocationImportValidation(env,{id:row.id,siteId:auth.siteId,status:"INVALID",counts:{error:1}});throw new ApiError(409,"LOCATION_IMPORT_HASH_MISMATCH","?낅줈???뚯씪 ?뺤씤媛믪씠 ?쇱튂?섏? ?딆뒿?덈떎.");}
     let workbook;try{workbook=parseSiteLocationWorkbook(bytes)}catch(error){await repository.updateLocationImportValidation(env,{id:row.id,siteId:auth.siteId,status:"INVALID",counts:{error:1}});throw new ApiError(400,error.code||"LOCATION_XLSX_INVALID",error.message)}
-    const current=await repository.loadLocationMasterSnapshot(env,auth.siteId),checked=validateLocationImport({siteId:auth.siteId,workbook,current}),diff=buildLocationImportDiff({siteId:auth.siteId,normalized:checked.normalized,current});
+    const [current,identityGuards]=await Promise.all([repository.loadLocationMasterSnapshot(env,auth.siteId),repository.loadLocationImportIdentityGuards?.(env,auth.siteId,workbook)??{}]),checked=validateLocationImport({siteId:auth.siteId,workbook,current,identityGuards}),diff=buildLocationImportDiff({siteId:auth.siteId,normalized:checked.normalized,current});
     const errors=[...checked.errors,...diff.operations.filter(item=>item.type==="ERROR")].slice(0,100);
     const counts={...diff.counts,error:checked.errors.length+diff.counts.error};
     const status=errors.length?"INVALID":"READY";

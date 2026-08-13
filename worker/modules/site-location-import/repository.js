@@ -1,4 +1,22 @@
 const results=value=>value?.results??[];
+const unique=values=>[...new Set(values.map(value=>String(value??"").trim()).filter(Boolean))];
+const chunks=(values,size=80)=>Array.from({length:Math.ceil(values.length/size)},(_,index)=>values.slice(index*size,(index+1)*size));
+
+export async function loadLocationImportIdentityGuards(env,siteId,workbook={}){
+  const locationIds=unique((workbook.locations??[]).map(row=>row.locationId));
+  const aliasIds=unique((workbook.aliases??[]).map(row=>row.aliasId));
+  const locationReferences=unique([...locationIds,...(workbook.locations??[]).map(row=>row.parentLocationId),...(workbook.aliases??[]).map(row=>row.locationId)]);
+  const statements=[
+    ...chunks(locationReferences).map(values=>env.DB.prepare(`SELECT id FROM site_locations WHERE site_id<>?1 AND id IN (${values.map((_,index)=>`?${index+2}`).join(",")})`).bind(siteId,...values)),
+    ...chunks(aliasIds).map(values=>env.DB.prepare(`SELECT id FROM site_location_aliases WHERE site_id<>?1 AND id IN (${values.map((_,index)=>`?${index+2}`).join(",")})`).bind(siteId,...values))
+  ];
+  const rows=statements.length?await env.DB.batch(statements):[];
+  const locationStatementCount=chunks(locationReferences).length;
+  return {
+    foreignLocationIds:new Set(rows.slice(0,locationStatementCount).flatMap(results).map(row=>row.id)),
+    foreignAliasIds:new Set(rows.slice(locationStatementCount).flatMap(results).map(row=>row.id))
+  };
+}
 
 export async function loadLocationMasterSnapshot(env,siteId){
   const [locations,aliases,revision]=await env.DB.batch([
