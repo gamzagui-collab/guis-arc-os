@@ -1,217 +1,55 @@
 import assert from "node:assert/strict";
-import fs from "node:fs";
 import test from "node:test";
-import { validateLocationImport } from "../worker/modules/site-location-import/validation.js";
-import { buildLocationImportDiff } from "../worker/modules/site-location-import/diff.js";
+import {validateLocationImport} from "../worker/modules/site-location-import/validation.js";
+import {buildLocationImportDiff} from "../worker/modules/site-location-import/diff.js";
 
 const siteId="site-a";
-const location=(id,parentLocationId="",locationType="BUILDING",canonicalKey=`key/${id}`,displayName=id,sortOrder=0)=>({locationId:id,parentLocationId,locationType,canonicalKey,displayName,sortOrder,sourceSheetName:"01_위치마스터",sourceRow:2});
-const alias=(id,locationId,text=id,type="FIELD_NAME")=>({aliasId:id,locationId,aliasText:text,normalizedAlias:text.toLowerCase(),aliasType:type,sourceSheetName:"02_위치별칭",sourceRow:2});
-const workbook=(locations=[location("root")],aliases=[])=>({locations,aliases,workbookMeta:{templateVersion:"LOCATION_MASTER_V1",sheetNames:["00_사용안내","01_위치마스터","02_위치별칭","03_검증_확인필요","04_도면근거","05_ChatGPT작성규칙"]}});
-const current=(locations=[],aliases=[])=>({locations,aliases});
-const storedLocation=(id,{site_id=siteId,parent_id=null,location_type="BUILDING",canonical_key=`key/${id}`,display_name=id,sort_order=0,source="IMPORT",is_active=1}={})=>({id,site_id,parent_id,location_type,canonical_key,display_name,sort_order,source,is_active});
-const storedAlias=(id,locationId,{site_id=siteId,alias_text=id,normalized_alias=id.toLowerCase(),alias_type="FIELD_NAME",source="IMPORT",is_active=1}={})=>({id,site_id,location_id:locationId,alias_text,normalized_alias,alias_type,source,is_active});
-const codes=result=>result.errors.map(error=>error.code);
-const validate=(book,snapshot=current())=>validateLocationImport({siteId,workbook:book,current:snapshot});
+const workbook=locations=>({locations,aliases:[],workbookMeta:{sheetNames:["01_위치목록"]}});
+const row=(area="202동",floor="14층",space="1401호",detail="거실")=>({area,floor,space,detail,sourceSheetName:"01_위치목록",sourceRow:2});
+const currentRow=(id,{parent_id=null,location_type="BUILDING",display_name=id,canonical_key=`key/${id}`,sort_order=10,source="IMPORT",is_active=1,site_id=siteId}={})=>({id,parent_id,location_type,display_name,canonical_key,sort_order,source,is_active,site_id});
 
-test("validation returns every stable structural and graph error without write statements",()=>{
-  const cases=[
-    ["LOCATION_IMPORT_SHEET_REQUIRED",{...workbook(),workbookMeta:{sheetNames:["01_위치마스터"]}},current()],
-    ["LOCATION_IMPORT_HEADER_REQUIRED",{...workbook(),locations:undefined},current()],
-    ["LOCATION_IMPORT_LOCATION_ID_DUPLICATE",workbook([location("x"),location("x")]),current()],
-    ["LOCATION_IMPORT_CANONICAL_KEY_DUPLICATE",workbook([location("x"),location("y","","BUILDING","key/x")]),current()],
-    ["LOCATION_IMPORT_PARENT_MISSING",workbook([location("x","missing","FLOOR")]),current()],
-    ["LOCATION_IMPORT_PARENT_SELF",workbook([location("x","x","FLOOR")]),current()],
-    ["LOCATION_IMPORT_PARENT_CYCLE",workbook([location("a","b","FLOOR"),location("b","a","FLOOR")]),current()],
-    ["LOCATION_IMPORT_TYPE_UNSUPPORTED",workbook([location("x","","UNKNOWN")]),current()],
-    ["LOCATION_IMPORT_CROSS_SITE_REFERENCE",workbook([location("x","foreign","FLOOR")]),current([storedLocation("foreign",{site_id:"site-b"})])],
-    ["LOCATION_IMPORT_IDENTITY_REUSED",workbook([location("x","","BUILDING","new-key")]),current([storedLocation("x",{canonical_key:"old-key"})])],
-    ["LOCATION_IMPORT_CANONICAL_KEY_REUSED",workbook([location("x","","BUILDING","shared")]),current([storedLocation("other",{canonical_key:"shared"})])],
-    ["LOCATION_IMPORT_ALIAS_TARGET_MISSING",workbook([location("root")],[alias("a","missing")]),current()]
-  ];
-  for(const [code,book,snapshot] of cases){
-    const result=validate(book,snapshot);
-    assert.ok(codes(result).includes(code),code);
-    assert.equal(result.applyAllowed,false);
-    assert.equal(JSON.stringify(result).includes("statement"),false);
-  }
+test("candidate validation maps numeric units, generic fixed spaces, and detail rooms without alias rows",()=>{
+  const checked=validateLocationImport({siteId,workbook:workbook([row("202동","14층","1401호","거실"),row("202동","14층","계단실","")]),current:{locations:[],aliases:[]}});
+  assert.equal(checked.applyAllowed,true);
+  assert.deepEqual(checked.normalized.aliases,[]);
+  assert.ok(checked.normalized.locations.some(item=>item.locationType==="UNIT"&&item.displayName==="1401호"));
+  assert.ok(checked.normalized.locations.some(item=>item.locationType==="FACILITY"&&item.displayName==="계단실"));
+  assert.ok(checked.normalized.locations.some(item=>item.locationType==="ROOM"&&item.displayName==="거실"));
 });
 
-test("validation enforces hierarchy, aliases, site metadata, and same-site active existing parents",()=>{
-  const root=storedLocation("legacy-root",{location_type:"BUILDING",source:"LEGACY"});
-  const valid=validate(workbook([location("floor","legacy-root","FLOOR"),location("unit","floor","UNIT"),location("room","unit","ROOM")],[alias("a","room","  Room A  ")]),current([root]));
-  assert.equal(valid.applyAllowed,true);
-  assert.equal(valid.normalized.aliases[0].normalizedAlias,"room a");
-  assert.ok(codes(validate({...workbook(),workbookMeta:{...workbook().workbookMeta,siteId:"site-b"}})).includes("LOCATION_IMPORT_CROSS_SITE_REFERENCE"));
-  assert.ok(codes(validate(workbook([location("room","root","ROOM"),location("root","room","BUILDING")]))).includes("LOCATION_IMPORT_PARENT_CYCLE"));
-  assert.ok(codes(validate(workbook([location("root","","SITE")]))).includes("LOCATION_IMPORT_TYPE_UNSUPPORTED"));
-  assert.ok(codes(validate(workbook([location("floor","unit","FLOOR"),location("unit","root","UNIT"),location("root")]))).includes("LOCATION_IMPORT_TYPE_UNSUPPORTED"));
-  assert.ok(codes(validate(workbook([location("root")],[alias("a","root","same"),alias("b","root"," SAME ")]))).includes("LOCATION_IMPORT_IDENTITY_REUSED"));
+test("validation rejects missing area, unsafe fields, and a populated space without a floor",()=>{
+  const checked=validateLocationImport({siteId,workbook:workbook([row("","14층","1401호",""),row("202동","","1401호",""),row("202동","14층","1401호","\u0001")]),current:{locations:[],aliases:[]}});
+  assert.equal(checked.applyAllowed,false);
+  assert.deepEqual(new Set(checked.errors.map(item=>item.code)),new Set(["LOCATION_IMPORT_FIELD_REQUIRED","LOCATION_IMPORT_FLOOR_REQUIRED","LOCATION_IMPORT_CONTROL_CHARACTER"]));
 });
 
-test("diff is deterministic, protects non-import rows, and never emits hard deletes",()=>{
-  const locations=[location("root"),location("floor","root","FLOOR")];
-  const aliases=[alias("alias-a","floor","Floor A")];
-  const snapshot=current([
-    storedLocation("root"),
-    storedLocation("floor",{parent_id:"root",location_type:"FLOOR",display_name:"Old floor"}),
-    storedLocation("gone"),
-    storedLocation("legacy",{source:"LEGACY"}),
-    storedLocation("manual",{source:"MANUAL"}),
-    storedLocation("foreign",{site_id:"site-b"})
-  ],[
-    storedAlias("alias-a","floor",{alias_text:"Old alias",normalized_alias:"floor a"}),
-    storedAlias("alias-gone","floor"),
-    storedAlias("alias-legacy","floor",{source:"LEGACY"}),
-    storedAlias("alias-foreign","floor",{site_id:"site-b"})
-  ]);
-  const a=validate(workbook(locations,aliases),snapshot);
-  const b=validate(workbook([...locations].reverse(),[...aliases].reverse()),snapshot);
-  assert.equal(a.applyAllowed,true);
-  const first=buildLocationImportDiff({siteId,normalized:a.normalized,current:snapshot});
-  const second=buildLocationImportDiff({siteId,normalized:b.normalized,current:{locations:[...snapshot.locations].reverse(),aliases:[...snapshot.aliases].reverse()}});
-  assert.deepEqual(first,second);
-  assert.deepEqual(first.counts,{added:0,updated:1,unchanged:1,inactivated:1,aliasAdded:0,aliasUpdated:1,aliasInactivated:1,error:0});
-  assert.ok(first.operations.some(op=>op.type==="INACTIVE"&&op.id==="gone"));
-  assert.ok(first.operations.some(op=>op.type==="ALIAS_INACTIVE"&&op.id==="alias-gone"));
-  assert.ok(!first.operations.some(op=>["legacy","manual","foreign","alias-legacy","alias-foreign"].includes(op.id)));
-  assert.ok(!first.operations.some(op=>op.type==="UNCHANGED"));
-  assert.ok(!first.operations.some(op=>/DELETE/i.test(op.type)));
-  assert.match(first.baseMasterFingerprint,/^[a-f0-9]{64}$/);
-  assert.match(first.previewHash,/^[a-f0-9]{64}$/);
+test("diff is deterministic, preserves LEGACY and MANUAL, and inactivates only omitted IMPORT nodes",()=>{
+  const parsed=validateLocationImport({siteId,workbook:workbook([row("202동","14층","1401호","")]),current:{locations:[],aliases:[]}});
+  const importNodes=parsed.normalized.locations.map(item=>currentRow(item.id,{parent_id:item.parentId,location_type:item.locationType,display_name:item.displayName,canonical_key:item.canonicalKey,sort_order:item.sortOrder}));
+  const current={locations:[...importNodes,currentRow("legacy",{display_name:"기존",source:"LEGACY"}),currentRow("manual",{display_name:"수동",source:"MANUAL"})],aliases:[{id:"alias-kept"}]};
+  const same=buildLocationImportDiff({siteId,normalized:validateLocationImport({siteId,workbook:workbook([row("202동","14층","1401호","")]),current}).normalized,current});
+  assert.equal(same.counts.unchanged,3);
+  assert.equal(same.operations.some(item=>item.id==="legacy"||item.id==="manual"),false);
+  const removed=buildLocationImportDiff({siteId,normalized:validateLocationImport({siteId,workbook:workbook([row("202동","","","")]),current}).normalized,current});
+  assert.ok(removed.operations.some(item=>item.type==="INACTIVE"));
+  assert.equal(removed.operations.some(item=>item.id==="legacy"||item.id==="manual"),false);
+  assert.equal(removed.operations.some(item=>item.type.startsWith("ALIAS_")),false);
 });
 
-test("diff emits identity collisions as ERROR rather than UPDATE",()=>{
-  const normalized={locations:[{id:"x",siteId,parentId:null,locationType:"BUILDING",canonicalKey:"new-key",displayName:"x",sortOrder:0}],aliases:[]};
-  const result=buildLocationImportDiff({siteId,normalized,current:current([storedLocation("x",{canonical_key:"old-key"})])});
-  assert.equal(result.operations[0].type,"ERROR");
-  assert.equal(result.operations[0].code,"LOCATION_IMPORT_IDENTITY_REUSED");
-  assert.equal(result.counts.error,1);
+test("foreign generated IDs are rejected and no client metadata can change the authenticated site",()=>{
+  const initial=validateLocationImport({siteId,workbook:workbook([row()]),current:{locations:[],aliases:[]}});
+  const foreignId=initial.normalized.locations[0].id;
+  const checked=validateLocationImport({siteId,workbook:{...workbook([row()]),workbookMeta:{sheetNames:["01_위치목록"],siteId:"site-b"}},current:{locations:[],aliases:[]},identityGuards:{foreignLocationIds:new Set([foreignId])}});
+  assert.equal(checked.applyAllowed,false);
+  assert.ok(checked.errors.some(item=>item.code==="LOCATION_IMPORT_CROSS_SITE_REFERENCE"));
+  assert.ok(checked.normalized.locations.every(item=>item.siteId===siteId));
 });
 
-test("fingerprints include recursively canonicalized nested field values",()=>{
-  const normalized={locations:[{id:"x",siteId,parentId:null,locationType:"BUILDING",canonicalKey:"key/x",displayName:"New",sortOrder:0}],aliases:[]};
-  const one=current([storedLocation("x",{display_name:"Old one"})]);
-  const two=current([storedLocation("x",{display_name:"Old two"})]);
-  const first=buildLocationImportDiff({siteId,normalized,current:one});
-  const second=buildLocationImportDiff({siteId,normalized,current:two});
-  assert.deepEqual(first.counts,second.counts);
-  assert.notEqual(first.baseMasterFingerprint,second.baseMasterFingerprint);
-  assert.notEqual(first.previewHash,second.previewHash);
-});
-
-test("validation rejects claiming legacy or manual location identities",()=>{
+test("active imported descendants cannot attach to an inactive LEGACY or MANUAL parent",()=>{
   for(const source of ["LEGACY","MANUAL"]){
-    const snapshot=current([storedLocation("claimed",{source})]);
-    const result=validate(workbook([location("claimed")]),snapshot);
-    assert.equal(result.applyAllowed,false);
-    assert.ok(codes(result).includes("LOCATION_IMPORT_IDENTITY_REUSED"));
+    const parent=currentRow(`inactive-${source}`,{display_name:"202동",source,is_active:0});
+    const checked=validateLocationImport({siteId,workbook:workbook([row("202동","14층","1401호","")]),current:{locations:[parent],aliases:[]}});
+    assert.equal(checked.applyAllowed,false);
+    assert.ok(checked.errors.some(item=>item.code==="LOCATION_IMPORT_PARENT_INACTIVE"));
   }
-});
-
-test("validation rejects aliases targeting omitted imported locations",()=>{
-  const snapshot=current([storedLocation("omitted")]);
-  const result=validate(workbook([location("root")],[alias("a","omitted")]),snapshot);
-  assert.equal(result.applyAllowed,false);
-  assert.ok(codes(result).includes("LOCATION_IMPORT_ALIAS_TARGET_MISSING"));
-});
-
-test("validation rejects conflicts with existing same-site normalized aliases",()=>{
-  const snapshot=current([storedLocation("root")],[storedAlias("existing","root",{normalized_alias:"shared"})]);
-  const result=validate(workbook([location("root")],[alias("incoming","root"," SHARED ")]),snapshot);
-  assert.equal(result.applyAllowed,false);
-  assert.ok(codes(result).includes("LOCATION_IMPORT_IDENTITY_REUSED"));
-});
-
-test("diff distinguishes adds, unchanged aliases, and inactive import reactivation",()=>{
-  const normalized={
-    locations:[
-      {id:"new",siteId,parentId:null,locationType:"BUILDING",canonicalKey:"key/new",displayName:"new",sortOrder:0},
-      {id:"same",siteId,parentId:null,locationType:"BUILDING",canonicalKey:"key/same",displayName:"same",sortOrder:0},
-      {id:"wake",siteId,parentId:null,locationType:"BUILDING",canonicalKey:"key/wake",displayName:"wake",sortOrder:0}
-    ],
-    aliases:[
-      {id:"alias-new",siteId,locationId:"new",aliasText:"New alias",normalizedAlias:"new alias",aliasType:"FIELD_NAME"},
-      {id:"alias-same",siteId,locationId:"same",aliasText:"Same alias",normalizedAlias:"same alias",aliasType:"FIELD_NAME"},
-      {id:"alias-wake",siteId,locationId:"wake",aliasText:"Wake alias",normalizedAlias:"wake alias",aliasType:"FIELD_NAME"}
-    ]
-  };
-  const snapshot=current([
-    storedLocation("same"),storedLocation("wake",{is_active:0})
-  ],[
-    storedAlias("alias-same","same",{alias_text:"Same alias",normalized_alias:"same alias"}),
-    storedAlias("alias-wake","wake",{alias_text:"Wake alias",normalized_alias:"wake alias",is_active:0})
-  ]);
-  const result=buildLocationImportDiff({siteId,normalized,current:snapshot});
-  assert.ok(result.operations.some(op=>op.type==="ADD"&&op.id==="new"));
-  assert.ok(result.operations.some(op=>op.type==="ALIAS_ADD"&&op.id==="alias-new"));
-  assert.ok(result.operations.some(op=>op.type==="UPDATE"&&op.id==="wake"));
-  assert.ok(result.operations.some(op=>op.type==="ALIAS_UPDATE"&&op.id==="alias-wake"));
-  assert.equal(result.counts.added,1);
-  assert.equal(result.counts.aliasAdded,1);
-  assert.equal(result.counts.updated,1);
-  assert.equal(result.counts.aliasUpdated,1);
-  assert.equal(result.counts.unchanged,2);
-});
-
-test("adversarial foreign-site identities, aliases, and forged metadata never enter the authenticated site diff",()=>{
-  const foreign=current([
-    storedLocation("foreign-id",{site_id:"site-b",canonical_key:"foreign/key"}),
-    storedLocation("foreign-key-owner",{site_id:"site-b",canonical_key:"claimed/key"})
-  ],[storedAlias("foreign-alias","foreign-id",{site_id:"site-b",normalized_alias:"foreign phrase"})]);
-  const foreignId=validate(workbook([location("foreign-id","","BUILDING","new/key")]),foreign);
-  assert.equal(foreignId.applyAllowed,false);assert.ok(codes(foreignId).includes("LOCATION_IMPORT_CROSS_SITE_REFERENCE"));
-  const siteNamespaced=validate(workbook([location("incoming","","BUILDING","foreign/key")]),foreign);
-  assert.equal(siteNamespaced.applyAllowed,true);assert.ok(siteNamespaced.normalized.locations.every(row=>row.siteId===siteId));
-  const foreignAlias=validate(workbook([location("incoming")],[alias("foreign-alias","incoming","new phrase")]),foreign);
-  assert.equal(foreignAlias.applyAllowed,false);assert.ok(codes(foreignAlias).includes("LOCATION_IMPORT_CROSS_SITE_REFERENCE"));
-  const forged=validate({...workbook(),workbookMeta:{...workbook().workbookMeta,siteId:"site-b",siteCode:"FORGED",siteName:"Foreign Site"}},foreign);
-  assert.equal(forged.applyAllowed,false);assert.ok(codes(forged).includes("LOCATION_IMPORT_CROSS_SITE_REFERENCE"));
-});
-
-test("foreign snapshot rows cannot be updated or inactivated by an authenticated-site workbook",()=>{
-  const snapshot=current([storedLocation("root"),storedLocation("foreign-only",{site_id:"site-b",canonical_key:"foreign/only"})],[storedAlias("foreign-alias","foreign-only",{site_id:"site-b"})]);
-  const validated=validate(workbook([location("root")]),snapshot),diff=buildLocationImportDiff({siteId,normalized:validated.normalized,current:snapshot});
-  assert.equal(validated.applyAllowed,true);assert.equal(diff.operations.some(operation=>operation.id==="foreign-only"||operation.id==="foreign-alias"),false);
-});
-
-test("repository validation enforces a bounded Phase A implementation boundary",()=>{
-  const source=fs.readFileSync("scripts/validate.mjs","utf8");
-  assert.match(source,/PHASE_A_SOURCE_FILES/);
-  assert.match(source,/PHASE_A_FORBIDDEN_IMPLEMENTATION/);
-  assert.match(source,/Phase A scope violation/);
-});
-
-test("validation rejects empty stable fields and invalid sort orders",()=>{
-  const cases=[
-    [workbook([location("")]),"LOCATION_IMPORT_FIELD_REQUIRED","location_id"],
-    [workbook([location("x","","BUILDING","")]),"LOCATION_IMPORT_FIELD_REQUIRED","canonical_key"],
-    [workbook([location("x","","BUILDING","key/x","")]),"LOCATION_IMPORT_FIELD_REQUIRED","display_name"],
-    [workbook([location("x","","BUILDING","key/x","x",-1)]),"LOCATION_IMPORT_SORT_ORDER_INVALID","sort_order"],
-    [workbook([location("x","","BUILDING","key/x","x",1.5)]),"LOCATION_IMPORT_SORT_ORDER_INVALID","sort_order"],
-    [workbook([location("x","","BUILDING","key/x","x",null)]),"LOCATION_IMPORT_SORT_ORDER_INVALID","sort_order"],
-    [workbook([location("x","","BUILDING","key/x","x","")]),"LOCATION_IMPORT_SORT_ORDER_INVALID","sort_order"],
-    [workbook([location("root")],[alias("","root","alias")]),"LOCATION_IMPORT_FIELD_REQUIRED","alias_id"],
-    [workbook([location("root")],[alias("a","root","")]),"LOCATION_IMPORT_FIELD_REQUIRED","alias_text"]
-  ];
-  for(const [book,code,field] of cases){const result=validate(book);assert.equal(result.applyAllowed,false,field);assert.ok(result.errors.some(item=>item.code===code&&item.field===field),field)}
-});
-
-test("validation rejects control characters in every imported normalized field",()=>{
-  const locationCases=[
-    ["locationId","location_id"],["parentLocationId","parent_location_id"],["locationType","location_type"],["canonicalKey","canonical_key"],["displayName","display_name"],["sortOrder","sort_order"]
-  ];
-  for(const [property,field] of locationCases){const row=location("child","root","ROOM","key/child","Child",1);row[property]=`${row[property]}\u0001`;const result=validate(workbook([location("root"),row]));assert.equal(result.applyAllowed,false,field);assert.ok(result.errors.some(item=>item.code==="LOCATION_IMPORT_CONTROL_CHARACTER"&&item.field===field),field)}
-  const aliasCases=[["aliasId","alias_id"],["locationId","location_id"],["aliasText","alias_text"],["aliasType","alias_type"]];
-  for(const [property,field] of aliasCases){const row=alias("alias-a","root","Alias","FIELD_NAME");row[property]=`${row[property]}\u0001`;const result=validate(workbook([location("root")],[row]));assert.equal(result.applyAllowed,false,field);assert.ok(result.errors.some(item=>item.code==="LOCATION_IMPORT_CONTROL_CHARACTER"&&item.field===field),field)}
-});
-
-test("omitted IMPORT parents remain active when an active retained child depends on them",()=>{
-  const snapshot=current([storedLocation("root"),storedLocation("import-parent",{parent_id:"root",location_type:"FLOOR"}),storedLocation("manual-child",{parent_id:"import-parent",location_type:"ROOM",source:"MANUAL"})]);
-  const result=validate(workbook([location("root")]),snapshot);assert.equal(result.applyAllowed,false);assert.ok(codes(result).includes("LOCATION_IMPORT_PARENT_HAS_RETAINED_CHILD"));
-  const diff=buildLocationImportDiff({siteId,normalized:result.normalized,current:snapshot});assert.ok(diff.operations.some(item=>item.type==="ERROR"&&item.id==="import-parent"));assert.equal(diff.operations.some(item=>item.type==="INACTIVE"&&item.id==="import-parent"),false);
-});
-
-test("Import cannot claim or update MANUAL and LEGACY alias identities",()=>{
-  for(const source of ["MANUAL","LEGACY"]){const snapshot=current([storedLocation("root")],[storedAlias("protected","root",{source,alias_text:"Protected",normalized_alias:"protected"})]),result=validate(workbook([location("root")],[alias("protected","root","Protected")]),snapshot);assert.equal(result.applyAllowed,false,source);assert.ok(codes(result).includes("LOCATION_IMPORT_IDENTITY_REUSED"),source);const diff=buildLocationImportDiff({siteId,normalized:result.normalized,current:snapshot});assert.ok(diff.operations.some(item=>item.type==="ERROR"&&item.id==="protected"),source);assert.equal(diff.operations.some(item=>item.type==="ALIAS_UPDATE"&&item.id==="protected"),false,source)}
 });

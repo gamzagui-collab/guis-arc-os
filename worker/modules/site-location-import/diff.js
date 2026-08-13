@@ -1,37 +1,45 @@
 import {blockedLocationInactivationIds} from "./validation.js";
+import {sha256} from "./identity.js";
 const get=(row,camel,snake)=>row?.[camel]??row?.[snake];
-const cleanLocation=row=>({id:get(row,"id","id"),siteId:get(row,"siteId","site_id"),parentId:get(row,"parentId","parent_id")??null,locationType:get(row,"locationType","location_type"),canonicalKey:get(row,"canonicalKey","canonical_key")??null,displayName:get(row,"displayName","display_name"),sortOrder:get(row,"sortOrder","sort_order"),source:get(row,"source","source"),isActive:Number(get(row,"isActive","is_active"))});
-const cleanAlias=row=>({id:get(row,"id","id"),siteId:get(row,"siteId","site_id"),locationId:get(row,"locationId","location_id"),aliasText:get(row,"aliasText","alias_text"),normalizedAlias:get(row,"normalizedAlias","normalized_alias"),aliasType:get(row,"aliasType","alias_type"),source:get(row,"source","source"),isActive:Number(get(row,"isActive","is_active"))});
-const same=(a,b,keys)=>keys.every(key=>a[key]===b[key]);
+const cleanLocation=row=>({id:get(row,"id","id"),siteId:get(row,"siteId","site_id"),parentId:get(row,"parentId","parent_id")??null,locationType:get(row,"locationType","location_type"),canonicalKey:get(row,"canonicalKey","canonical_key")??null,displayName:get(row,"displayName","display_name"),sortOrder:Number(get(row,"sortOrder","sort_order")||0),source:get(row,"source","source"),isActive:Number(get(row,"isActive","is_active"))});
 const canonical=value=>Array.isArray(value)?value.map(canonical):value&&typeof value==="object"?Object.fromEntries(Object.keys(value).sort().map(key=>[key,canonical(value[key])])):value;
 const stable=value=>JSON.stringify(canonical(value));
-function sha256(text){
-  const bytes=new TextEncoder().encode(text),length=bytes.length*8,padded=new Uint8Array(((bytes.length+9+63)>>6)<<6);padded.set(bytes);padded[bytes.length]=128;new DataView(padded.buffer).setUint32(padded.length-4,length,false);
-  const h=new Uint32Array([0x6a09e667,0xbb67ae85,0x3c6ef372,0xa54ff53a,0x510e527f,0x9b05688c,0x1f83d9ab,0x5be0cd19]),k=new Uint32Array(64);
-  for(let i=0;i<64;i++)k[i]=Math.floor(Math.abs(Math.sin(i+1))*2**32);
-  const w=new Uint32Array(64),rotr=(x,n)=>(x>>>n)|(x<<(32-n));
-  for(let offset=0;offset<padded.length;offset+=64){const view=new DataView(padded.buffer,offset,64);for(let i=0;i<16;i++)w[i]=view.getUint32(i*4,false);for(let i=16;i<64;i++){const a=w[i-15],b=w[i-2],s0=rotr(a,7)^rotr(a,18)^(a>>>3),s1=rotr(b,17)^rotr(b,19)^(b>>>10);w[i]=(w[i-16]+s0+w[i-7]+s1)>>>0;}let [a,b,c,d,e,f,g,hh]=h;for(let i=0;i<64;i++){const s1=rotr(e,6)^rotr(e,11)^rotr(e,25),ch=(e&f)^(~e&g),t1=(hh+s1+ch+k[i]+w[i])>>>0,s0=rotr(a,2)^rotr(a,13)^rotr(a,22),maj=(a&b)^(a&c)^(b&c),t2=(s0+maj)>>>0;hh=g;g=f;f=e;e=(d+t1)>>>0;d=c;c=b;b=a;a=(t1+t2)>>>0;}for(const [i,v] of [a,b,c,d,e,f,g,hh].entries())h[i]=(h[i]+v)>>>0;}
-  return [...h].map(value=>value.toString(16).padStart(8,"0")).join("");
-}
+export {sha256};
 const ordered=items=>[...items].sort((a,b)=>String(a.id).localeCompare(String(b.id))||a.type.localeCompare(b.type));
+const same=(a,b,keys)=>keys.every(key=>a[key]===b[key]);
 
-export function fingerprintLocationMaster(siteId,current={}){
-  const relevant={locations:(current.locations??[]).map(cleanLocation).filter(row=>row.siteId===siteId).sort((a,b)=>a.id.localeCompare(b.id)),aliases:(current.aliases??[]).map(cleanAlias).filter(row=>row.siteId===siteId).sort((a,b)=>a.id.localeCompare(b.id))};
-  return sha256(stable(relevant));
+export function fingerprintLocationMaster(siteId,current={}){return sha256(stable({locations:(current.locations??[]).map(cleanLocation).filter(row=>row.siteId===siteId).sort((a,b)=>a.id.localeCompare(b.id))}))}
+
+function renameCandidates(operations){
+  const pendingAdds=operations.filter(item=>item.type==="ADD"),pendingRemoved=operations.filter(item=>item.type==="INACTIVE"),parentMap=new Map(),candidates=[];
+  let changed=true;
+  while(changed){
+    changed=false;
+    const groups=new Map();
+    for(const item of pendingAdds){const row=item.after,parentId=parentMap.get(row.parentId)??row.parentId,key=`${parentId??""}|${row.locationType}`,group=groups.get(key)??{adds:[],removed:[]};group.adds.push(item);groups.set(key,group)}
+    for(const item of pendingRemoved){const row=item.before,key=`${row.parentId??""}|${row.locationType}`,group=groups.get(key)??{adds:[],removed:[]};group.removed.push(item);groups.set(key,group)}
+    for(const group of groups.values())if(group.adds.length===1&&group.removed.length===1){
+      const add=group.adds[0],removed=group.removed[0];
+      if(add.after.displayName!==removed.before.displayName)candidates.push({type:"RENAME_CANDIDATE",id:`${removed.id}:${add.id}`,from:removed.before,to:add.after});
+      parentMap.set(add.id,removed.id);
+      pendingAdds.splice(pendingAdds.indexOf(add),1);
+      pendingRemoved.splice(pendingRemoved.indexOf(removed),1);
+      changed=true;
+    }
+  }
+  return candidates;
 }
 
-export function buildLocationImportDiff({siteId,normalized,current={}}){
-  const currentLocations=(current.locations??[]).map(cleanLocation),currentAliases=(current.aliases??[]).map(cleanAlias);
-  const locationById=new Map(currentLocations.map(row=>[row.id,row])),keyOwner=new Map(currentLocations.filter(row=>row.siteId===siteId&&row.canonicalKey).map(row=>[row.canonicalKey,row]));
-  const aliasById=new Map(currentAliases.map(row=>[row.id,row])),aliasOwner=new Map(currentAliases.filter(row=>row.siteId===siteId).map(row=>[row.normalizedAlias,row]));
-  const operations=[];let unchanged=0,aliasUnchanged=0;
-  for(const incoming of normalized.locations??[]){const old=locationById.get(incoming.id),owner=keyOwner.get(incoming.canonicalKey);if(old&&old.siteId!==siteId)operations.push({type:"ERROR",id:incoming.id,code:"LOCATION_IMPORT_CROSS_SITE_REFERENCE"});else if(old&&old.source!=="IMPORT")operations.push({type:"ERROR",id:incoming.id,code:"LOCATION_IMPORT_IDENTITY_REUSED"});else if(old&&old.canonicalKey&&old.canonicalKey!==incoming.canonicalKey)operations.push({type:"ERROR",id:incoming.id,code:"LOCATION_IMPORT_IDENTITY_REUSED"});else if(owner&&owner.id!==incoming.id)operations.push({type:"ERROR",id:incoming.id,code:"LOCATION_IMPORT_CANONICAL_KEY_REUSED"});else if(!old)operations.push({type:"ADD",id:incoming.id,after:incoming});else {const after={...incoming,isActive:1};if(same(old,after,["parentId","locationType","canonicalKey","displayName","sortOrder","isActive"]))unchanged++;else operations.push({type:"UPDATE",id:incoming.id,before:old,after});}}
-  const incomingIds=new Set((normalized.locations??[]).map(row=>row.id));
-  const blocked=blockedLocationInactivationIds(siteId,incomingIds,currentLocations);
+export function buildLocationImportDiff({siteId,normalized,current={},renameDecisions}){
+  const currentLocations=(current.locations??[]).map(cleanLocation),locationById=new Map(currentLocations.map(row=>[row.id,row])),operations=[];let unchanged=0;
+  for(const incoming of normalized.locations??[]){const old=locationById.get(incoming.id);if(old&&old.siteId!==siteId)operations.push({type:"ERROR",id:incoming.id,code:"LOCATION_IMPORT_CROSS_SITE_REFERENCE"});else if(!old)operations.push({type:"ADD",id:incoming.id,after:{...incoming,source:"IMPORT",isActive:1}});else if(old.source!=="IMPORT")unchanged++;else{const after={...incoming,source:"IMPORT",isActive:1};if(same(old,after,["parentId","locationType","canonicalKey","displayName","sortOrder","isActive"]))unchanged++;else operations.push({type:"UPDATE",id:incoming.id,before:old,after})}}
+  const incomingIds=new Set((normalized.locations??[]).map(row=>row.id)),blocked=blockedLocationInactivationIds(siteId,incomingIds,currentLocations);
   for(const row of currentLocations)if(row.siteId===siteId&&row.source==="IMPORT"&&row.isActive===1&&!incomingIds.has(row.id))operations.push(blocked.has(row.id)?{type:"ERROR",id:row.id,code:"LOCATION_IMPORT_PARENT_HAS_RETAINED_CHILD"}:{type:"INACTIVE",id:row.id,before:row,after:{...row,isActive:0}});
-  for(const incoming of normalized.aliases??[]){const old=aliasById.get(incoming.id),owner=aliasOwner.get(incoming.normalizedAlias);if(old&&old.siteId!==siteId)operations.push({type:"ERROR",id:incoming.id,code:"LOCATION_IMPORT_CROSS_SITE_REFERENCE"});else if(old&&old.source!=="IMPORT")operations.push({type:"ERROR",id:incoming.id,code:"LOCATION_IMPORT_IDENTITY_REUSED"});else if(old&&(old.normalizedAlias!==incoming.normalizedAlias||old.locationId!==incoming.locationId))operations.push({type:"ERROR",id:incoming.id,code:"LOCATION_IMPORT_IDENTITY_REUSED"});else if(owner&&owner.id!==incoming.id)operations.push({type:"ERROR",id:incoming.id,code:"LOCATION_IMPORT_IDENTITY_REUSED"});else if(!old)operations.push({type:"ALIAS_ADD",id:incoming.id,after:incoming});else {const after={...incoming,isActive:1};if(same(old,after,["locationId","aliasText","normalizedAlias","aliasType","isActive"]))aliasUnchanged++;else operations.push({type:"ALIAS_UPDATE",id:incoming.id,before:old,after});}}
-  const incomingAliasIds=new Set((normalized.aliases??[]).map(row=>row.id));
-  for(const row of currentAliases)if(row.siteId===siteId&&row.source==="IMPORT"&&row.isActive===1&&!incomingAliasIds.has(row.id))operations.push({type:"ALIAS_INACTIVE",id:row.id,before:row,after:{...row,isActive:0}});
-  const sorted=ordered(operations),count=type=>sorted.filter(row=>row.type===type).length;
-  return {operations:sorted,counts:{added:count("ADD"),updated:count("UPDATE"),unchanged:unchanged+aliasUnchanged,inactivated:count("INACTIVE"),aliasAdded:count("ALIAS_ADD"),aliasUpdated:count("ALIAS_UPDATE"),aliasInactivated:count("ALIAS_INACTIVE"),error:count("ERROR")},baseMasterFingerprint:fingerprintLocationMaster(siteId,current),previewHash:sha256(stable(sorted))};
+  const baseOperations=operations.map(item=>({...item})),candidates=renameCandidates(baseOperations),basePreviewHash=sha256(stable(ordered([...baseOperations,...candidates]))),candidateById=new Map(candidates.map(item=>[item.id,item])),selected=new Set(),idMap=new Map();
+  const preserve=(add,inactive,parentId=add.after.parentId)=>{add.skip=true;inactive.skip=true;idMap.set(add.id,inactive.id);operations.push({type:"UPDATE",id:inactive.id,before:inactive.before,after:{...add.after,id:inactive.id,parentId,canonicalKey:inactive.before.canonicalKey,source:"IMPORT",isActive:1}})};
+  for(const decision of renameDecisions??[]){const id=`${decision?.fromId??""}:${decision?.toId??""}`,candidate=candidateById.get(id);if(!candidate||!["SAME_LOCATION","NEW_LOCATION"].includes(decision?.decision)){operations.push({type:"ERROR",id,code:"LOCATION_IMPORT_RENAME_DECISION_INVALID"});continue}selected.add(id);if(decision.decision==="NEW_LOCATION")continue;const add=operations.find(item=>item.type==="ADD"&&item.id===candidate.to.id),inactive=operations.find(item=>item.type==="INACTIVE"&&item.id===candidate.from.id);if(add&&inactive)preserve(add,inactive,idMap.get(add.after.parentId)??add.after.parentId)}
+  let changed=true;while(changed){changed=false;for(const add of operations.filter(item=>item.type==="ADD"&&!item.skip&&idMap.has(item.after.parentId))){const parentId=idMap.get(add.after.parentId),matches=operations.filter(item=>item.type==="INACTIVE"&&!item.skip&&item.before.parentId===parentId&&item.before.locationType===add.after.locationType&&item.before.displayName===add.after.displayName);if(matches.length===1){preserve(add,matches[0],parentId);changed=true}else if(add.after.parentId!==parentId){add.after={...add.after,parentId};changed=true}}}
+  if(Array.isArray(renameDecisions))for(const candidate of candidates)if(!selected.has(candidate.id))operations.push({type:"ERROR",id:candidate.id,code:"LOCATION_IMPORT_RENAME_DECISION_REQUIRED"});
+  const visible=[...operations.filter(item=>!item.skip),...candidates.filter(item=>!selected.has(item.id))],sorted=ordered(visible),count=type=>sorted.filter(row=>row.type===type).length;
+  return {operations:sorted,counts:{added:count("ADD"),updated:count("UPDATE"),unchanged,inactivated:count("INACTIVE"),renameCandidates:count("RENAME_CANDIDATE"),error:count("ERROR")},baseMasterFingerprint:fingerprintLocationMaster(siteId,current),previewHash:basePreviewHash};
 }

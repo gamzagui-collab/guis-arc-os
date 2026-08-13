@@ -1,12 +1,5 @@
 import { strFromU8, unzipSync } from "fflate";
-import {
-  ALIAS_HEADERS,
-  LOCATION_HEADERS,
-  LOCATION_IMPORT_ERROR_CODES as CODES,
-  LOCATION_IMPORT_LIMITS as LIMITS,
-  IMPORT_REQUIRED_SHEETS,
-  normalizeAlias
-} from "./contracts.js";
+import {SIMPLE_LOCATION_HEADERS, SIMPLE_LOCATION_SHEET, LOCATION_IMPORT_ERROR_CODES as CODES, LOCATION_IMPORT_LIMITS as LIMITS, IMPORT_REQUIRED_SHEETS} from "./contracts.js";
 
 const fail=(code,message)=>{throw Object.assign(new Error(message),{code})};
 const decode=value=>String(value??"").replace(/&(?:#x([0-9a-f]+)|#(\d+)|amp|lt|gt|quot|apos);/gi,(token,hex,decimal)=>{
@@ -130,22 +123,12 @@ export function parseSiteLocationWorkbook(buffer){
   const parts=packageParts(buffer);
   parts.counter={cells:0};
   for(const name of IMPORT_REQUIRED_SHEETS)if(!parts.sheets.some(sheet=>sheet.name===name))fail(CODES.SHEET_MISSING,`${name} 시트가 없습니다.`);
-  const locations=importRows(parts,IMPORT_REQUIRED_SHEETS[0],LOCATION_HEADERS,LIMITS.locations,(row,indexes)=>({
-    locationId:row.values[indexes.location_id]??"",
-    parentLocationId:row.values[indexes.parent_location_id]??"",
-    locationType:row.values[indexes.location_type]??"",
-    canonicalKey:row.values[indexes.canonical_key]??"",
-    displayName:row.values[indexes.display_name]??"",
-    sortOrder:row.values[indexes.sort_order]===""||row.values[indexes.sort_order]===undefined?null:Number(row.values[indexes.sort_order]),
-    sourceSheetName:IMPORT_REQUIRED_SHEETS[0],sourceRow:row.number
+  const locations=importRows(parts,SIMPLE_LOCATION_SHEET,SIMPLE_LOCATION_HEADERS,LIMITS.locations,(row,indexes)=>({
+    area:row.values[indexes["동/구역"]]??"",
+    floor:row.values[indexes["층"]]??"",
+    space:row.values[indexes["호/공간"]]??"",
+    detail:row.values[indexes["세부위치"]]??"",
+    sourceSheetName:SIMPLE_LOCATION_SHEET,sourceRow:row.number
   }));
-  const aliases=importRows(parts,IMPORT_REQUIRED_SHEETS[1],ALIAS_HEADERS,LIMITS.aliases,(row,indexes)=>({
-    aliasId:row.values[indexes.alias_id]??"",
-    locationId:row.values[indexes.location_id]??"",
-    aliasText:row.values[indexes.alias_text]??"",
-    aliasType:row.values[indexes.alias_type]??"",
-    normalizedAlias:normalizeAlias(row.values[indexes.alias_text]),
-    sourceSheetName:IMPORT_REQUIRED_SHEETS[1],sourceRow:row.number
-  }));
-  return {locations,aliases,workbookMeta:{templateVersion:"LOCATION_MASTER_V1",sheetNames:parts.sheets.map(sheet=>sheet.name)},diagnostics:[]};
+  return {locations,aliases:[],workbookMeta:{templateVersion:"SIMPLE_LOCATION_LIST_V2",sheetNames:parts.sheets.map(sheet=>sheet.name)},diagnostics:[]};
 }

@@ -1,7 +1,6 @@
 export const LOCATION_IMPORT_LIMITS=Object.freeze({
   compressedBytes:10*1024*1024,
   locations:5000,
-  aliases:10000,
   cellChars:500,
   expandedXmlBytes:40*1024*1024,
   worksheets:16,
@@ -13,18 +12,15 @@ export const LOCATION_IMPORT_LIMITS=Object.freeze({
   sharedStringBytes:10*1024*1024
 });
 
-export const TEMPLATE_SHEETS=Object.freeze([
-  "00_사용안내",
-  "01_위치마스터",
-  "02_위치별칭",
-  "03_검증_확인필요",
-  "04_도면근거",
-  "05_ChatGPT작성규칙"
-]);
-export const IMPORT_REQUIRED_SHEETS=Object.freeze(["01_위치마스터","02_위치별칭"]);
+export const SIMPLE_LOCATION_SHEET="01_위치목록";
+export const SIMPLE_LOCATION_HEADERS=Object.freeze(["동/구역","층","호/공간","세부위치"]);
+export const TEMPLATE_SHEETS=Object.freeze(["00_사용안내",SIMPLE_LOCATION_SHEET,"02_검토안내"]);
+export const IMPORT_REQUIRED_SHEETS=Object.freeze([SIMPLE_LOCATION_SHEET]);
 
-export const LOCATION_HEADERS=Object.freeze(["location_id","parent_location_id","location_type","canonical_key","display_name","sort_order"]);
-export const ALIAS_HEADERS=Object.freeze(["alias_id","location_id","alias_text","alias_type"]);
+// Compatibility exports for internal callers. They represent the v2 user
+// contract and do not re-enable the removed database-shaped workbook format.
+export const LOCATION_HEADERS=SIMPLE_LOCATION_HEADERS;
+export const ALIAS_HEADERS=Object.freeze([]);
 
 export const LOCATION_IMPORT_ERROR_CODES=Object.freeze({
   COMPRESSED_LIMIT:"LOCATION_XLSX_COMPRESSED_LIMIT",
@@ -45,6 +41,8 @@ export const LOCATION_IMPORT_ERROR_CODES=Object.freeze({
   ROW_LIMIT:"LOCATION_XLSX_ROW_LIMIT"
 });
 
-export function normalizeAlias(value){
-  return String(value??"").normalize("NFC").trim().replace(/\s+/gu," ").toLocaleLowerCase("und");
+export function normalizeLocationText(value){
+  return String(value??"").normalize("NFC").trim().replace(/\s+/gu," ").replace(/(\d)\s+(동|층|호)\b/gu,"$1$2");
 }
+
+export const normalizeAlias=value=>normalizeLocationText(value).toLocaleLowerCase("und");

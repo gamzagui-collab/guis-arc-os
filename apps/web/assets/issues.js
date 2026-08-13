@@ -1,5 +1,5 @@
 import {escapeHtml,emptyState,errorState,loadingSkeleton,statusBadge} from "../../../packages/ui/components.js";
-import {canonicalLocationId,extractLocationSpeech,naturalLocationSort} from "./issue-speech.js?v=0.27.1-r3";
+import {canonicalLocationId,extractLocationSpeech,naturalLocationSort} from "./issue-speech.js?v=0.27.1-r4";
 import {DEPARTMENT_LABELS,departmentLabel,errorMessage,issueHistoryReasonLabel} from "./i18n/ko.js";
 import {setActionPending,clearActionPending,showActionSuccess,showActionError} from "./action-feedback.js";
 import {issueActionVisibility} from "./issue-action-policy.js?v=0.27.0";

@@ -4,18 +4,12 @@ const encoder=new TextEncoder(),IDENTITY_JSON_BYTES=1536*1024;
 const jsonChunks=values=>{const out=[];let rows=[],size=2;const flush=()=>{if(rows.length){out.push(JSON.stringify(rows));rows=[];size=2}};for(const value of values){const encoded=JSON.stringify(value),bytes=encoder.encode(encoded).byteLength;if(rows.length&&size+bytes+1>IDENTITY_JSON_BYTES)flush();rows.push(value);size+=bytes+(rows.length>1?1:0)}flush();return out};
 
 export async function loadLocationImportIdentityGuards(env,siteId,workbook={}){
-  const locationIds=unique((workbook.locations??[]).map(row=>row.locationId));
-  const aliasIds=unique((workbook.aliases??[]).map(row=>row.aliasId));
-  const locationReferences=unique([...locationIds,...(workbook.locations??[]).map(row=>row.parentLocationId),...(workbook.aliases??[]).map(row=>row.locationId)]);
-  const locationChunks=jsonChunks(locationReferences),aliasChunks=jsonChunks(aliasIds),statements=[
-    ...locationChunks.map(values=>env.DB.prepare("SELECT id FROM site_locations WHERE site_id<>?1 AND id IN (SELECT value FROM json_each(?2))").bind(siteId,values)),
-    ...aliasChunks.map(values=>env.DB.prepare("SELECT id FROM site_location_aliases WHERE site_id<>?1 AND id IN (SELECT value FROM json_each(?2))").bind(siteId,values))
-  ];
+  const locationIds=unique((workbook.locations??[]).map(row=>row.locationId??row.id));
+  const locationReferences=unique([...locationIds,...(workbook.locations??[]).map(row=>row.parentLocationId??row.parentId)]);
+  const locationChunks=jsonChunks(locationReferences),statements=locationChunks.map(values=>env.DB.prepare("SELECT id FROM site_locations WHERE site_id<>?1 AND id IN (SELECT value FROM json_each(?2))").bind(siteId,values));
   const rows=statements.length?await env.DB.batch(statements):[];
-  const locationStatementCount=locationChunks.length;
   return {
-    foreignLocationIds:new Set(rows.slice(0,locationStatementCount).flatMap(results).map(row=>row.id)),
-    foreignAliasIds:new Set(rows.slice(locationStatementCount).flatMap(results).map(row=>row.id))
+    foreignLocationIds:new Set(rows.flatMap(results).map(row=>row.id))
   };
 }
 
@@ -82,7 +76,7 @@ export function getLocationImport(env,siteId,importId){
 
 export async function createLocationImport(env,row){
   await env.DB.prepare(`INSERT INTO site_location_imports(id,site_id,file_name,file_hash,r2_object_key,template_version,status,created_by)
-    VALUES(?1,?2,?3,?4,?5,'v1','UPLOADED',?6)`).bind(row.id,row.siteId,row.fileName,row.fileHash,row.r2ObjectKey,row.createdBy).run();
+    VALUES(?1,?2,?3,?4,?5,'SIMPLE_LOCATION_LIST_V2','UPLOADED',?6)`).bind(row.id,row.siteId,row.fileName,row.fileHash,row.r2ObjectKey,row.createdBy).run();
   return row;
 }
 
