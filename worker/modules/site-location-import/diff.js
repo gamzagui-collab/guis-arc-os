@@ -14,6 +14,11 @@ function sha256(text){
 }
 const ordered=items=>[...items].sort((a,b)=>String(a.id).localeCompare(String(b.id))||a.type.localeCompare(b.type));
 
+export function fingerprintLocationMaster(siteId,current={}){
+  const relevant={locations:(current.locations??[]).map(cleanLocation).filter(row=>row.siteId===siteId).sort((a,b)=>a.id.localeCompare(b.id)),aliases:(current.aliases??[]).map(cleanAlias).filter(row=>row.siteId===siteId).sort((a,b)=>a.id.localeCompare(b.id))};
+  return sha256(stable(relevant));
+}
+
 export function buildLocationImportDiff({siteId,normalized,current={}}){
   const currentLocations=(current.locations??[]).map(cleanLocation),currentAliases=(current.aliases??[]).map(cleanAlias);
   const locationById=new Map(currentLocations.map(row=>[row.id,row])),keyOwner=new Map(currentLocations.filter(row=>row.siteId===siteId&&row.canonicalKey).map(row=>[row.canonicalKey,row]));
@@ -26,6 +31,5 @@ export function buildLocationImportDiff({siteId,normalized,current={}}){
   const incomingAliasIds=new Set((normalized.aliases??[]).map(row=>row.id));
   for(const row of currentAliases)if(row.siteId===siteId&&row.source==="IMPORT"&&row.isActive===1&&!incomingAliasIds.has(row.id))operations.push({type:"ALIAS_INACTIVE",id:row.id,before:row,after:{...row,isActive:0}});
   const sorted=ordered(operations),count=type=>sorted.filter(row=>row.type===type).length;
-  const relevant={locations:currentLocations.filter(row=>row.siteId===siteId).sort((a,b)=>a.id.localeCompare(b.id)),aliases:currentAliases.filter(row=>row.siteId===siteId).sort((a,b)=>a.id.localeCompare(b.id))};
-  return {operations:sorted,counts:{added:count("ADD"),updated:count("UPDATE"),unchanged:unchanged+aliasUnchanged,inactivated:count("INACTIVE"),aliasAdded:count("ALIAS_ADD"),aliasUpdated:count("ALIAS_UPDATE"),aliasInactivated:count("ALIAS_INACTIVE"),error:count("ERROR")},baseMasterFingerprint:sha256(stable(relevant)),previewHash:sha256(stable(sorted))};
+  return {operations:sorted,counts:{added:count("ADD"),updated:count("UPDATE"),unchanged:unchanged+aliasUnchanged,inactivated:count("INACTIVE"),aliasAdded:count("ALIAS_ADD"),aliasUpdated:count("ALIAS_UPDATE"),aliasInactivated:count("ALIAS_INACTIVE"),error:count("ERROR")},baseMasterFingerprint:fingerprintLocationMaster(siteId,current),previewHash:sha256(stable(sorted))};
 }

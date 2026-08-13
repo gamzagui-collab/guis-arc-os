@@ -50,6 +50,8 @@ test("0036 adds the minimal import schema while preserving legacy location ident
   assert.equal(db.prepare("SELECT room_location_id FROM issue_items WHERE id='issue-1'").get().room_location_id, "legacy-room");
   assert.ok(tableExists("site_location_aliases"));
   assert.ok(tableExists("site_location_imports"));
+  assert.ok(tableExists("site_location_master_revisions"));
+  assert.ok(tableExists("site_location_import_idempotency"));
   assert.equal(sql.includes("last_import_id"), false);
 
   assert.throws(() => db.exec("UPDATE site_locations SET source='UNKNOWN' WHERE id='legacy-room'"), /CHECK/);
@@ -62,6 +64,7 @@ test("0036 adds the minimal import schema while preserving legacy location ident
   db.exec("INSERT INTO site_location_aliases(id,site_id,location_id,alias_text,normalized_alias,alias_type) VALUES('alias-1','site-1','legacy-room','Legacy','legacy','LEGACY_NAME')");
   assert.throws(() => db.exec("INSERT INTO site_location_aliases(id,site_id,location_id,alias_text,normalized_alias,alias_type) VALUES('alias-2','site-1','legacy-room','Legacy 2','legacy','FIELD_NAME')"), /UNIQUE/);
   db.exec("INSERT INTO site_location_aliases(id,site_id,location_id,alias_text,normalized_alias,alias_type) VALUES('alias-other-site','site-2','other-room','Legacy','legacy','LEGACY_NAME')");
+  assert.throws(() => db.exec("INSERT INTO site_location_aliases(id,site_id,location_id,alias_text,normalized_alias,alias_type) VALUES('alias-cross-site','site-1','other-room','Cross','cross','FIELD_NAME')"), /FOREIGN KEY/);
   assert.throws(() => db.exec("INSERT INTO site_location_aliases(id,site_id,location_id,alias_text,normalized_alias,alias_type) VALUES('alias-bad-type','site-1','legacy-room','Bad','bad','UNKNOWN')"), /CHECK/);
   assert.throws(() => db.exec("INSERT INTO site_location_aliases(id,site_id,location_id,alias_text,normalized_alias,alias_type,source) VALUES('alias-bad-source','site-1','legacy-room','Bad source','bad-source','FIELD_NAME','UNKNOWN')"), /CHECK/);
   assert.throws(() => db.exec("INSERT INTO site_location_aliases(id,site_id,location_id,alias_text,normalized_alias,alias_type,is_active) VALUES('alias-bad-active','site-1','legacy-room','Bad active','bad-active','FIELD_NAME',2)"), /CHECK/);
@@ -69,12 +72,18 @@ test("0036 adds the minimal import schema while preserving legacy location ident
   const aliasForeignKeys = db.prepare("PRAGMA foreign_key_list(site_location_aliases)").all();
   assert.ok(aliasForeignKeys.some(row => row.table === "sites" && row.from === "site_id"));
   assert.ok(aliasForeignKeys.some(row => row.table === "site_locations" && row.from === "location_id"));
+  assert.ok(aliasForeignKeys.some(row => row.table === "site_locations" && row.from === "site_id"));
   const aliasIndex = db.prepare("SELECT sql FROM sqlite_master WHERE type='index' AND name='idx_site_location_aliases_site_location_active'").get();
   assert.match(aliasIndex.sql, /ON site_location_aliases\s*\(site_id,\s*location_id,\s*is_active\)/i);
   assert.deepEqual(db.prepare("PRAGMA index_info(idx_site_location_aliases_site_location_active)").all().map(row => row.name), ["site_id", "location_id", "is_active"]);
 
   const countColumns = ["added_count", "updated_count", "unchanged_count", "inactivated_count", "alias_added_count", "alias_updated_count", "alias_inactivated_count", "error_count"];
   assert.deepEqual(columns("site_location_imports").filter(name => countColumns.includes(name)), countColumns);
+  assert.ok(columns("site_location_imports").includes("base_master_revision"));
+  assert.ok(columns("site_location_imports").includes("post_master_fingerprint"));
+  const revisionBefore=db.prepare("SELECT revision FROM site_location_master_revisions WHERE site_id='site-1'").get().revision;
+  db.exec("UPDATE site_locations SET display_name='Changed' WHERE id='legacy-room'");
+  assert.equal(db.prepare("SELECT revision FROM site_location_master_revisions WHERE site_id='site-1'").get().revision,revisionBefore+1);
   assert.throws(() => db.exec("INSERT INTO site_location_imports(id,site_id,file_name,file_hash,template_version,status,created_by) VALUES('import-bad','site-1','x.xlsx','hash','v1','UNKNOWN','user-1')"), /CHECK/);
   for (const countColumn of countColumns) {
     assert.throws(() => db.exec(`INSERT INTO site_location_imports(id,site_id,file_name,file_hash,template_version,status,created_by,${countColumn}) VALUES('import-negative-${countColumn}','site-1','x.xlsx','hash','v1','UPLOADED','user-1',-1)`), /CHECK/, countColumn);

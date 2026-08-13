@@ -1,7 +1,7 @@
 import { normalizeAlias } from "./contracts.js";
 
 const REQUIRED_SHEETS=["01_위치마스터","02_위치별칭"];
-const ROOT_TYPES=new Set(["SITE","BUILDING","PARKING","COMMERCIAL","COMMON","FACILITY","EXTERIOR","OTHER"]);
+const ROOT_TYPES=new Set(["BUILDING","PARKING","COMMERCIAL","COMMON","FACILITY","EXTERIOR","OTHER"]);
 const TYPES=new Set([...ROOT_TYPES,"FLOOR","UNIT","ROOM"]);
 const ALIAS_TYPES=new Set(["OFFICIAL_VARIANT","FIELD_NAME","LEGACY_NAME"]);
 const compatible=(child,parent)=>ROOT_TYPES.has(child)?!parent:child==="FLOOR"?ROOT_TYPES.has(parent):child==="UNIT"?(parent==="FLOOR"||ROOT_TYPES.has(parent)):child==="ROOM"?(parent==="UNIT"||parent==="FLOOR"||ROOT_TYPES.has(parent)):false;

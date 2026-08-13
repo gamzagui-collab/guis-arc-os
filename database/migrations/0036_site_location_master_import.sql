@@ -8,10 +8,14 @@ CREATE UNIQUE INDEX idx_site_locations_site_canonical_key
 ON site_locations(site_id,canonical_key)
 WHERE canonical_key IS NOT NULL;
 
+CREATE UNIQUE INDEX idx_site_locations_site_id ON site_locations(site_id,id);
+CREATE TABLE site_location_master_revisions (site_id TEXT PRIMARY KEY REFERENCES sites(id),revision INTEGER NOT NULL DEFAULT 0 CHECK(revision >= 0));
+INSERT INTO site_location_master_revisions(site_id,revision) SELECT id,0 FROM sites;
+
 CREATE TABLE site_location_aliases (
   id TEXT PRIMARY KEY,
   site_id TEXT NOT NULL REFERENCES sites(id),
-  location_id TEXT NOT NULL REFERENCES site_locations(id),
+  location_id TEXT NOT NULL,
   alias_text TEXT NOT NULL,
   normalized_alias TEXT NOT NULL,
   alias_type TEXT NOT NULL
@@ -21,7 +25,8 @@ CREATE TABLE site_location_aliases (
   is_active INTEGER NOT NULL DEFAULT 1 CHECK(is_active IN (0,1)),
   created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
   updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
-  UNIQUE(site_id,normalized_alias)
+  UNIQUE(site_id,normalized_alias),
+  FOREIGN KEY(site_id,location_id) REFERENCES site_locations(site_id,id)
 );
 
 CREATE INDEX idx_site_location_aliases_site_location_active
@@ -38,6 +43,8 @@ CREATE TABLE site_location_imports (
     CHECK(status IN ('UPLOADED','VALIDATING','INVALID','READY','APPLYING','APPLIED','FAILED','CANCELLED')),
   base_master_fingerprint TEXT,
   preview_hash TEXT,
+  base_master_revision INTEGER,
+  post_master_fingerprint TEXT,
   created_by TEXT NOT NULL REFERENCES users(id),
   created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
   validated_at TEXT,
@@ -54,3 +61,11 @@ CREATE TABLE site_location_imports (
 
 CREATE INDEX idx_site_location_imports_site_created
 ON site_location_imports(site_id,created_at DESC);
+
+CREATE TABLE site_location_import_idempotency (site_id TEXT NOT NULL REFERENCES sites(id),import_id TEXT NOT NULL REFERENCES site_location_imports(id),user_id TEXT NOT NULL REFERENCES users(id),idempotency_key TEXT NOT NULL,payload_hash TEXT NOT NULL,response_json TEXT NOT NULL,created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,expires_at TEXT NOT NULL,PRIMARY KEY(user_id,idempotency_key));
+CREATE TRIGGER site_locations_revision_insert AFTER INSERT ON site_locations BEGIN INSERT INTO site_location_master_revisions(site_id,revision) VALUES(NEW.site_id,1) ON CONFLICT(site_id) DO UPDATE SET revision=revision+1; END;
+CREATE TRIGGER site_locations_revision_update AFTER UPDATE ON site_locations BEGIN INSERT INTO site_location_master_revisions(site_id,revision) VALUES(NEW.site_id,1) ON CONFLICT(site_id) DO UPDATE SET revision=revision+1; END;
+CREATE TRIGGER site_locations_revision_delete AFTER DELETE ON site_locations BEGIN INSERT INTO site_location_master_revisions(site_id,revision) VALUES(OLD.site_id,1) ON CONFLICT(site_id) DO UPDATE SET revision=revision+1; END;
+CREATE TRIGGER site_location_aliases_revision_insert AFTER INSERT ON site_location_aliases BEGIN INSERT INTO site_location_master_revisions(site_id,revision) VALUES(NEW.site_id,1) ON CONFLICT(site_id) DO UPDATE SET revision=revision+1; END;
+CREATE TRIGGER site_location_aliases_revision_update AFTER UPDATE ON site_location_aliases BEGIN INSERT INTO site_location_master_revisions(site_id,revision) VALUES(NEW.site_id,1) ON CONFLICT(site_id) DO UPDATE SET revision=revision+1; END;
+CREATE TRIGGER site_location_aliases_revision_delete AFTER DELETE ON site_location_aliases BEGIN INSERT INTO site_location_master_revisions(site_id,revision) VALUES(OLD.site_id,1) ON CONFLICT(site_id) DO UPDATE SET revision=revision+1; END;

@@ -5,7 +5,9 @@ import crypto from "node:crypto";
 import {DatabaseSync} from "node:sqlite";
 import {handleSiteLocationImportRequest} from "../worker/modules/site-location-import.js";
 import worker from "../worker/index.js";
-import {applyLocationImport} from "../worker/modules/site-location-import/apply.js";
+import {applyLocationImport,buildLocationImportApplyStatements} from "../worker/modules/site-location-import/apply.js";
+import * as locationRepository from "../worker/modules/site-location-import/repository.js";
+import {fingerprintLocationMaster} from "../worker/modules/site-location-import/diff.js";
 
 const template=fs.readFileSync("apps/web/templates/GUI_Arc_현장위치마스터_기본서식_v1.xlsx");
 const digest=crypto.createHash("sha256").update(template).digest("hex");
@@ -148,7 +150,7 @@ function applyHarness({diff=applyDiff([]),row={},replayed=null,failAt=0}={}){
   const repository={
     getApplyReplay:async()=>replayed,
     beginLocationImportApply:async()=>{if(status!=="READY")return false;status="APPLYING";return true},
-    markLocationImportApplyFailed:async()=>{if(status==="APPLYING")status="FAILED"},
+    markLocationImportApplyFailed:async()=>{status="FAILED"},
     buildLocationImportApplyStatements:async(args)=>args.buildStatements(env,args),
   };
   return {env,repository,executed,get batchCalls(){return batchCalls},get status(){return status},row:{id:"import-a",site_id:"site-a",status:"READY",file_hash:"file-a",base_master_fingerprint:"base-a",preview_hash:"preview-a",...row},diff};
@@ -200,4 +202,46 @@ test("1700-row apply stays in one atomic D1 batch with bounded multi-row stateme
   const value=applyHarness({diff:applyDiff(operations)});
   await applyLocationImport({env:value.env,repository:value.repository,importRow:value.row,siteId:"site-a",userId:"user-a",idempotencyKey:"large",payloadHash:"payload",diff:value.diff,fileHash:"file-a",requestId:"r"});
   assert.equal(value.batchCalls,1);const inserts=value.executed.filter(item=>/INSERT INTO site_locations/.test(item.sql));assert.ok(inserts.length>1);assert.ok(inserts.every(item=>item.args.length<=90));
+});
+
+function transactionalD1(db,{failAt=0}={}){
+  let batchCalls=0;
+  const statement=(sql,args=[])=>({sql,args,bind(...values){return statement(sql,values)},async first(){return db.prepare(sql).get(...args)||null},async all(){return{results:db.prepare(sql).all(...args)}},async run(){const result=db.prepare(sql).run(...args);return{success:true,meta:{changes:Number(result.changes)}}}});
+  return {prepare:sql=>statement(sql),async batch(statements){batchCalls++;db.exec("BEGIN");try{const output=[];for(const [index,item] of statements.entries()){if(failAt&&index+1===failAt)throw new Error("FORCED_MIDDLE_SQL_FAILURE");const prepared=db.prepare(item.sql);output.push(/^\s*(SELECT|PRAGMA)\b/i.test(item.sql)?prepared.get(...item.args):prepared.run(...item.args))}db.exec("COMMIT");return output}catch(error){db.exec("ROLLBACK");throw error}},get batchCalls(){return batchCalls}};
+}
+
+function seedAtomicApply(){
+  const db=database();
+  db.exec("INSERT INTO companies(id,name,status) VALUES('apply-company','Company','ACTIVE'); INSERT INTO sites(id,company_id,name,status) VALUES('apply-site','apply-company','Site','ACTIVE'); INSERT INTO users(id,login_identifier,display_name,credential_hash,credential_salt,credential_iterations,status,context_version) VALUES('apply-user','apply-user','User','h','s',100000,'ACTIVE',1);");
+  db.exec("INSERT INTO site_locations(id,site_id,parent_id,location_type,code,name,display_name,canonical_key,source,is_active) VALUES('old','apply-site',NULL,'BUILDING','old','Old','Old','key/old','IMPORT',1),('legacy','apply-site',NULL,'BUILDING','legacy','Legacy','Legacy',NULL,'LEGACY',1)");
+  const revision=db.prepare("SELECT revision FROM site_location_master_revisions WHERE site_id='apply-site'").get().revision;
+  db.prepare("INSERT INTO site_location_imports(id,site_id,file_name,file_hash,template_version,status,base_master_fingerprint,preview_hash,base_master_revision,created_by) VALUES('atomic-import','apply-site','x.xlsx','file','v1','READY','base','preview',?,'apply-user')").run(revision);
+  return {db,revision};
+}
+
+test("real SQLite atomic apply orders parents first, supplies code/name, stores exact fingerprint and replays exact response",async()=>{
+  const {db,revision}=seedAtomicApply(),DB=transactionalD1(db),env={DB};
+  const child=location("child",{siteId:"apply-site",parentId:"parent",locationType:"ROOM",canonicalKey:"key/child"}),parent=location("parent",{siteId:"apply-site",locationType:"BUILDING",canonicalKey:"key/parent"});
+  const diff={...applyDiff([{type:"ADD",id:"child",after:child},{type:"ADD",id:"parent",after:parent},{type:"INACTIVE",id:"old",after:location("old",{siteId:"apply-site",locationType:"BUILDING",canonicalKey:"key/old",isActive:0})}]),baseMasterFingerprint:"base",previewHash:"preview"};
+  const expectedSnapshot={locations:[location("legacy",{siteId:"apply-site",locationType:"BUILDING",canonicalKey:null,source:"LEGACY"}),location("old",{siteId:"apply-site",locationType:"BUILDING",canonicalKey:"key/old",isActive:0}),parent,child],aliases:[]};
+  const expectedFingerprint=fingerprintLocationMaster("apply-site",expectedSnapshot);
+  const result=await applyLocationImport({env,repository:locationRepository,importRow:{id:"atomic-import",file_hash:"file",base_master_fingerprint:"base",preview_hash:"preview",base_master_revision:revision},siteId:"apply-site",userId:"apply-user",idempotencyKey:"atomic-key",payloadHash:"payload",diff,fileHash:"file",requestId:"request",postApplySnapshot:expectedSnapshot});
+  assert.equal(DB.batchCalls,1);assert.equal(result.newMasterFingerprint,expectedFingerprint);
+  const rows=db.prepare("SELECT id,parent_id,code,name,is_active FROM site_locations WHERE site_id='apply-site' ORDER BY id").all();
+  assert.equal(rows.find(row=>row.id==="parent").code,"parent");assert.equal(rows.find(row=>row.id==="parent").name,"parent");assert.equal(rows.findIndex(row=>row.id==="parent")>=0,true);assert.equal(rows.find(row=>row.id==="child").parent_id,"parent");
+  const stored=db.prepare("SELECT status,post_master_fingerprint FROM site_location_imports WHERE id='atomic-import'").get();assert.deepEqual({...stored},{status:"APPLIED",post_master_fingerprint:expectedFingerprint});
+  const replay=await applyLocationImport({env,repository:locationRepository,importRow:{id:"atomic-import",file_hash:"file",base_master_fingerprint:"base",preview_hash:"preview",base_master_revision:revision},siteId:"apply-site",userId:"apply-user",idempotencyKey:"atomic-key",payloadHash:"payload",diff,fileHash:"file",requestId:"request",postApplySnapshot:expectedSnapshot});
+  assert.deepEqual(replay,result);assert.equal(DB.batchCalls,1);db.close();
+});
+
+test("real SQLite guard and injected middle SQL failure roll back status and every master write",async()=>{
+  for(const mode of ["stale-guard","middle-failure"]){const {db,revision}=seedAtomicApply();if(mode==="stale-guard")db.exec("UPDATE site_locations SET display_name='concurrent' WHERE id='old'");const DB=transactionalD1(db,{failAt:mode==="middle-failure"?4:0}),env={DB},before=db.prepare("SELECT id,display_name,is_active FROM site_locations WHERE site_id='apply-site' ORDER BY id").all(),diff={...applyDiff([{type:"ADD",id:"new",after:location("new",{siteId:"apply-site",locationType:"BUILDING"})}]),baseMasterFingerprint:"base",previewHash:"preview"};
+    await assert.rejects(()=>applyLocationImport({env,repository:locationRepository,importRow:{id:"atomic-import",file_hash:"file",base_master_fingerprint:"base",preview_hash:"preview",base_master_revision:revision},siteId:"apply-site",userId:"apply-user",idempotencyKey:`key-${mode}`,payloadHash:"payload",diff,fileHash:"file",requestId:"request",postApplySnapshot:{locations:[],aliases:[]}}));
+    assert.deepEqual(db.prepare("SELECT id,display_name,is_active FROM site_locations WHERE site_id='apply-site' ORDER BY id").all(),before);assert.notEqual(db.prepare("SELECT status FROM site_location_imports WHERE id='atomic-import'").get().status,"APPLYING");db.close()}
+});
+
+test("status CAS guard is load-bearing and every prepared statement remains below D1 parameter cap",()=>{
+  const value=applyHarness({diff:applyDiff(Array.from({length:1700},(_,index)=>({type:"ADD",id:`x-${index}`,after:location(`x-${index}`)})))}),response={newMasterFingerprint:"post"};
+  const statements=buildLocationImportApplyStatements(value.env,{importRow:{id:"import-a",base_master_revision:0},siteId:"site-a",userId:"user-a",idempotencyKey:"key",payloadHash:"payload",diff:value.diff,requestId:"request",response});
+  assert.match(statements[0].sql,/status='READY'/);assert.match(statements[1].sql,/json_extract/);assert.ok(statements.every(item=>item.args.length<=90));
 });

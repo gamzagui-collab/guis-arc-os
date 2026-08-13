@@ -1,11 +1,12 @@
 const results=value=>value?.results??[];
 
 export async function loadLocationMasterSnapshot(env,siteId){
-  const [locations,aliases]=await Promise.all([
+  const [locations,aliases,revision]=await Promise.all([
     env.DB.prepare("SELECT id,site_id,parent_id,location_type,canonical_key,display_name,sort_order,source,is_active FROM site_locations WHERE site_id=?1 ORDER BY id").bind(siteId).all(),
-    env.DB.prepare("SELECT id,site_id,location_id,alias_text,normalized_alias,alias_type,source,is_active FROM site_location_aliases WHERE site_id=?1 ORDER BY id").bind(siteId).all()
+    env.DB.prepare("SELECT id,site_id,location_id,alias_text,normalized_alias,alias_type,source,is_active FROM site_location_aliases WHERE site_id=?1 ORDER BY id").bind(siteId).all(),
+    env.DB.prepare("SELECT revision FROM site_location_master_revisions WHERE site_id=?1").bind(siteId).first()
   ]);
-  return {locations:results(locations),aliases:results(aliases)};
+  return {locations:results(locations),aliases:results(aliases),revision:Number(revision?.revision||0)};
 }
 
 export async function loadRecentLocationImports(env,siteId,limit=20){
@@ -38,16 +39,14 @@ export async function beginLocationImportValidation(env,siteId,importId){
 export async function updateLocationImportValidation(env,row){
   const result=await env.DB.prepare(`UPDATE site_location_imports SET status=?3,base_master_fingerprint=?4,preview_hash=?5,validated_at=CURRENT_TIMESTAMP,
     added_count=?6,updated_count=?7,unchanged_count=?8,inactivated_count=?9,alias_added_count=?10,alias_updated_count=?11,alias_inactivated_count=?12,error_count=?13
-    WHERE id=?1 AND site_id=?2 AND status='VALIDATING'`).bind(row.id,row.siteId,row.status,row.baseMasterFingerprint??null,row.previewHash??null,row.counts.added??0,row.counts.updated??0,row.counts.unchanged??0,row.counts.inactivated??0,row.counts.aliasAdded??0,row.counts.aliasUpdated??0,row.counts.aliasInactivated??0,row.counts.error??0).run();
+    ,base_master_revision=?14 WHERE id=?1 AND site_id=?2 AND status='VALIDATING'`).bind(row.id,row.siteId,row.status,row.baseMasterFingerprint??null,row.previewHash??null,row.counts.added??0,row.counts.updated??0,row.counts.unchanged??0,row.counts.inactivated??0,row.counts.aliasAdded??0,row.counts.aliasUpdated??0,row.counts.aliasInactivated??0,row.counts.error??0,row.baseMasterRevision??null).run();
   return Number(result?.meta?.changes||0)===1;
 }
 
 export async function getApplyReplay(env,{siteId,userId,importId,idempotencyKey}){
-  const row=await env.DB.prepare(`SELECT x.payload_hash,i.status,i.added_count,i.updated_count,i.unchanged_count,i.inactivated_count,i.alias_added_count,i.alias_updated_count,i.alias_inactivated_count
-    FROM issue_idempotency x JOIN site_location_imports i ON i.id=x.resource_id AND i.site_id=?1
-    WHERE x.user_id=?2 AND x.idempotency_key=?3 AND x.operation=?4 AND (x.expires_at IS NULL OR datetime(x.expires_at)>datetime('now'))`).bind(siteId,userId,idempotencyKey,`SITE_LOCATION_IMPORT_APPLY:${importId}`).first();
+  const row=await env.DB.prepare("SELECT payload_hash,response_json FROM site_location_import_idempotency WHERE site_id=?1 AND import_id=?2 AND user_id=?3 AND idempotency_key=?4 AND datetime(expires_at)>datetime('now')").bind(siteId,importId,userId,idempotencyKey).first();
   if(!row)return null;
-  return {...row,response:{importId,status:row.status,counts:{added:Number(row.added_count),updated:Number(row.updated_count),unchanged:Number(row.unchanged_count),inactivated:Number(row.inactivated_count),aliasAdded:Number(row.alias_added_count),aliasUpdated:Number(row.alias_updated_count),aliasInactivated:Number(row.alias_inactivated_count),error:0},newMasterFingerprint:null,idempotent:true}};
+  return {...row,response:JSON.parse(row.response_json)};
 }
 
 export async function beginLocationImportApply(env,siteId,importId){
@@ -56,5 +55,5 @@ export async function beginLocationImportApply(env,siteId,importId){
 }
 
 export async function markLocationImportApplyFailed(env,siteId,importId){
-  return env.DB.prepare("UPDATE site_location_imports SET status='FAILED' WHERE id=?1 AND site_id=?2 AND status='APPLYING'").bind(importId,siteId).run();
+  return env.DB.prepare("UPDATE site_location_imports SET status='FAILED' WHERE id=?1 AND site_id=?2 AND status='READY'").bind(importId,siteId).run();
 }
