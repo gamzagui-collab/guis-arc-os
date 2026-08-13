@@ -23,9 +23,9 @@ test("admin route has one loader and uses the established revision without incre
   assert.match(app,/현장정보/);
   assert.match(app,/\/admin\/site-locations/);
   assert.doesNotMatch(app,/import\("\.\/site-location-import\.js/);
-  assert.match(admin,/import\("\.\/site-location-import\.js\?v=0\.27\.1-r2"\)/);
+  assert.match(admin,/import\("\.\/site-location-import\.js\?v=0\.27\.1-r3"\)/);
   assert.match(admin,/renderSiteLocationImportPage/);
-  assert.match(html,/\/assets\/site-location-import\.css\?v=0\.27\.1-r2"/);
+  assert.match(html,/\/assets\/site-location-import\.css\?v=0\.27\.1-r3"/);
 });
 
 test("state machine allows only exact transitions and blocks duplicate requests",()=>{
