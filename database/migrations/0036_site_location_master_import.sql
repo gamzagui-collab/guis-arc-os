@@ -67,10 +67,12 @@ CREATE TABLE site_location_imports (
 CREATE INDEX idx_site_location_imports_site_created
 ON site_location_imports(site_id,created_at DESC);
 
-CREATE TABLE site_location_import_idempotency (site_id TEXT NOT NULL REFERENCES sites(id),import_id TEXT NOT NULL REFERENCES site_location_imports(id),user_id TEXT NOT NULL REFERENCES users(id),idempotency_key TEXT NOT NULL,payload_hash TEXT NOT NULL,response_json TEXT NOT NULL,created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,expires_at TEXT NOT NULL,PRIMARY KEY(user_id,idempotency_key));
+CREATE TABLE site_location_import_idempotency (site_id TEXT NOT NULL REFERENCES sites(id),import_id TEXT NOT NULL REFERENCES site_location_imports(id),user_id TEXT NOT NULL REFERENCES users(id),idempotency_key TEXT NOT NULL,payload_hash TEXT NOT NULL,response_json TEXT NOT NULL,created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,expires_at TEXT NOT NULL,PRIMARY KEY(site_id,import_id,user_id,idempotency_key));
 CREATE TRIGGER site_locations_revision_insert AFTER INSERT ON site_locations BEGIN INSERT INTO site_location_master_revisions(site_id,revision) VALUES(NEW.site_id,1) ON CONFLICT(site_id) DO UPDATE SET revision=revision+1; END;
+CREATE TRIGGER site_locations_site_id_immutable BEFORE UPDATE OF site_id ON site_locations WHEN NEW.site_id<>OLD.site_id BEGIN SELECT RAISE(ABORT,'SITE_LOCATION_SITE_ID_IMMUTABLE'); END;
 CREATE TRIGGER site_locations_revision_update AFTER UPDATE ON site_locations BEGIN INSERT INTO site_location_master_revisions(site_id,revision) VALUES(NEW.site_id,1) ON CONFLICT(site_id) DO UPDATE SET revision=revision+1; END;
 CREATE TRIGGER site_locations_revision_delete AFTER DELETE ON site_locations BEGIN INSERT INTO site_location_master_revisions(site_id,revision) VALUES(OLD.site_id,1) ON CONFLICT(site_id) DO UPDATE SET revision=revision+1; END;
 CREATE TRIGGER site_location_aliases_revision_insert AFTER INSERT ON site_location_aliases BEGIN INSERT INTO site_location_master_revisions(site_id,revision) VALUES(NEW.site_id,1) ON CONFLICT(site_id) DO UPDATE SET revision=revision+1; END;
+CREATE TRIGGER site_location_aliases_site_id_immutable BEFORE UPDATE OF site_id ON site_location_aliases WHEN NEW.site_id<>OLD.site_id BEGIN SELECT RAISE(ABORT,'SITE_LOCATION_ALIAS_SITE_ID_IMMUTABLE'); END;
 CREATE TRIGGER site_location_aliases_revision_update AFTER UPDATE ON site_location_aliases BEGIN INSERT INTO site_location_master_revisions(site_id,revision) VALUES(NEW.site_id,1) ON CONFLICT(site_id) DO UPDATE SET revision=revision+1; END;
 CREATE TRIGGER site_location_aliases_revision_delete AFTER DELETE ON site_location_aliases BEGIN INSERT INTO site_location_master_revisions(site_id,revision) VALUES(OLD.site_id,1) ON CONFLICT(site_id) DO UPDATE SET revision=revision+1; END;

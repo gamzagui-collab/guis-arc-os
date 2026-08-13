@@ -1,12 +1,12 @@
 const results=value=>value?.results??[];
 
 export async function loadLocationMasterSnapshot(env,siteId){
-  const [locations,aliases,revision]=await Promise.all([
-    env.DB.prepare("SELECT id,site_id,parent_id,location_type,canonical_key,display_name,sort_order,source,is_active FROM site_locations WHERE site_id=?1 ORDER BY id").bind(siteId).all(),
-    env.DB.prepare("SELECT id,site_id,location_id,alias_text,normalized_alias,alias_type,source,is_active FROM site_location_aliases WHERE site_id=?1 ORDER BY id").bind(siteId).all(),
-    env.DB.prepare("SELECT revision FROM site_location_master_revisions WHERE site_id=?1").bind(siteId).first()
+  const [locations,aliases,revision]=await env.DB.batch([
+    env.DB.prepare("SELECT id,site_id,parent_id,location_type,canonical_key,display_name,sort_order,source,is_active FROM site_locations WHERE site_id=?1 ORDER BY id").bind(siteId),
+    env.DB.prepare("SELECT id,site_id,location_id,alias_text,normalized_alias,alias_type,source,is_active FROM site_location_aliases WHERE site_id=?1 ORDER BY id").bind(siteId),
+    env.DB.prepare("SELECT revision FROM site_location_master_revisions WHERE site_id=?1").bind(siteId)
   ]);
-  return {locations:results(locations),aliases:results(aliases),revision:Number(revision?.revision||0)};
+  return {locations:results(locations),aliases:results(aliases),revision:Number(results(revision)[0]?.revision||0)};
 }
 
 export async function loadRecentLocationImports(env,siteId,limit=20){

@@ -8,6 +8,8 @@ import worker from "../worker/index.js";
 import {applyLocationImport,buildLocationImportApplyStatements} from "../worker/modules/site-location-import/apply.js";
 import * as locationRepository from "../worker/modules/site-location-import/repository.js";
 import {fingerprintLocationMaster} from "../worker/modules/site-location-import/diff.js";
+import {strToU8,zipSync} from "fflate";
+import {ALIAS_HEADERS,LOCATION_HEADERS,REQUIRED_SHEETS} from "../worker/modules/site-location-import/contracts.js";
 
 const template=fs.readFileSync("apps/web/templates/GUI_Arc_현장위치마스터_기본서식_v1.xlsx");
 const digest=crypto.createHash("sha256").update(template).digest("hex");
@@ -95,7 +97,7 @@ test("unexpected post-CAS failures preserve the original error and never leave V
 });
 
 function database(){const db=new DatabaseSync(":memory:");for(const name of fs.readdirSync("database/migrations").filter(name=>name.endsWith(".sql")).sort())db.exec(fs.readFileSync(`database/migrations/${name}`,"utf8"));return db}
-function recordingD1(db){const sqlLog=[];const statement=(sql,args=[])=>({sql,args,bind(...values){return statement(sql,values)},async first(){return db.prepare(sql).get(...args)||null},async all(){return{results:db.prepare(sql).all(...args)}},async run(){sqlLog.push(sql);if(/^\s*(INSERT|UPDATE|DELETE)\s+(?:INTO\s+)?site_location(?:s|_aliases)\b/i.test(sql))throw new Error("MASTER_WRITE_FORBIDDEN");const result=db.prepare(sql).run(...args);return{success:true,meta:{changes:Number(result.changes)}}}});return{sqlLog,prepare:sql=>statement(sql)}}
+function recordingD1(db){const sqlLog=[];const statement=(sql,args=[])=>({sql,args,bind(...values){return statement(sql,values)},async first(){return db.prepare(sql).get(...args)||null},async all(){return{results:db.prepare(sql).all(...args)}},async run(){sqlLog.push(sql);if(/^\s*(INSERT|UPDATE|DELETE)\s+(?:INTO\s+)?site_location(?:s|_aliases)\b/i.test(sql))throw new Error("MASTER_WRITE_FORBIDDEN");const result=db.prepare(sql).run(...args);return{success:true,meta:{changes:Number(result.changes)}}}});return{sqlLog,prepare:sql=>statement(sql),async batch(statements){return statements.map(item=>({results:db.prepare(item.sql).all(...item.args)}))}}}
 async function realEnv(access="MANAGE"){
   const db=database(),token="session-token",csrf="csrf-token",tokenHash=crypto.createHash("sha256").update(token).digest("hex"),csrfHash=crypto.createHash("sha256").update(csrf).digest("hex");
   db.exec("INSERT INTO companies(id,name,status) VALUES('company-a','회사','ACTIVE'); INSERT INTO sites(id,company_id,name,status) VALUES('site-a','company-a','현장','ACTIVE'); INSERT INTO users(id,login_identifier,display_name,credential_hash,credential_salt,credential_iterations,status,context_version) VALUES('user-a','user-a','관리자','h','s',100000,'ACTIVE',7); INSERT INTO memberships(id,user_id,company_id,site_id,status,approval_status) VALUES('member-a','user-a','company-a','site-a','ACTIVE','APPROVED');");
@@ -207,8 +209,18 @@ test("1700-row apply stays in one atomic D1 batch with bounded multi-row stateme
 function transactionalD1(db,{failAt=0}={}){
   let batchCalls=0;
   const statement=(sql,args=[])=>({sql,args,bind(...values){return statement(sql,values)},async first(){return db.prepare(sql).get(...args)||null},async all(){return{results:db.prepare(sql).all(...args)}},async run(){const result=db.prepare(sql).run(...args);return{success:true,meta:{changes:Number(result.changes)}}}});
-  return {prepare:sql=>statement(sql),async batch(statements){batchCalls++;db.exec("BEGIN");try{const output=[];for(const [index,item] of statements.entries()){if(failAt&&index+1===failAt)throw new Error("FORCED_MIDDLE_SQL_FAILURE");const prepared=db.prepare(item.sql);output.push(/^\s*(SELECT|PRAGMA)\b/i.test(item.sql)?prepared.get(...item.args):prepared.run(...item.args))}db.exec("COMMIT");return output}catch(error){db.exec("ROLLBACK");throw error}},get batchCalls(){return batchCalls}};
+  return {prepare:sql=>statement(sql),async batch(statements){batchCalls++;db.exec("BEGIN");try{const output=[];for(const [index,item] of statements.entries()){if(failAt&&index+1===failAt)throw new Error("FORCED_MIDDLE_SQL_FAILURE");const prepared=db.prepare(item.sql);output.push(/^\s*(SELECT|PRAGMA)\b/i.test(item.sql)?{results:prepared.all(...item.args)}:prepared.run(...item.args))}db.exec("COMMIT");return output}catch(error){db.exec("ROLLBACK");throw error}},get batchCalls(){return batchCalls}};
 }
+
+test("location master snapshot reads locations aliases and revision in one D1 batch",async()=>{
+  let batches=0,individualReads=0;const statement=(sql,args=[])=>({sql,args,bind(...values){return statement(sql,values)},async all(){individualReads++;throw new Error("INDEPENDENT_READ")},async first(){individualReads++;throw new Error("INDEPENDENT_READ")}}),env={DB:{prepare:sql=>statement(sql),async batch(statements){batches++;assert.equal(statements.length,3);return[{results:[{id:"l",site_id:"site-a"}]},{results:[{id:"a",site_id:"site-a"}]},{results:[{revision:7}]}]}}};
+  const snapshot=await locationRepository.loadLocationMasterSnapshot(env,"site-a");assert.equal(batches,1);assert.equal(individualReads,0);assert.equal(snapshot.locations[0].id,"l");assert.equal(snapshot.aliases[0].id,"a");assert.equal(snapshot.revision,7);
+});
+
+const xmlEscape=value=>String(value??"").replaceAll("&","&amp;").replaceAll("<","&lt;").replaceAll(">","&gt;");
+const xlsxColumn=index=>{let value="";for(let n=index+1;n;n=Math.floor((n-1)/26))value=String.fromCharCode(65+(n-1)%26)+value;return value};
+const xlsxSheet=rows=>`<?xml version="1.0" encoding="UTF-8" standalone="yes"?><worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"><sheetData>${rows.map((row,rowIndex)=>`<row r="${rowIndex+1}">${row.map((value,columnIndex)=>`<c r="${xlsxColumn(columnIndex)}${rowIndex+1}" t="inlineStr"><is><t>${xmlEscape(value)}</t></is></c>`).join("")}</row>`).join("")}</sheetData></worksheet>`;
+function routeWorkbook(locations,aliases=[]){const sheets=[[REQUIRED_SHEETS[0],[["review"]]],[REQUIRED_SHEETS[1],[LOCATION_HEADERS,...locations]],[REQUIRED_SHEETS[2],[ALIAS_HEADERS,...aliases]],[REQUIRED_SHEETS[3],[["review"]]],[REQUIRED_SHEETS[4],[["review"]]],[REQUIRED_SHEETS[5],[["review"]]]],workbookXml=`<?xml version="1.0" encoding="UTF-8"?><workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"><sheets>${sheets.map(([name],index)=>`<sheet name="${name}" sheetId="${index+1}" r:id="rId${index+1}"/>`).join("")}</sheets></workbook>`,rels=`<?xml version="1.0" encoding="UTF-8"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">${sheets.map((_,index)=>`<Relationship Id="rId${index+1}" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet${index+1}.xml"/>`).join("")}</Relationships>`;return zipSync({"xl/workbook.xml":strToU8(workbookXml),"xl/_rels/workbook.xml.rels":strToU8(rels),...Object.fromEntries(sheets.map(([,rows],index)=>[`xl/worksheets/sheet${index+1}.xml`,strToU8(xlsxSheet(rows))]))})}
 
 function seedAtomicApply(){
   const db=database();
@@ -259,4 +271,18 @@ test("status CAS guard is load-bearing and every prepared statement remains belo
   const value=applyHarness({diff:applyDiff(Array.from({length:1700},(_,index)=>({type:"ADD",id:`x-${index}`,after:location(`x-${index}`)})))}),response={newMasterFingerprint:"post"};
   const statements=buildLocationImportApplyStatements(value.env,{importRow:{id:"import-a",base_master_revision:0},siteId:"site-a",userId:"user-a",idempotencyKey:"key",payloadHash:"payload",diff:value.diff,requestId:"request",response});
   assert.match(statements[0].sql,/status='READY'/);assert.match(statements[1].sql,/site_location_import_apply_guards/);assert.ok(statements.every(item=>item.args.length<=90));
+});
+
+test("production route fingerprint equals the committed canonical DB snapshot",async()=>{
+  const value=await realEnv("MANAGE"),bytes=routeWorkbook([["route-root","","BUILDING","site/route-root","Route Root",0],["route-room","route-root","ROOM","site/route-root/room","Route Room",1]],[ ["route-alias","route-room","Route field","FIELD_NAME"] ]),fileHash=crypto.createHash("sha256").update(bytes).digest("hex"),key="sites/site-a/location-imports/route-import/original.xlsx";
+  value.db.prepare("INSERT INTO site_location_imports(id,site_id,file_name,file_hash,r2_object_key,template_version,status,created_by) VALUES('route-import','site-a','route.xlsx',?,?,'v1','UPLOADED','user-a')").run(fileHash,key);value.env.DB=transactionalD1(value.db);value.env.FILES.get=async objectKey=>objectKey===key?{size:bytes.length,arrayBuffer:async()=>bytes}:null;
+  let response=await worker.fetch(request("/api/v1/admin/site-locations/upload-sessions/route-import/validate",{method:"POST",headers:value.headers}),value.env),preview=await response.json();assert.equal(response.status,200);assert.equal(preview.status,"READY");
+  response=await worker.fetch(request("/api/v1/admin/site-locations/imports/route-import/apply",{method:"POST",body:{previewHash:preview.previewHash,baseMasterFingerprint:preview.baseMasterFingerprint,operations:[{type:"ADD",id:"forged"}]},headers:{...value.headers,"idempotency-key":"route-key"}}),value.env);const applied=await response.json();assert.equal(response.status,200,JSON.stringify(applied));
+  const committed=await locationRepository.loadLocationMasterSnapshot(value.env,"site-a"),actual=fingerprintLocationMaster("site-a",committed),stored=value.db.prepare("SELECT post_master_fingerprint FROM site_location_imports WHERE id='route-import'").get().post_master_fingerprint;
+  assert.equal(applied.newMasterFingerprint,actual);assert.equal(stored,actual);assert.equal(value.db.prepare("SELECT COUNT(*) count FROM site_locations WHERE id='forged'").get().count,0);value.db.close();
+});
+
+test("same user and idempotency key are scoped independently by import",async()=>{
+  const db=database();db.exec("INSERT INTO companies(id,name,status) VALUES('idem-company','Company','ACTIVE'); INSERT INTO sites(id,company_id,name,status) VALUES('idem-site','idem-company','Site','ACTIVE'); INSERT INTO users(id,login_identifier,display_name,credential_hash,credential_salt,credential_iterations,status,context_version) VALUES('idem-user','idem-user','User','h','s',100000,'ACTIVE',1); INSERT INTO site_location_imports(id,site_id,file_name,file_hash,template_version,status,created_by) VALUES('idem-one','idem-site','x','h','v1','APPLIED','idem-user'),('idem-two','idem-site','x','h','v1','APPLIED','idem-user'); INSERT INTO site_location_import_idempotency(site_id,import_id,user_id,idempotency_key,payload_hash,response_json,expires_at) VALUES('idem-site','idem-one','idem-user','same','one','{\"importId\":\"idem-one\"}','2099-01-01'),('idem-site','idem-two','idem-user','same','two','{\"importId\":\"idem-two\"}','2099-01-01')");const env={DB:transactionalD1(db)};
+  assert.equal((await locationRepository.getApplyReplay(env,{siteId:"idem-site",importId:"idem-one",userId:"idem-user",idempotencyKey:"same"})).response.importId,"idem-one");assert.equal((await locationRepository.getApplyReplay(env,{siteId:"idem-site",importId:"idem-two",userId:"idem-user",idempotencyKey:"same"})).response.importId,"idem-two");db.close();
 });

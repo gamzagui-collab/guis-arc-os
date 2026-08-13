@@ -55,6 +55,7 @@ test("0036 adds the minimal import schema while preserving legacy location ident
   assert.equal(sql.includes("last_import_id"), false);
 
   assert.throws(() => db.exec("UPDATE site_locations SET source='UNKNOWN' WHERE id='legacy-room'"), /CHECK/);
+  assert.throws(() => db.exec("UPDATE site_locations SET site_id='site-2' WHERE id='legacy-room'"), /SITE_LOCATION_SITE_ID_IMMUTABLE/);
   db.exec("UPDATE site_locations SET canonical_key='site/legacy-room' WHERE id='legacy-room'");
   assert.throws(() => db.exec("INSERT INTO site_locations(id,site_id,location_type,code,name,display_name,canonical_key) VALUES('duplicate-room','site-1','ROOM','DUPLICATE_ROOM','Duplicate','Duplicate','site/legacy-room')"), /UNIQUE/);
   db.exec("UPDATE site_locations SET canonical_key='site/legacy-room' WHERE id='other-room'");
@@ -62,6 +63,7 @@ test("0036 adds the minimal import schema while preserving legacy location ident
   assert.match(canonicalIndex, /UNIQUE[\s\S]*\(site_id,\s*canonical_key\)[\s\S]*WHERE canonical_key IS NOT NULL/i);
 
   db.exec("INSERT INTO site_location_aliases(id,site_id,location_id,alias_text,normalized_alias,alias_type) VALUES('alias-1','site-1','legacy-room','Legacy','legacy','LEGACY_NAME')");
+  assert.throws(() => db.exec("UPDATE site_location_aliases SET site_id='site-2' WHERE id='alias-1'"), /SITE_LOCATION_ALIAS_SITE_ID_IMMUTABLE/);
   assert.throws(() => db.exec("INSERT INTO site_location_aliases(id,site_id,location_id,alias_text,normalized_alias,alias_type) VALUES('alias-2','site-1','legacy-room','Legacy 2','legacy','FIELD_NAME')"), /UNIQUE/);
   db.exec("INSERT INTO site_location_aliases(id,site_id,location_id,alias_text,normalized_alias,alias_type) VALUES('alias-other-site','site-2','other-room','Legacy','legacy','LEGACY_NAME')");
   assert.throws(() => db.exec("INSERT INTO site_location_aliases(id,site_id,location_id,alias_text,normalized_alias,alias_type) VALUES('alias-cross-site','site-1','other-room','Cross','cross','FIELD_NAME')"), /FOREIGN KEY/);
@@ -81,6 +83,9 @@ test("0036 adds the minimal import schema while preserving legacy location ident
   assert.deepEqual(columns("site_location_imports").filter(name => countColumns.includes(name)), countColumns);
   assert.ok(columns("site_location_imports").includes("base_master_revision"));
   assert.ok(columns("site_location_imports").includes("post_master_fingerprint"));
+  db.exec("INSERT INTO site_location_imports(id,site_id,file_name,file_hash,template_version,status,created_by) VALUES('import-one','site-1','x.xlsx','h','v1','READY','user-1'),('import-two','site-1','x.xlsx','h','v1','READY','user-1')");
+  db.exec("INSERT INTO site_location_import_idempotency(site_id,import_id,user_id,idempotency_key,payload_hash,response_json,expires_at) VALUES('site-1','import-one','user-1','shared-key','one','{}','2099-01-01'),('site-1','import-two','user-1','shared-key','two','{}','2099-01-01')");
+  assert.equal(db.prepare("SELECT COUNT(*) count FROM site_location_import_idempotency WHERE user_id='user-1' AND idempotency_key='shared-key'").get().count,2);
   const revisionBefore=db.prepare("SELECT revision FROM site_location_master_revisions WHERE site_id='site-1'").get().revision;
   db.exec("UPDATE site_locations SET display_name='Changed' WHERE id='legacy-room'");
   assert.equal(db.prepare("SELECT revision FROM site_location_master_revisions WHERE site_id='site-1'").get().revision,revisionBefore+1);
