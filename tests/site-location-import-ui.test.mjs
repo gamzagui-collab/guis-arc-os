@@ -68,6 +68,33 @@ test("confirmed apply intent keeps one idempotency key across ambiguous retries"
   assert.equal(ensureApplyIntent(state,()=>"wrong-new-key").applyIntent.key,"stable-key");
 });
 
+test("retryable Apply failures retain the confirmed idempotency key",()=>{
+  const base={phase:"APPLYING",busy:"apply",applyIntent:{key:"stable",fingerprint:"i:p"},preview:{importId:"i",previewHash:"p",status:"READY",applyAllowed:true,counts:{error:0}}};
+  for(const [label,error] of [
+    ["network",new TypeError("network failed")],
+    ["408",Object.assign(new Error("timeout"),{status:408,code:"REQUEST_TIMEOUT"})],
+    ["425",Object.assign(new Error("too early"),{status:425,code:"TOO_EARLY"})],
+    ["429",Object.assign(new Error("rate limited"),{status:429,code:"RATE_LIMITED"})],
+    ["500",Object.assign(new Error("server failed"),{status:500,code:"INTERNAL_ERROR"})]
+  ]){
+    const recovered=recoverApplyFailure(base,error);
+    assert.equal(recovered.phase,"READY",label);
+    assert.equal(recovered.applyIntent.key,"stable",label);
+  }
+});
+
+test("definitive contract failures clear the confirmed idempotency key",()=>{
+  const base={phase:"APPLYING",busy:"apply",applyIntent:{key:"stable",fingerprint:"i:p"},preview:{importId:"i",previewHash:"p",status:"READY",applyAllowed:true,counts:{error:0}}};
+  for(const [status,code] of [[400,"LOCATION_IMPORT_REQUEST_INVALID"],[403,"BOARD_ACCESS_DENIED"]]){
+    const recovered=recoverApplyFailure(base,Object.assign(new Error(code),{status,code}));
+    assert.equal(recovered.phase,"READY");
+    assert.equal(recovered.applyIntent,null,code);
+  }
+  const stale=recoverApplyFailure(base,Object.assign(new Error("stale"),{status:409,code:"LOCATION_IMPORT_PREVIEW_STALE"}));
+  assert.equal(stale.applyIntent,null);
+  assert.equal(stale.preview.applyAllowed,false);
+});
+
 test("stale apply rejects the preview and explicitly requires re-preview",()=>{
   const state={phase:"APPLYING",busy:"apply",applyIntent:{key:"old",previewHash:"p"},preview:{status:"READY",applyAllowed:true,counts:{error:0}}};
   const recovered=recoverApplyFailure(state,Object.assign(new Error("stale"),{status:409,code:"LOCATION_IMPORT_PREVIEW_STALE"}));
