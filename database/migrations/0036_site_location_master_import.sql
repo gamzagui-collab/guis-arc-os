@@ -54,6 +54,8 @@ CREATE TABLE site_location_imports (
   file_hash TEXT NOT NULL,
   r2_object_key TEXT,
   artifact_object_key TEXT,
+  cleanup_claim_token TEXT,
+  cleanup_claimed_at TEXT,
   template_version TEXT NOT NULL,
   status TEXT NOT NULL
     CHECK(status IN ('UPLOADED','VALIDATING','INVALID','READY','APPLYING','APPLIED','FAILED','CANCELLED')),
@@ -72,7 +74,8 @@ CREATE TABLE site_location_imports (
   alias_added_count INTEGER NOT NULL DEFAULT 0 CHECK(alias_added_count >= 0),
   alias_updated_count INTEGER NOT NULL DEFAULT 0 CHECK(alias_updated_count >= 0),
   alias_inactivated_count INTEGER NOT NULL DEFAULT 0 CHECK(alias_inactivated_count >= 0),
-  error_count INTEGER NOT NULL DEFAULT 0 CHECK(error_count >= 0)
+  error_count INTEGER NOT NULL DEFAULT 0 CHECK(error_count >= 0),
+  CHECK((cleanup_claim_token IS NULL) = (cleanup_claimed_at IS NULL))
 );
 
 CREATE INDEX idx_site_location_imports_site_created

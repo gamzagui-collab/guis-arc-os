@@ -38,13 +38,25 @@ export async function loadRecentLocationImports(env,siteId,limit=20){
 export async function loadLocationImportCleanupCandidates(env,siteId,limit=20){
   const bounded=Math.max(1,Math.min(20,Number(limit)||20));
   return results(await env.DB.prepare(`SELECT id,site_id,file_name,file_hash,r2_object_key,artifact_object_key,status FROM site_location_imports
-    WHERE site_id=?1 AND r2_object_key IS NOT NULL AND ((status IN ('APPLIED','INVALID','CANCELLED') AND datetime(created_at)<=datetime('now','-16 minutes')) OR (status IN ('UPLOADED','READY','FAILED') AND datetime(created_at)<=datetime('now','-1 day')))
+    WHERE site_id=?1 AND r2_object_key IS NOT NULL AND (cleanup_claim_token IS NULL OR datetime(cleanup_claimed_at)<=datetime('now','-1 day')) AND ((status IN ('APPLIED','INVALID','CANCELLED') AND datetime(created_at)<=datetime('now','-16 minutes')) OR (status IN ('UPLOADED','READY','FAILED') AND datetime(created_at)<=datetime('now','-1 day')))
     ORDER BY created_at LIMIT ?2`).bind(siteId,bounded).all());
 }
 
-export async function completeLocationImportUploadCleanup(env,{siteId,importId,objectKey,status}){
+export async function claimLocationImportUploadCleanup(env,{siteId,importId,objectKey,status,claimToken}){
+  const result=await env.DB.prepare(`UPDATE site_location_imports SET cleanup_claim_token=?5,cleanup_claimed_at=CURRENT_TIMESTAMP
+    WHERE id=?1 AND site_id=?2 AND r2_object_key=?3 AND status=?4 AND (cleanup_claim_token IS NULL OR datetime(cleanup_claimed_at)<=datetime('now','-1 day'))`).bind(importId,siteId,objectKey,status,claimToken).run();
+  return Number(result?.meta?.changes||0)===1;
+}
+
+export async function completeLocationImportUploadCleanup(env,{siteId,importId,objectKey,status,claimToken}){
   const terminal=status==="APPLIED"?"APPLIED":status==="INVALID"?"INVALID":"CANCELLED";
-  return env.DB.prepare("UPDATE site_location_imports SET r2_object_key=NULL,status=?4 WHERE id=?1 AND site_id=?2 AND r2_object_key=?3").bind(importId,siteId,objectKey,terminal).run();
+  const result=await env.DB.prepare("UPDATE site_location_imports SET r2_object_key=NULL,status=?4,cleanup_claim_token=NULL,cleanup_claimed_at=NULL WHERE id=?1 AND site_id=?2 AND r2_object_key=?3 AND status=?5 AND cleanup_claim_token=?6").bind(importId,siteId,objectKey,terminal,status,claimToken).run();
+  return Number(result?.meta?.changes||0)===1;
+}
+
+export async function releaseLocationImportUploadCleanup(env,{siteId,importId,objectKey,status,claimToken}){
+  const result=await env.DB.prepare("UPDATE site_location_imports SET cleanup_claim_token=NULL,cleanup_claimed_at=NULL WHERE id=?1 AND site_id=?2 AND r2_object_key=?3 AND status=?4 AND cleanup_claim_token=?5").bind(importId,siteId,objectKey,status,claimToken).run();
+  return Number(result?.meta?.changes||0)===1;
 }
 
 export async function clearLocationImportUploadObject(env,{siteId,importId,objectKey}){
@@ -67,7 +79,7 @@ export async function createLocationImport(env,row){
 }
 
 export async function beginLocationImportValidation(env,siteId,importId){
-  const result=await env.DB.prepare("UPDATE site_location_imports SET status='VALIDATING' WHERE id=?1 AND site_id=?2 AND status IN ('UPLOADED','INVALID','READY')").bind(importId,siteId).run();
+  const result=await env.DB.prepare("UPDATE site_location_imports SET status='VALIDATING' WHERE id=?1 AND site_id=?2 AND status IN ('UPLOADED','INVALID','READY') AND cleanup_claim_token IS NULL").bind(importId,siteId).run();
   return Number(result?.meta?.changes||0)===1;
 }
 
@@ -85,7 +97,7 @@ export async function getApplyReplay(env,{siteId,userId,importId,idempotencyKey}
 }
 
 export async function beginLocationImportApply(env,siteId,importId){
-  const result=await env.DB.prepare("UPDATE site_location_imports SET status='APPLYING' WHERE id=?1 AND site_id=?2 AND status='READY'").bind(importId,siteId).run();
+  const result=await env.DB.prepare("UPDATE site_location_imports SET status='APPLYING' WHERE id=?1 AND site_id=?2 AND status='READY' AND cleanup_claim_token IS NULL").bind(importId,siteId).run();
   return Number(result?.meta?.changes||0)===1;
 }
 
