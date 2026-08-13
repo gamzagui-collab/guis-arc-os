@@ -37,7 +37,8 @@ export async function loadRecentLocationImports(env,siteId,limit=20){
 
 export async function loadLocationImportCleanupCandidates(env,siteId,limit=20){
   const bounded=Math.max(1,Math.min(20,Number(limit)||20));
-  return results(await env.DB.prepare(`SELECT id,site_id,file_name,file_hash,r2_object_key,artifact_object_key,status FROM site_location_imports
+  return results(await env.DB.prepare(`SELECT id,site_id,file_name,file_hash,r2_object_key,artifact_object_key,status,
+    CASE WHEN status IN ('READY','FAILED','INVALID') THEN validated_at WHEN status='APPLIED' THEN applied_at ELSE created_at END cleanup_activity_at FROM site_location_imports
     WHERE site_id=?1 AND r2_object_key IS NOT NULL AND (cleanup_claim_token IS NULL OR datetime(cleanup_claimed_at)<=datetime('now','-1 day')) AND (
       (status='UPLOADED' AND datetime(created_at)<=datetime('now','-1 day')) OR
       (status IN ('READY','FAILED') AND datetime(validated_at)<=datetime('now','-1 day')) OR
@@ -48,9 +49,10 @@ export async function loadLocationImportCleanupCandidates(env,siteId,limit=20){
     ORDER BY created_at LIMIT ?2`).bind(siteId,bounded).all());
 }
 
-export async function claimLocationImportUploadCleanup(env,{siteId,importId,objectKey,status,claimToken}){
+export async function claimLocationImportUploadCleanup(env,{siteId,importId,objectKey,status,activityAt,claimToken}){
   const result=await env.DB.prepare(`UPDATE site_location_imports SET cleanup_claim_token=?5,cleanup_claimed_at=CURRENT_TIMESTAMP
-    WHERE id=?1 AND site_id=?2 AND r2_object_key=?3 AND status=?4 AND (cleanup_claim_token IS NULL OR datetime(cleanup_claimed_at)<=datetime('now','-1 day'))`).bind(importId,siteId,objectKey,status,claimToken).run();
+    WHERE id=?1 AND site_id=?2 AND r2_object_key=?3 AND status=?4 AND (cleanup_claim_token IS NULL OR datetime(cleanup_claimed_at)<=datetime('now','-1 day'))
+      AND (CASE WHEN status IN ('READY','FAILED','INVALID') THEN validated_at WHEN status='APPLIED' THEN applied_at ELSE created_at END)=?6`).bind(importId,siteId,objectKey,status,claimToken,activityAt).run();
   return Number(result?.meta?.changes||0)===1;
 }
 

@@ -501,3 +501,38 @@ test("cleanup ages READY imports from validated activity rather than upload crea
   assert.equal(candidates.some(item=>item.id==="stale-preview"),true);
   value.db.close();
 });
+
+test("stale validation owner cannot delete the upload after its invalid-state CAS loses",async()=>{
+  let state="VALIDATING",deleteCalls=0;
+  const repository={
+    getLocationImport:async()=>({id:"stale-validation",site_id:"site-a",file_hash:"unused",r2_object_key:"sites/site-a/location-imports/stale-validation/original.xlsx",status:state}),
+    beginLocationImportValidation:async()=>true,
+    updateLocationImportValidation:async()=>false
+  };
+  const env={FILES:{get:async()=>({size:4,arrayBuffer:async()=>new Uint8Array([1,2,3,4])}),delete:async()=>{deleteCalls+=1}}};
+  await assert.rejects(
+    ()=>handleSiteLocationImportRequest(request("/api/v1/admin/site-locations/upload-sessions/stale-validation/validate",{method:"POST",headers:{"x-context-version":"7"}}),env,undefined,{authorize:auth("MANAGE"),repository}),
+    error=>error.code==="LOCATION_IMPORT_STATE_INVALID"
+  );
+  assert.equal(state,"VALIDATING");
+  assert.equal(deleteCalls,0);
+});
+
+test("cleanup claim rejects a candidate revalidated after the candidate query",async()=>{
+  const value=await realEnv("MANAGE"),key="sites/site-a/location-imports/revalidated/original.xlsx";
+  value.db.exec("INSERT INTO site_location_imports(id,site_id,file_name,file_hash,r2_object_key,template_version,status,created_by,created_at,validated_at) VALUES('revalidated','site-a','revalidated.xlsx','hash','sites/site-a/location-imports/revalidated/original.xlsx','v1','READY','user-a',datetime('now','-2 days'),datetime('now','-2 days'))");
+  value.objects.set(key,Buffer.from("upload"));value.env.DB=transactionalD1(value.db);
+  const stale=(await locationRepository.loadLocationImportCleanupCandidates(value.env,"site-a",20))[0];
+  const racingRepository={
+    ...locationRepository,
+    loadLocationImportCleanupCandidates:async()=>[stale],
+    claimLocationImportUploadCleanup:async(env,claim)=>{
+      value.db.prepare("UPDATE site_location_imports SET validated_at=CURRENT_TIMESTAMP WHERE id='revalidated'").run();
+      return locationRepository.claimLocationImportUploadCleanup(env,claim);
+    }
+  };
+  await cleanupAbandonedLocationImportObjects(value.env,racingRepository,"site-a");
+  const row=value.db.prepare("SELECT status,r2_object_key,cleanup_claim_token FROM site_location_imports WHERE id='revalidated'").get();
+  assert.equal(row.status,"READY");assert.equal(row.r2_object_key,key);assert.equal(row.cleanup_claim_token,null);assert.equal(value.objects.has(key),true);
+  value.db.close();
+});
