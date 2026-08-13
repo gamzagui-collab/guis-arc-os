@@ -5,7 +5,7 @@ import crypto from "node:crypto";
 import {DatabaseSync} from "node:sqlite";
 import {handleSiteLocationImportRequest} from "../worker/modules/site-location-import.js";
 import worker from "../worker/index.js";
-import {applyLocationImport,buildLocationImportApplyStatements} from "../worker/modules/site-location-import/apply.js";
+import {applyLocationImport,buildLocationImportApplyStatements,D1_LOCATION_IMPORT_LIMITS} from "../worker/modules/site-location-import/apply.js";
 import * as locationRepository from "../worker/modules/site-location-import/repository.js";
 import {fingerprintLocationMaster} from "../worker/modules/site-location-import/diff.js";
 import {strToU8,unzipSync,zipSync} from "fflate";
@@ -30,7 +30,7 @@ function fixture({access="MANAGE",siteId="site-a",sessionSite="site-a",bytes=tem
     beginLocationImportValidation:async()=>{writes.push(["begin"]);return status==="UPLOADED"||status==="INVALID"||status==="READY"},
     updateLocationImportValidation:async(_env,row)=>{writes.push(["validation",row]);return true}
   };
-  const env={FILES:{get:async key=>key===importRow.r2_object_key?{size:objectSize,arrayBuffer:async()=>bytes}:null},ASSETS:{fetch:async()=>new Response(template)}};
+  const env={PUBLIC_ORIGIN:"https://guis-arc-integrated-dev.pages.dev",FILES:{get:async key=>key===importRow.r2_object_key?{size:objectSize,arrayBuffer:async()=>bytes}:null}};
   const deps={authorize:auth(access,siteId),repository,signUpload:async key=>`https://upload.test/${encodeURIComponent(key)}`};
   return {env,deps,writes};
 }
@@ -41,8 +41,10 @@ test("summary, template and compact history require ADMINISTRATION VIEW in the a
   assert.deepEqual(await summary.json(),{activeFixedLocationCount:4,lastSuccessfulImport:null});
   const history=await handleSiteLocationImportRequest(request("/api/v1/admin/site-locations/imports"),env,undefined,deps);
   assert.deepEqual((await history.json()).items,[{id:"old",status:"READY",added_count:2,error_count:0}]);
+  let fetchedUrl="";deps.fetchTemplate=async assetRequest=>{fetchedUrl=assetRequest.url;return new Response(template)};
   const download=await handleSiteLocationImportRequest(request("/api/v1/admin/site-locations/template"),env,undefined,deps);
-  assert.equal(download.status,200);assert.equal(download.headers.get("content-type"),"application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");assert.match(download.headers.get("content-disposition"),/attachment/);assert.deepEqual(Buffer.from(await download.arrayBuffer()),template);
+  assert.equal(fetchedUrl,"https://guis-arc-integrated-dev.pages.dev/templates/GUI_Arc_%ED%98%84%EC%9E%A5%EC%9C%84%EC%B9%98%EB%A7%88%EC%8A%A4%ED%84%B0_%EA%B8%B0%EB%B3%B8%EC%84%9C%EC%8B%9D_v1.xlsx");
+  assert.equal(download.status,200);assert.equal(download.headers.get("content-type"),"application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");assert.equal(download.headers.get("content-disposition"),"attachment; filename*=UTF-8''GUI_Arc_%ED%98%84%EC%9E%A5%EC%9C%84%EC%B9%98%EB%A7%88%EC%8A%A4%ED%84%B0_%EA%B8%B0%EB%B3%B8%EC%84%9C%EC%8B%9D_v1.xlsx");assert.deepEqual(Buffer.from(await download.arrayBuffer()),template);
 });
 
 test("VIEW cannot create an upload session",async()=>{
@@ -103,8 +105,9 @@ async function realEnv(access="MANAGE"){
   db.exec("INSERT INTO companies(id,name,status) VALUES('company-a','회사','ACTIVE'); INSERT INTO sites(id,company_id,name,status) VALUES('site-a','company-a','현장','ACTIVE'); INSERT INTO users(id,login_identifier,display_name,credential_hash,credential_salt,credential_iterations,status,context_version) VALUES('user-a','user-a','관리자','h','s',100000,'ACTIVE',7); INSERT INTO memberships(id,user_id,company_id,site_id,status,approval_status) VALUES('member-a','user-a','company-a','site-a','ACTIVE','APPROVED');");
   db.prepare("INSERT INTO sessions(id,user_id,token_hash,csrf_hash,context_version,selected_site_id,idle_expires_at,absolute_expires_at) VALUES('session-a','user-a',?,?,7,'site-a','2099-01-01','2099-01-01')").run(tokenHash,csrfHash);
   const board=db.prepare("SELECT id FROM board_definitions WHERE board_key='ADMINISTRATION'").get();db.prepare("INSERT INTO board_access_grants(id,site_id,board_id,user_id,access_level,is_active) VALUES('grant-a','site-a',?,'user-a',?,1)").run(board.id,access);
-  const DB=recordingD1(db),env={DB,FILES:{get:async()=>({size:template.length,arrayBuffer:async()=>template})},ASSETS:{fetch:async()=>new Response(template,{headers:{"content-type":"application/octet-stream"}})}};
-  return{db,env,headers:{cookie:`guis_arc_integrated_session=${token}`,"x-csrf-token":csrf,"x-context-version":"7"}};
+  const objects=new Map(),metadata=new Map(),FILES={async get(key){const bytes=objects.get(key);return bytes?{size:bytes.byteLength,arrayBuffer:async()=>bytes}:null},async head(key){const bytes=objects.get(key);return bytes?{size:bytes.byteLength,customMetadata:metadata.get(key)||{}}:null},async put(key,value,options={}){if(options.onlyIf&&objects.has(key))return null;const bytes=Buffer.from(value);objects.set(key,bytes);metadata.set(key,options.customMetadata||{});return{key,size:bytes.byteLength,customMetadata:options.customMetadata||{}}},async delete(key){for(const item of Array.isArray(key)?key:[key]){objects.delete(item);metadata.delete(item)}}};
+  const DB=recordingD1(db),env={DB,FILES,PUBLIC_ORIGIN:"https://guis-arc-integrated-dev.pages.dev"};
+  return{db,env,objects,metadata,headers:{cookie:`guis_arc_integrated_session=${token}`,"x-csrf-token":csrf,"x-context-version":"7"}};
 }
 
 test("real auth path enforces session, membership, ADMINISTRATION access, CSRF and context version with final envelopes",async()=>{
@@ -152,7 +155,7 @@ function applyHarness({diff=applyDiff([]),row={},replayed=null,failAt=0}={}){
   const repository={
     getApplyReplay:async()=>replayed,
     beginLocationImportApply:async()=>{if(status!=="READY")return false;status="APPLYING";return true},
-    markLocationImportApplyFailed:async()=>{status="FAILED"},
+    restoreLocationImportApplyReady:async()=>{status="READY"},
     buildLocationImportApplyStatements:async(args)=>args.buildStatements(env,args),
   };
   return {env,repository,executed,get batchCalls(){return batchCalls},get status(){return status},row:{id:"import-a",site_id:"site-a",status:"READY",file_hash:"file-a",base_master_fingerprint:"base-a",preview_hash:"preview-a",...row},diff};
@@ -176,7 +179,7 @@ test("apply uses exact server recomputed operations and commits location, alias,
 test("re-import reactivates IMPORT rows while omission never mutates LEGACY or MANUAL rows",async()=>{
   const diff=applyDiff([{type:"UPDATE",id:"reactivate",before:location("reactivate",{isActive:0}),after:location("reactivate",{isActive:1})}]),value=applyHarness({diff});
   await applyLocationImport({env:value.env,repository:value.repository,importRow:value.row,siteId:"site-a",userId:"user-a",idempotencyKey:"apply-2",payloadHash:"payload-b",diff,requestId:"request-b"});
-  const update=value.executed.find(item=>/UPDATE site_locations/.test(item.sql)&&item.args.includes("reactivate"));assert.ok(update);assert.ok(update.args.includes(1));
+  const payload=value.executed.flatMap(item=>item.args).filter(item=>typeof item==="string").join("\n");assert.match(payload,/"id":"reactivate"/);assert.match(payload,/"isActive":1/);
   assert.equal(value.executed.some(item=>item.args.includes("legacy-omitted")||item.args.includes("manual-omitted")),false);
 });
 
@@ -190,20 +193,20 @@ test("duplicate apply replays the stored result and mismatched payload is reject
   const mismatch=applyHarness({replayed:stored});await assert.rejects(()=>applyLocationImport({env:mismatch.env,repository:mismatch.repository,importRow:mismatch.row,siteId:"site-a",userId:"user-a",idempotencyKey:"same",payloadHash:"payload-b",diff:mismatch.diff,fileHash:"file-a",requestId:"r"}),error=>error.status===409&&error.code==="IDEMPOTENCY_PAYLOAD_MISMATCH");assert.equal(mismatch.batchCalls,0);
 });
 
-test("forced middle failure leaves no committed state and closes APPLYING separately as FAILED",async()=>{
+test("forced middle failure leaves no committed state and remains retry-ready",async()=>{
   const value=applyHarness({diff:applyDiff([{type:"ADD",id:"a",after:location("a")},{type:"ADD",id:"b",after:location("b")}]),failAt:2});
   await assert.rejects(()=>applyLocationImport({env:value.env,repository:value.repository,importRow:value.row,siteId:"site-a",userId:"user-a",idempotencyKey:"failure",payloadHash:"payload",diff:value.diff,fileHash:"file-a",requestId:"r"}),/FORCED_MID_FAILURE/);
-  assert.equal(value.batchCalls,1);assert.equal(value.status,"FAILED");
+  assert.equal(value.batchCalls,1);assert.equal(value.status,"READY");
 });
 
-test("1700-row apply stays in one atomic D1 batch with bounded multi-row statements",async()=>{
+test("1700-row apply stays in one atomic D1 batch below Free-plan query and bound-size limits",async()=>{
   const operations=Array.from({length:1700},(_,index)=>{
     const id=`loc-${String(index).padStart(4,"0")}`;
     return {type:"ADD",id,after:location(id)};
   });
   const value=applyHarness({diff:applyDiff(operations)});
   await applyLocationImport({env:value.env,repository:value.repository,importRow:value.row,siteId:"site-a",userId:"user-a",idempotencyKey:"large",payloadHash:"payload",diff:value.diff,fileHash:"file-a",requestId:"r"});
-  assert.equal(value.batchCalls,1);const inserts=value.executed.filter(item=>/INSERT INTO site_locations/.test(item.sql));assert.ok(inserts.length>1);assert.ok(inserts.every(item=>item.args.length<=90));
+  assert.equal(value.batchCalls,1);assert.ok(value.executed.some(item=>/json_each/.test(item.sql)));assert.ok(value.executed.length<=D1_LOCATION_IMPORT_LIMITS.maxStatements);assert.ok(value.executed.every(item=>item.args.length<=100));assert.ok(value.executed.flatMap(item=>item.args).filter(value=>typeof value==="string"&&value.startsWith("[")).every(value=>Buffer.byteLength(value)<=D1_LOCATION_IMPORT_LIMITS.jsonChunkBytes));
 });
 
 function transactionalD1(db,{failAt=0}={}){
@@ -267,10 +270,15 @@ test("DB revision guard failure maps to stable stale-preview 409 and remains ret
   assert.equal(db.prepare("SELECT status FROM site_location_imports WHERE id='atomic-import'").get().status,"READY");assert.equal(db.prepare("SELECT COUNT(*) count FROM site_locations WHERE id='new'").get().count,0);db.close();
 });
 
-test("status CAS guard is load-bearing and every prepared statement remains below D1 parameter cap",()=>{
-  const value=applyHarness({diff:applyDiff(Array.from({length:1700},(_,index)=>({type:"ADD",id:`x-${index}`,after:location(`x-${index}`)})))}),response={newMasterFingerprint:"post"};
+test("status CAS guard is load-bearing and 1700 locations plus aliases remain below D1 invocation limits",()=>{
+  const operations=Array.from({length:1700},(_,index)=>({type:"ADD",id:`x-${index}`,after:location(`x-${index}`)}));operations.push(...Array.from({length:1700},(_,index)=>({type:"ALIAS_ADD",id:`a-${index}`,after:alias(`a-${index}`,`x-${index}`)})));const value=applyHarness({diff:applyDiff(operations)}),response={newMasterFingerprint:"post"};
   const statements=buildLocationImportApplyStatements(value.env,{importRow:{id:"import-a",base_master_revision:0},siteId:"site-a",userId:"user-a",idempotencyKey:"key",payloadHash:"payload",diff:value.diff,requestId:"request",response});
-  assert.match(statements[0].sql,/status='READY'/);assert.match(statements[1].sql,/site_location_import_apply_guards/);assert.ok(statements.every(item=>item.args.length<=90));
+  assert.match(statements[0].sql,/status='READY'/);assert.match(statements[1].sql,/site_location_import_apply_guards/);assert.ok(statements.length<=D1_LOCATION_IMPORT_LIMITS.maxStatements);assert.ok(statements.every(item=>item.args.length<=100));
+});
+
+test("configured maximum with pathological cell widths is rejected before exceeding D1 invocation limits",()=>{
+  const wide="x".repeat(500),operations=Array.from({length:5000},(_,index)=>({type:"ADD",id:`wide-location-${index}`,after:location(`wide-location-${index}`,{canonicalKey:`${wide}-${index}`,displayName:`${wide}-${index}`})}));operations.push(...Array.from({length:10000},(_,index)=>({type:"ALIAS_ADD",id:`wide-alias-${index}`,after:alias(`wide-alias-${index}`,`wide-location-${index%5000}`,{aliasText:`${wide}-${index}`,normalizedAlias:`${wide}-${index}`})})));const value=applyHarness({diff:applyDiff(operations)}),response={newMasterFingerprint:"post"};
+  assert.throws(()=>buildLocationImportApplyStatements(value.env,{importRow:{id:"import-a",base_master_revision:0},siteId:"site-a",userId:"user-a",idempotencyKey:"key",payloadHash:"payload",diff:value.diff,requestId:"request",response}),error=>error.code==="LOCATION_IMPORT_APPLY_LIMIT");
 });
 
 test("production route fingerprint equals the committed canonical DB snapshot",async()=>{
@@ -350,4 +358,29 @@ test("forged workbook site metadata cannot select the import target",async()=>{
   assert.equal(response.status,200);assert.equal(body.status,"READY");
   response=await worker.fetch(request("/api/v1/admin/site-locations/imports/forged-site/apply",{method:"POST",body:{previewHash:body.previewHash,baseMasterFingerprint:body.baseMasterFingerprint},headers:{...value.headers,"idempotency-key":"forged-site-apply"}}),value.env);assert.equal(response.status,200,JSON.stringify(await response.clone().json()));
   const stored=value.db.prepare("SELECT id,site_id FROM site_locations WHERE id='local-root'").get();assert.equal(stored.id,"local-root");assert.equal(stored.site_id,"site-a");assert.equal(value.db.prepare("SELECT COUNT(*) count FROM site_locations WHERE site_id='site-b'").get().count,0);value.db.close();
+});
+
+test("Apply rejects an oversized R2 replacement before reading bytes",async()=>{
+  const value=await realEnv("MANAGE"),key="sites/site-a/location-imports/oversized/original.xlsx";let read=false;
+  value.db.prepare("INSERT INTO site_location_imports(id,site_id,file_name,file_hash,r2_object_key,template_version,status,base_master_fingerprint,preview_hash,base_master_revision,created_by) VALUES('oversized','site-a','x.xlsx',?,?,'v1','READY','base','preview',0,'user-a')").run(digest,key);
+  value.env.FILES.get=async()=>({size:LOCATION_IMPORT_LIMITS.compressedBytes+1,arrayBuffer:async()=>{read=true;return template}});
+  const response=await worker.fetch(request("/api/v1/admin/site-locations/imports/oversized/apply",{method:"POST",body:{previewHash:"preview",baseMasterFingerprint:"base"},headers:{...value.headers,"idempotency-key":"oversized"}}),value.env);
+  assert.equal(response.status,413);assert.equal((await response.json()).error,"LOCATION_IMPORT_OBJECT_SIZE_INVALID");assert.equal(read,false);value.db.close();
+});
+
+test("successful Apply preserves a hash-addressed artifact, removes the signed upload, and audits file hash",async()=>{
+  const value=await realEnv("MANAGE"),bytes=routeWorkbook([["artifact-root","","BUILDING","artifact/root","Artifact Root",0]]),fileHash=crypto.createHash("sha256").update(bytes).digest("hex"),key="sites/site-a/location-imports/artifact-import/original.xlsx";
+  value.db.prepare("INSERT INTO site_location_imports(id,site_id,file_name,file_hash,r2_object_key,template_version,status,created_by) VALUES('artifact-import','site-a','artifact.xlsx',?,?,'v1','UPLOADED','user-a')").run(fileHash,key);value.objects.set(key,bytes);value.env.DB=transactionalD1(value.db);
+  let response=await worker.fetch(request("/api/v1/admin/site-locations/upload-sessions/artifact-import/validate",{method:"POST",headers:value.headers}),value.env),preview=await response.json();assert.equal(preview.status,"READY");
+  response=await worker.fetch(request("/api/v1/admin/site-locations/imports/artifact-import/apply",{method:"POST",body:{previewHash:preview.previewHash,baseMasterFingerprint:preview.baseMasterFingerprint},headers:{...value.headers,"idempotency-key":"artifact-apply"}}),value.env);assert.equal(response.status,200,JSON.stringify(await response.clone().json()));
+  const row=value.db.prepare("SELECT r2_object_key,artifact_object_key FROM site_location_imports WHERE id='artifact-import'").get(),expected=`sites/site-a/location-imports/artifact-import/artifacts/${fileHash}.xlsx`;
+  assert.equal(row.r2_object_key,null);assert.equal(row.artifact_object_key,expected);assert.equal(value.objects.has(key),false);assert.deepEqual(value.objects.get(expected),Buffer.from(bytes));assert.equal(value.metadata.get(expected).sha256,fileHash);
+  const audit=JSON.parse(value.db.prepare("SELECT metadata_json FROM audit_logs WHERE action='SITE_LOCATION_IMPORT_APPLIED' ORDER BY created_at DESC LIMIT 1").get().metadata_json);assert.equal(audit.fileHash,fileHash);value.db.close();
+});
+
+test("new upload opportunistically removes abandoned temporary objects without touching artifacts",async()=>{
+  const value=await realEnv("MANAGE"),key="sites/site-a/location-imports/abandoned/original.xlsx",artifact="sites/site-a/location-imports/applied/artifacts/hash.xlsx";value.objects.set(key,Buffer.from("old"));value.objects.set(artifact,Buffer.from("keep"));
+  value.db.exec("INSERT INTO site_location_imports(id,site_id,file_name,file_hash,r2_object_key,template_version,status,created_by,created_at) VALUES('abandoned','site-a','old.xlsx','oldhash','sites/site-a/location-imports/abandoned/original.xlsx','v1','READY','user-a',datetime('now','-2 days'))");
+  const response=await handleSiteLocationImportRequest(request("/api/v1/admin/site-locations/upload-sessions",{method:"POST",body:{fileName:"new.xlsx",sizeBytes:template.length,sha256:digest},headers:value.headers}),value.env,undefined,{signUpload:async()=>"https://upload.test/new"});
+  assert.equal(response.status,201);assert.equal(value.objects.has(key),false);assert.equal(value.objects.has(artifact),true);const row=value.db.prepare("SELECT status,r2_object_key FROM site_location_imports WHERE id='abandoned'").get();assert.equal(row.status,"CANCELLED");assert.equal(row.r2_object_key,null);value.db.close();
 });

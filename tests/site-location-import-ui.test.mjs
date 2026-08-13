@@ -9,6 +9,7 @@ import {
   confirmationMessage,
   ensureApplyIntent,
   finishLocationImportAction,
+  formatLocationImportErrorPosition,
   hasLocationImportManageAccess,
   recoverApplyFailure,
   replaceLocationImportPreview,
@@ -131,4 +132,8 @@ test("screen contract provides visible action feedback, accessible errors and mo
   assert.match(css,/min-height:44px/);
   assert.match(css,/overflow-x:auto/);
   assert.match(css,/@media\(max-width:760px\)/);
+});
+
+test("validation errors render parser source sheet and row keys",()=>{
+  assert.equal(formatLocationImportErrorPosition({sourceSheetName:"01_위치마스터",sourceRow:17,field:"canonical_key"}),"01_위치마스터 / 17행 / canonical_key");
 });

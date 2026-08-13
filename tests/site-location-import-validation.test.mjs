@@ -181,3 +181,26 @@ test("repository validation enforces a bounded Phase A implementation boundary",
   assert.match(source,/PHASE_A_FORBIDDEN_IMPLEMENTATION/);
   assert.match(source,/Phase A scope violation/);
 });
+
+test("validation rejects empty stable fields and invalid sort orders",()=>{
+  const cases=[
+    [workbook([location("")]),"LOCATION_IMPORT_FIELD_REQUIRED","location_id"],
+    [workbook([location("x","","BUILDING","")]),"LOCATION_IMPORT_FIELD_REQUIRED","canonical_key"],
+    [workbook([location("x","","BUILDING","key/x","")]),"LOCATION_IMPORT_FIELD_REQUIRED","display_name"],
+    [workbook([location("x","","BUILDING","key/x","x",-1)]),"LOCATION_IMPORT_SORT_ORDER_INVALID","sort_order"],
+    [workbook([location("x","","BUILDING","key/x","x",1.5)]),"LOCATION_IMPORT_SORT_ORDER_INVALID","sort_order"],
+    [workbook([location("root")],[alias("","root","alias")]),"LOCATION_IMPORT_FIELD_REQUIRED","alias_id"],
+    [workbook([location("root")],[alias("a","root","")]),"LOCATION_IMPORT_FIELD_REQUIRED","alias_text"]
+  ];
+  for(const [book,code,field] of cases){const result=validate(book);assert.equal(result.applyAllowed,false,field);assert.ok(result.errors.some(item=>item.code===code&&item.field===field),field)}
+});
+
+test("omitted IMPORT parents remain active when an active retained child depends on them",()=>{
+  const snapshot=current([storedLocation("root"),storedLocation("import-parent",{parent_id:"root",location_type:"FLOOR"}),storedLocation("manual-child",{parent_id:"import-parent",location_type:"ROOM",source:"MANUAL"})]);
+  const result=validate(workbook([location("root")]),snapshot);assert.equal(result.applyAllowed,false);assert.ok(codes(result).includes("LOCATION_IMPORT_PARENT_HAS_RETAINED_CHILD"));
+  const diff=buildLocationImportDiff({siteId,normalized:result.normalized,current:snapshot});assert.ok(diff.operations.some(item=>item.type==="ERROR"&&item.id==="import-parent"));assert.equal(diff.operations.some(item=>item.type==="INACTIVE"&&item.id==="import-parent"),false);
+});
+
+test("Import cannot claim or update MANUAL and LEGACY alias identities",()=>{
+  for(const source of ["MANUAL","LEGACY"]){const snapshot=current([storedLocation("root")],[storedAlias("protected","root",{source,alias_text:"Protected",normalized_alias:"protected"})]),result=validate(workbook([location("root")],[alias("protected","root","Protected")]),snapshot);assert.equal(result.applyAllowed,false,source);assert.ok(codes(result).includes("LOCATION_IMPORT_IDENTITY_REUSED"),source);const diff=buildLocationImportDiff({siteId,normalized:result.normalized,current:snapshot});assert.ok(diff.operations.some(item=>item.type==="ERROR"&&item.id==="protected"),source);assert.equal(diff.operations.some(item=>item.type==="ALIAS_UPDATE"&&item.id==="protected"),false,source)}
+});

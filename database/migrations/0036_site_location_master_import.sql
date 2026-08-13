@@ -4,6 +4,16 @@ ALTER TABLE site_locations ADD COLUMN canonical_key TEXT;
 ALTER TABLE site_locations ADD COLUMN source TEXT NOT NULL DEFAULT 'LEGACY'
   CHECK(source IN ('LEGACY','MANUAL','IMPORT'));
 
+CREATE TRIGGER site_locations_import_canonical_key_insert
+BEFORE INSERT ON site_locations
+WHEN NEW.source='IMPORT' AND trim(COALESCE(NEW.canonical_key,''))=''
+BEGIN SELECT RAISE(ABORT,'SITE_LOCATION_IMPORT_CANONICAL_KEY_REQUIRED'); END;
+
+CREATE TRIGGER site_locations_import_canonical_key_update
+BEFORE UPDATE OF canonical_key,source ON site_locations
+WHEN NEW.source='IMPORT' AND trim(COALESCE(NEW.canonical_key,''))=''
+BEGIN SELECT RAISE(ABORT,'SITE_LOCATION_IMPORT_CANONICAL_KEY_REQUIRED'); END;
+
 CREATE UNIQUE INDEX idx_site_locations_site_canonical_key
 ON site_locations(site_id,canonical_key)
 WHERE canonical_key IS NOT NULL;
@@ -43,6 +53,7 @@ CREATE TABLE site_location_imports (
   file_name TEXT NOT NULL,
   file_hash TEXT NOT NULL,
   r2_object_key TEXT,
+  artifact_object_key TEXT,
   template_version TEXT NOT NULL,
   status TEXT NOT NULL
     CHECK(status IN ('UPLOADED','VALIDATING','INVALID','READY','APPLYING','APPLIED','FAILED','CANCELLED')),

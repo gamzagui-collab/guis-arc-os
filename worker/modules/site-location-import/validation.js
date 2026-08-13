@@ -9,6 +9,14 @@ const value=(row,camel,snake)=>row?.[camel]??row?.[snake];
 const active=row=>Number(value(row,"isActive","is_active"))===1;
 const error=(code,row,field)=>({code,field,sourceSheetName:row?.sourceSheetName??null,sourceRow:row?.sourceRow??null});
 
+export function blockedLocationInactivationIds(siteId,incomingIds,currentLocations=[]){
+  const activeRows=currentLocations.filter(row=>value(row,"siteId","site_id")===siteId&&active(row));
+  const candidates=new Set(activeRows.filter(row=>value(row,"source","source")==="IMPORT"&&!incomingIds.has(value(row,"id","id"))).map(row=>value(row,"id","id")));
+  const retained=new Set(activeRows.filter(row=>!candidates.has(value(row,"id","id"))).map(row=>value(row,"id","id")));
+  let changed=true;while(changed){changed=false;for(const row of activeRows){const id=value(row,"id","id"),parentId=value(row,"parentId","parent_id");if(candidates.has(id)&&activeRows.some(child=>value(child,"parentId","parent_id")===id&&retained.has(value(child,"id","id")))){candidates.delete(id);retained.add(id);changed=true}if(parentId&&retained.has(id)&&candidates.has(parentId)){candidates.delete(parentId);retained.add(parentId);changed=true}}}
+  return new Set(activeRows.filter(row=>value(row,"source","source")==="IMPORT"&&!incomingIds.has(value(row,"id","id"))&&retained.has(value(row,"id","id"))).map(row=>value(row,"id","id")));
+}
+
 export function validateLocationImport({siteId,workbook,current={},identityGuards={}}){
   const errors=[];
   const locations=Array.isArray(workbook?.locations)?workbook.locations:[];
@@ -27,13 +35,15 @@ export function validateLocationImport({siteId,workbook,current={},identityGuard
   const normalizedLocations=locations.map(row=>({
     id:String(row.locationId??"").trim(),siteId,parentId:String(row.parentLocationId??"").trim()||null,
     locationType:String(row.locationType??"").trim().toUpperCase(),canonicalKey:String(row.canonicalKey??"").trim(),
-    displayName:String(row.displayName??"").trim(),sortOrder:row.sortOrder,sourceSheetName:row.sourceSheetName,sourceRow:row.sourceRow
+    displayName:String(row.displayName??"").trim(),sortOrder:Number(row.sortOrder),sourceSheetName:row.sourceSheetName,sourceRow:row.sourceRow
   }));
   const incomingById=new Map();
   const incomingByKey=new Map();
   for(const row of normalizedLocations){
-    if(incomingById.has(row.id))errors.push(error("LOCATION_IMPORT_LOCATION_ID_DUPLICATE",row,"location_id"));else incomingById.set(row.id,row);
-    if(incomingByKey.has(row.canonicalKey))errors.push(error("LOCATION_IMPORT_CANONICAL_KEY_DUPLICATE",row,"canonical_key"));else incomingByKey.set(row.canonicalKey,row);
+    if(!row.id)errors.push(error("LOCATION_IMPORT_FIELD_REQUIRED",row,"location_id"));else if(incomingById.has(row.id))errors.push(error("LOCATION_IMPORT_LOCATION_ID_DUPLICATE",row,"location_id"));else incomingById.set(row.id,row);
+    if(!row.canonicalKey)errors.push(error("LOCATION_IMPORT_FIELD_REQUIRED",row,"canonical_key"));else if(incomingByKey.has(row.canonicalKey))errors.push(error("LOCATION_IMPORT_CANONICAL_KEY_DUPLICATE",row,"canonical_key"));else incomingByKey.set(row.canonicalKey,row);
+    if(!row.displayName)errors.push(error("LOCATION_IMPORT_FIELD_REQUIRED",row,"display_name"));
+    if(!Number.isFinite(row.sortOrder)||!Number.isInteger(row.sortOrder)||row.sortOrder<0)errors.push(error("LOCATION_IMPORT_SORT_ORDER_INVALID",row,"sort_order"));
     if(!TYPES.has(row.locationType))errors.push(error("LOCATION_IMPORT_TYPE_UNSUPPORTED",row,"location_type"));
     if(foreignLocationIds.has(row.id))errors.push(error("LOCATION_IMPORT_CROSS_SITE_REFERENCE",row,"location_id"));
     if(row.parentId&&foreignLocationIds.has(row.parentId))errors.push(error("LOCATION_IMPORT_CROSS_SITE_REFERENCE",row,"parent_location_id"));
@@ -62,11 +72,14 @@ export function validateLocationImport({siteId,workbook,current={},identityGuard
   const colors=new Map();
   const visit=id=>{const color=colors.get(id);if(color===1)return true;if(color===2)return false;colors.set(id,1);const parent=graph.get(id)?.parentId;if(parent&&graph.has(parent)&&visit(parent))return true;colors.set(id,2);return false;};
   if([...graph.keys()].some(visit))errors.push(error("LOCATION_IMPORT_PARENT_CYCLE",null,"parent_location_id"));
+  const incomingIds=new Set(normalizedLocations.map(row=>row.id).filter(Boolean));
+  for(const id of blockedLocationInactivationIds(siteId,incomingIds,existingLocations))errors.push(error("LOCATION_IMPORT_PARENT_HAS_RETAINED_CHILD",byExistingId.get(id),"location_id"));
 
   const normalizedAliases=aliases.map(row=>({id:String(row.aliasId??"").trim(),siteId,locationId:String(row.locationId??"").trim(),aliasText:String(row.aliasText??"").trim(),normalizedAlias:normalizeAlias(row.aliasText??""),aliasType:String(row.aliasType??"").trim().toUpperCase(),sourceSheetName:row.sourceSheetName,sourceRow:row.sourceRow}));
   const aliasIds=new Set(),aliasTexts=new Map();
   for(const row of normalizedAliases){
-    if(aliasIds.has(row.id))errors.push(error("LOCATION_IMPORT_IDENTITY_REUSED",row,"alias_id"));aliasIds.add(row.id);
+    if(!row.id)errors.push(error("LOCATION_IMPORT_FIELD_REQUIRED",row,"alias_id"));else if(aliasIds.has(row.id))errors.push(error("LOCATION_IMPORT_IDENTITY_REUSED",row,"alias_id"));aliasIds.add(row.id);
+    if(!row.aliasText)errors.push(error("LOCATION_IMPORT_FIELD_REQUIRED",row,"alias_text"));
     if(foreignAliasIds.has(row.id))errors.push(error("LOCATION_IMPORT_CROSS_SITE_REFERENCE",row,"alias_id"));
     if(foreignLocationIds.has(row.locationId))errors.push(error("LOCATION_IMPORT_CROSS_SITE_REFERENCE",row,"location_id"));
     if(aliasTexts.has(row.normalizedAlias)&&aliasTexts.get(row.normalizedAlias)!==row.id)errors.push(error("LOCATION_IMPORT_IDENTITY_REUSED",row,"alias_text"));else aliasTexts.set(row.normalizedAlias,row.id);
@@ -77,6 +90,7 @@ export function validateLocationImport({siteId,workbook,current={},identityGuard
     if(!ALIAS_TYPES.has(row.aliasType))errors.push(error("LOCATION_IMPORT_TYPE_UNSUPPORTED",row,"alias_type"));
     const old=existingAliases.find(item=>value(item,"id","id")===row.id);
     if(old&&value(old,"siteId","site_id")!==siteId)errors.push(error("LOCATION_IMPORT_CROSS_SITE_REFERENCE",row,"alias_id"));
+    else if(old&&value(old,"source","source")!=="IMPORT")errors.push(error("LOCATION_IMPORT_IDENTITY_REUSED",row,"alias_id"));
     else if(old&&(value(old,"normalizedAlias","normalized_alias")!==row.normalizedAlias||value(old,"locationId","location_id")!==row.locationId))errors.push(error("LOCATION_IMPORT_IDENTITY_REUSED",row,"alias_id"));
     const normalizedOwner=existingAliases.find(item=>value(item,"siteId","site_id")===siteId&&value(item,"normalizedAlias","normalized_alias")===row.normalizedAlias);
     if(normalizedOwner&&value(normalizedOwner,"id","id")!==row.id)errors.push(error("LOCATION_IMPORT_IDENTITY_REUSED",row,"alias_text"));

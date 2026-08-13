@@ -1,17 +1,18 @@
 const results=value=>value?.results??[];
 const unique=values=>[...new Set(values.map(value=>String(value??"").trim()).filter(Boolean))];
-const chunks=(values,size=80)=>Array.from({length:Math.ceil(values.length/size)},(_,index)=>values.slice(index*size,(index+1)*size));
+const encoder=new TextEncoder(),IDENTITY_JSON_BYTES=1536*1024;
+const jsonChunks=values=>{const out=[];let rows=[],size=2;const flush=()=>{if(rows.length){out.push(JSON.stringify(rows));rows=[];size=2}};for(const value of values){const encoded=JSON.stringify(value),bytes=encoder.encode(encoded).byteLength;if(rows.length&&size+bytes+1>IDENTITY_JSON_BYTES)flush();rows.push(value);size+=bytes+(rows.length>1?1:0)}flush();return out};
 
 export async function loadLocationImportIdentityGuards(env,siteId,workbook={}){
   const locationIds=unique((workbook.locations??[]).map(row=>row.locationId));
   const aliasIds=unique((workbook.aliases??[]).map(row=>row.aliasId));
   const locationReferences=unique([...locationIds,...(workbook.locations??[]).map(row=>row.parentLocationId),...(workbook.aliases??[]).map(row=>row.locationId)]);
-  const statements=[
-    ...chunks(locationReferences).map(values=>env.DB.prepare(`SELECT id FROM site_locations WHERE site_id<>?1 AND id IN (${values.map((_,index)=>`?${index+2}`).join(",")})`).bind(siteId,...values)),
-    ...chunks(aliasIds).map(values=>env.DB.prepare(`SELECT id FROM site_location_aliases WHERE site_id<>?1 AND id IN (${values.map((_,index)=>`?${index+2}`).join(",")})`).bind(siteId,...values))
+  const locationChunks=jsonChunks(locationReferences),aliasChunks=jsonChunks(aliasIds),statements=[
+    ...locationChunks.map(values=>env.DB.prepare("SELECT id FROM site_locations WHERE site_id<>?1 AND id IN (SELECT value FROM json_each(?2))").bind(siteId,values)),
+    ...aliasChunks.map(values=>env.DB.prepare("SELECT id FROM site_location_aliases WHERE site_id<>?1 AND id IN (SELECT value FROM json_each(?2))").bind(siteId,values))
   ];
   const rows=statements.length?await env.DB.batch(statements):[];
-  const locationStatementCount=chunks(locationReferences).length;
+  const locationStatementCount=locationChunks.length;
   return {
     foreignLocationIds:new Set(rows.slice(0,locationStatementCount).flatMap(results).map(row=>row.id)),
     foreignAliasIds:new Set(rows.slice(locationStatementCount).flatMap(results).map(row=>row.id))
@@ -32,6 +33,22 @@ export async function loadRecentLocationImports(env,siteId,limit=20){
   return results(await env.DB.prepare(`SELECT i.id,i.file_name,i.file_hash,i.template_version,i.status,i.created_at,i.validated_at,i.applied_at,
     i.added_count,i.updated_count,i.unchanged_count,i.inactivated_count,i.alias_added_count,i.alias_updated_count,i.alias_inactivated_count,i.error_count,
     u.display_name created_by_name FROM site_location_imports i LEFT JOIN users u ON u.id=i.created_by WHERE i.site_id=?1 ORDER BY i.created_at DESC LIMIT ?2`).bind(siteId,bounded).all());
+}
+
+export async function loadLocationImportCleanupCandidates(env,siteId,limit=20){
+  const bounded=Math.max(1,Math.min(20,Number(limit)||20));
+  return results(await env.DB.prepare(`SELECT id,site_id,file_name,file_hash,r2_object_key,artifact_object_key,status FROM site_location_imports
+    WHERE site_id=?1 AND r2_object_key IS NOT NULL AND (status='APPLIED' OR (status IN ('UPLOADED','INVALID','READY','FAILED','CANCELLED') AND datetime(created_at)<=datetime('now','-1 day')))
+    ORDER BY created_at LIMIT ?2`).bind(siteId,bounded).all());
+}
+
+export async function completeLocationImportUploadCleanup(env,{siteId,importId,objectKey,status}){
+  const terminal=status==="APPLIED"?"APPLIED":"CANCELLED";
+  return env.DB.prepare("UPDATE site_location_imports SET r2_object_key=NULL,status=?4 WHERE id=?1 AND site_id=?2 AND r2_object_key=?3").bind(importId,siteId,objectKey,terminal).run();
+}
+
+export async function clearLocationImportUploadObject(env,{siteId,importId,objectKey}){
+  return env.DB.prepare("UPDATE site_location_imports SET r2_object_key=NULL WHERE id=?1 AND site_id=?2 AND r2_object_key=?3").bind(importId,siteId,objectKey).run();
 }
 
 export async function countActiveFixedLocations(env,siteId){
@@ -72,6 +89,6 @@ export async function beginLocationImportApply(env,siteId,importId){
   return Number(result?.meta?.changes||0)===1;
 }
 
-export async function markLocationImportApplyFailed(env,siteId,importId){
-  return env.DB.prepare("UPDATE site_location_imports SET status='FAILED' WHERE id=?1 AND site_id=?2 AND status='READY'").bind(importId,siteId).run();
+export async function restoreLocationImportApplyReady(env,siteId,importId){
+  return env.DB.prepare("UPDATE site_location_imports SET status='READY' WHERE id=?1 AND site_id=?2 AND status IN ('READY','APPLYING')").bind(importId,siteId).run();
 }
