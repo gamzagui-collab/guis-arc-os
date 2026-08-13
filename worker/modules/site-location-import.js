@@ -42,7 +42,11 @@ export async function handleSiteLocationImportRequest(request,env,url=new URL(re
     const auth=await authorizeRequest(request,env,{required:"VIEW"});return json({items:await repository.loadRecentLocationImports(env,auth.siteId,20)});
   }
   if(method==="GET"&&path==="/api/v1/admin/site-locations/template"){
-    await authorizeRequest(request,env,{required:"VIEW"});return new Response(null,{status:302,headers:{location:`/templates/${encodeURIComponent(TEMPLATE)}`,"content-disposition":`attachment; filename*=UTF-8''${encodeURIComponent(TEMPLATE)}`,"cache-control":"private, no-store"}});
+    await authorizeRequest(request,env,{required:"VIEW"});if(!env.ASSETS?.fetch)throw new ApiError(503,"LOCATION_IMPORT_TEMPLATE_UNAVAILABLE","기본서식을 불러올 수 없습니다.");
+    const assetUrl=new URL(request.url);assetUrl.pathname=`/templates/${encodeURIComponent(TEMPLATE)}`;assetUrl.search="";
+    const asset=await env.ASSETS.fetch(new Request(assetUrl,{method:"GET"}));if(!asset.ok)throw new ApiError(503,"LOCATION_IMPORT_TEMPLATE_UNAVAILABLE","기본서식을 불러올 수 없습니다.");
+    const headers=new Headers(asset.headers);headers.set("content-type",MIME);headers.set("content-disposition",`attachment; filename*=UTF-8''${encodeURIComponent(TEMPLATE)}`);headers.set("cache-control","private, no-store");
+    return new Response(asset.body,{status:asset.status,headers});
   }
   if(method==="POST"&&path==="/api/v1/admin/site-locations/upload-sessions"){
     const auth=await authorizeRequest(request,env,{required:"MANAGE",write:true}),body=await parseJson(request),fileName=safeName(body.fileName),sizeBytes=Number(body.sizeBytes),fileHash=String(body.sha256||"").toLowerCase();
@@ -55,17 +59,20 @@ export async function handleSiteLocationImportRequest(request,env,url=new URL(re
   if(method==="POST"&&validation){
     const auth=await authorizeRequest(request,env,{required:"MANAGE",write:true}),row=await repository.getLocationImport(env,auth.siteId,validation[1]);
     if(!row)throw new ApiError(404,"LOCATION_IMPORT_NOT_FOUND","현재 현장의 업로드를 찾을 수 없습니다.");
+    if(!["UPLOADED","INVALID","READY"].includes(row.status))throw new ApiError(409,"LOCATION_IMPORT_STATE_INVALID","현재 상태에서는 다시 검증할 수 없습니다.");
     if(!String(row.r2_object_key||"").startsWith(`sites/${auth.siteId}/location-imports/${row.id}/`))throw new ApiError(409,"LOCATION_IMPORT_OBJECT_SCOPE_INVALID","업로드 파일의 현장 범위가 올바르지 않습니다.");
-    const object=await env.FILES.get(row.r2_object_key);if(!object)throw new ApiError(409,"LOCATION_IMPORT_OBJECT_MISSING","업로드 파일을 찾을 수 없습니다.");
+    if(!await repository.beginLocationImportValidation(env,auth.siteId,row.id))throw new ApiError(409,"LOCATION_IMPORT_STATE_INVALID","업로드 상태가 변경되었습니다. 새로고침해 주세요.");
+    const object=await env.FILES.get(row.r2_object_key);if(!object){await repository.updateLocationImportValidation(env,{id:row.id,siteId:auth.siteId,status:"INVALID",counts:{error:1}});throw new ApiError(409,"LOCATION_IMPORT_OBJECT_MISSING","업로드 파일을 찾을 수 없습니다.");}
+    const objectSize=Number(object.size);if(!Number.isInteger(objectSize)||objectSize<=0||objectSize>LOCATION_IMPORT_LIMITS.compressedBytes){await repository.updateLocationImportValidation(env,{id:row.id,siteId:auth.siteId,status:"INVALID",counts:{error:1}});throw new ApiError(413,"LOCATION_IMPORT_OBJECT_SIZE_INVALID","업로드된 파일 크기가 허용 범위를 벗어났습니다.");}
     const bytes=await object.arrayBuffer(),signature=new Uint8Array(bytes,0,Math.min(4,bytes.byteLength));
-    if(bytes.byteLength<4||signature[0]!==0x50||signature[1]!==0x4b){await repository.updateLocationImportValidation(env,{id:row.id,siteId:auth.siteId,status:"INVALID",counts:{error:1}});throw new ApiError(400,"LOCATION_XLSX_INVALID","올바른 XLSX 파일이 아닙니다.");}
+    if(bytes.byteLength!==objectSize||signature[0]!==0x50||signature[1]!==0x4b||signature[2]!==0x03||signature[3]!==0x04){await repository.updateLocationImportValidation(env,{id:row.id,siteId:auth.siteId,status:"INVALID",counts:{error:1}});throw new ApiError(400,"LOCATION_XLSX_INVALID","올바른 XLSX 파일이 아닙니다.");}
     if(await hash(bytes)!==row.file_hash){await repository.updateLocationImportValidation(env,{id:row.id,siteId:auth.siteId,status:"INVALID",counts:{error:1}});throw new ApiError(409,"LOCATION_IMPORT_HASH_MISMATCH","업로드 파일 확인값이 일치하지 않습니다.");}
     let workbook;try{workbook=parseSiteLocationWorkbook(bytes)}catch(error){await repository.updateLocationImportValidation(env,{id:row.id,siteId:auth.siteId,status:"INVALID",counts:{error:1}});throw new ApiError(400,error.code||"LOCATION_XLSX_INVALID",error.message)}
     const current=await repository.loadLocationMasterSnapshot(env,auth.siteId),checked=validateLocationImport({siteId:auth.siteId,workbook,current}),diff=buildLocationImportDiff({siteId:auth.siteId,normalized:checked.normalized,current});
     const errors=[...checked.errors,...diff.operations.filter(item=>item.type==="ERROR")].slice(0,100);
     const counts={...diff.counts,error:checked.errors.length+diff.counts.error};
     const status=errors.length?"INVALID":"READY";
-    await repository.updateLocationImportValidation(env,{id:row.id,siteId:auth.siteId,status,baseMasterFingerprint:diff.baseMasterFingerprint,previewHash:diff.previewHash,counts});
+    if(!await repository.updateLocationImportValidation(env,{id:row.id,siteId:auth.siteId,status,baseMasterFingerprint:diff.baseMasterFingerprint,previewHash:diff.previewHash,counts}))throw new ApiError(409,"LOCATION_IMPORT_STATE_INVALID","검증 중 업로드 상태가 변경되었습니다.");
     return json({importId:row.id,status,applyAllowed:status==="READY",fileHash:row.file_hash,baseMasterFingerprint:diff.baseMasterFingerprint,previewHash:diff.previewHash,counts,operations:diff.operations.filter(item=>item.type!=="ERROR"),errors});
   }
   return null;

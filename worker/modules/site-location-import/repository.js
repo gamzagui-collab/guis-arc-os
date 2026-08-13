@@ -30,8 +30,14 @@ export async function createLocationImport(env,row){
   return row;
 }
 
+export async function beginLocationImportValidation(env,siteId,importId){
+  const result=await env.DB.prepare("UPDATE site_location_imports SET status='VALIDATING' WHERE id=?1 AND site_id=?2 AND status IN ('UPLOADED','INVALID','READY')").bind(importId,siteId).run();
+  return Number(result?.meta?.changes||0)===1;
+}
+
 export async function updateLocationImportValidation(env,row){
-  await env.DB.prepare(`UPDATE site_location_imports SET status=?3,base_master_fingerprint=?4,preview_hash=?5,validated_at=CURRENT_TIMESTAMP,
+  const result=await env.DB.prepare(`UPDATE site_location_imports SET status=?3,base_master_fingerprint=?4,preview_hash=?5,validated_at=CURRENT_TIMESTAMP,
     added_count=?6,updated_count=?7,unchanged_count=?8,inactivated_count=?9,alias_added_count=?10,alias_updated_count=?11,alias_inactivated_count=?12,error_count=?13
-    WHERE id=?1 AND site_id=?2`).bind(row.id,row.siteId,row.status,row.baseMasterFingerprint??null,row.previewHash??null,row.counts.added??0,row.counts.updated??0,row.counts.unchanged??0,row.counts.inactivated??0,row.counts.aliasAdded??0,row.counts.aliasUpdated??0,row.counts.aliasInactivated??0,row.counts.error??0).run();
+    WHERE id=?1 AND site_id=?2 AND status='VALIDATING'`).bind(row.id,row.siteId,row.status,row.baseMasterFingerprint??null,row.previewHash??null,row.counts.added??0,row.counts.updated??0,row.counts.unchanged??0,row.counts.inactivated??0,row.counts.aliasAdded??0,row.counts.aliasUpdated??0,row.counts.aliasInactivated??0,row.counts.error??0).run();
+  return Number(result?.meta?.changes||0)===1;
 }
