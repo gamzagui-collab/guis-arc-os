@@ -89,3 +89,10 @@
 3. 사용자 화면의 `UNCLASSIFIED` 내부 enum과 상태 이력 사유 `Issue created without assignment`를 한국어 표시값으로 변환하는 최소 UI Hotfix를 검토한다.
 4. 브라우저 제어 세션 연결을 복구한 뒤 Console·Network 자동 증거 수집을 재실행한다.
 5. npm 의존성 취약점 3건은 기능 변경과 분리해 보안 검토한다. 자동 `npm audit fix`는 실행하지 않는다.
+# Current next task (2026-08-14)
+
+- Phase A Simple Location List: `INTEGRATION_VERIFIED`.
+- Phase B Issue Location Lookup-only: `INTEGRATION_VERIFIED`.
+- Next: Phase C Final Description to Location Resolver.
+- Phase C: `NOT_STARTED`; begin only after Source Review approval.
+- Production: `NOT_CHANGED`.

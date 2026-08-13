@@ -18,8 +18,8 @@ const read=file=>fs.readFileSync(file,"utf8");
 test("admin route keeps its existing shell and loads the location import module",()=>{
   const app=read("apps/web/assets/app.js"),admin=read("apps/web/assets/integrated-admin.js"),html=read("apps/web/index.html");
   assert.match(app,/\/admin\/site-locations/);
-  assert.match(admin,/site-location-import\.js\?v=0\.27\.1-r19/);
-  assert.match(html,/site-location-import\.css\?v=0\.27\.1-r19/);
+  assert.match(admin,/site-location-import\.js\?v=0\.27\.1-r20/);
+  assert.match(html,/site-location-import\.css\?v=0\.27\.1-r20/);
 });
 
 test("state machine blocks duplicate requests and Apply needs a clean READY preview",()=>{

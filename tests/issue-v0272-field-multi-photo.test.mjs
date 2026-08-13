@@ -90,7 +90,7 @@ test("new Issue explicit view navigation overrides the saved Issue mode",()=>{
 
 test("speech result preserves parser snapshot without selecting FLOOR or ROOM",()=>{const createFlow=ui.slice(ui.indexOf("async function createV3"),ui.indexOf("async function detail")),onresult=createFlow.slice(createFlow.indexOf("recognition.onresult"),createFlow.indexOf("recognition.onerror"));assert.match(onresult,/parserSnapshot=\{building:rawParsed\.buildingLabel,floor:rawParsed\.floorLabel,unit:rawParsed\.unitLabel,room:rawParsed\.roomLabel/);assert.doesNotMatch(onresult,/parsed\.floorLabel|addAndSelect|dispatchEvent/);assert.match(onresult,/description\.value=rawTranscript/)})
 
-test("Issue create removes the r16 manual fallback and keeps canonical or empty location payloads",()=>{const createFlow=ui.slice(ui.indexOf("async function createV3"),ui.indexOf("async function detail"));assert.doesNotMatch(createFlow,/manualLocationText|manual-location|setManualLocationMode|leaveManualLocation/);assert.match(createFlow,/payload\.set\("location",canonicalLocationText\)/);for(const id of ["buildingLocationId","floorLocationId","unitLocationId"])assert.match(createFlow,new RegExp(`payload\\.set\\("${id}",canonicalLocationId`));assert.match(createFlow,/payload\.set\("roomLocationId",roomOption\?\.textContent==="기타"\?"":canonicalLocationId\(roomOption\)\)/);assert.match(worker,/const location=qText\(form\.get\("location"\),200,"LOCATION",false\)/);assert.match(worker,/validateIssueLocationSelection\(\{building,floor,unit,room\}\);const location=/)})
+test("Issue create removes manual fallback and submits canonical IDs only",()=>{const createFlow=ui.slice(ui.indexOf("async function createV3"),ui.indexOf("async function detail"));assert.doesNotMatch(createFlow,/manualLocationText|manual-location|setManualLocationMode|leaveManualLocation|unitOther|areaOther/);for(const field of ["buildingLabel","floorLabel","unitLabel","roomLabel"])assert.doesNotMatch(createFlow,new RegExp(`payload\\.set\\("${field}"`));assert.match(createFlow,/payload\.set\("location",canonicalLocationText\)/);for(const id of ["buildingLocationId","floorLocationId","unitLocationId"])assert.match(createFlow,new RegExp(`payload\\.set\\("${id}",canonicalLocationId`));assert.match(createFlow,/payload\.set\("roomLocationId",roomOption\?\.textContent==="기타"\?"":canonicalLocationId\(roomOption\)\)/);assert.match(worker,/const location=qText\(form\.get\("location"\),200,"LOCATION",false\)/);assert.match(worker,/validateIssueLocationSelection\(\{building,floor,unit,room\}\);const location=/)})
 
 test("site verifier UI calls the dedicated evidence endpoint",()=>{
  assert.match(ui,/현장확인 완료/);
@@ -122,8 +122,8 @@ test("remaining field workflow blockers are wired through existing contracts",()
  for(const token of["creationMediaCount","COUNT(*) FROM issue_media","issue-create-from-photo","fieldDraftChoice","bindActionPhotoQueue","renderActionSuccess","조치사진","completionMethod:\"PHOTO_VERIFIED\""])assert.ok((worker+ui).includes(token),token);
  assert.match(worker,/media_role='CREATION'.*status='ACTIVE'/);
  assert.match(ui,/floorLocationId/);
- assert.match(ui,/floorLabel/);
- assert.match(worker,/roomParentId/);
+ assert.doesNotMatch(ui.slice(ui.indexOf("async function createV3"),ui.indexOf("async function detail")),/payload\.set\("floorLabel"/);
+ assert.doesNotMatch(worker.slice(worker.indexOf("async function createIssue"),worker.indexOf("async function recordAssigneeResponse")),/roomParentId|allowDynamic/);
  assert.match(ui,/action\.elements\.photo/);
 });
 

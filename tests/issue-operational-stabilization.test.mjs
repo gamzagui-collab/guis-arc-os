@@ -297,7 +297,7 @@ test("dynamic units and whole-room options are scoped to their canonical parent"
   db.close();
 });
 
-test("new Issue UI applies one location policy for direct and Today source routes",()=>{
+test("new Issue UI applies one canonical lookup-only policy for direct and Today source routes",()=>{
   const ui=read("apps/web/assets/issues.js"),flow=ui.slice(ui.indexOf("async function createV3"),ui.indexOf("async function detail"));
   assert.match(flow,/name="floor"/);
   assert.doesNotMatch(flow,/name="area" required/);
@@ -307,7 +307,8 @@ test("new Issue UI applies one location policy for direct and Today source route
   assert.match(flow,/locationOptions\(locations\.areas/);
   assert.doesNotMatch(flow,/name="building" required/);
   assert.match(flow,/unit\.required=false/);
-  assert.match(flow,/areaLabel=normalizedAreaLabel/);
+  assert.match(flow,/areaLabel=roomOption\?\.value&&roomOption\?\.textContent!=="기타"\?roomOption\.textContent:""/);
+  assert.doesNotMatch(flow,/unitOther|areaOther|value="DIRECT"|payload\.set\("(?:building|floor|unit|room)Label"/);
   assert.match(flow,/floorLocationId/);
   assert.match(flow,/sourcePayload=data\.sourceContext/);
   assert.match(flow,/입력한 위치와 내용은 보존됩니다/);
@@ -406,7 +407,8 @@ test("location management and multi-trade schema preserve audit and history",()=
   db.exec(read("database/migrations/0007_issue_mobile_flow.sql"));
   assert.ok(db.prepare("SELECT 1 FROM permissions WHERE code='issue.manage_locations'").get());
   assert.ok(db.prepare("SELECT 1 FROM company_site_contract_trades WHERE trade_code='DIRECT' AND status='ACTIVE'").get());
-  for(const token of ["ISSUE_LOCATION_CREATED","ISSUE_LOCATION_DEACTIVATED","ISSUE_LOCATION_DELETED","ISSUE_CONTRACT_TRADES_UPDATED"])assert.match(worker,new RegExp(token));
+  for(const token of ["ISSUE_LOCATION_CREATED","ISSUE_LOCATION_DEACTIVATED","ISSUE_CONTRACT_TRADES_UPDATED"])assert.match(worker,new RegExp(token));
+  assert.doesNotMatch(worker,/ISSUE_LOCATION_DELETED/);
 });
 
 test("resolveIssueLocation ROOM는 동일 building 기준 기존값 재사용 및 동적 생성",async()=>{
@@ -439,11 +441,11 @@ test("resolveIssueLocation ROOM는 동일 building 기준 기존값 재사용 �
   db.close();
 });
 
-test("v0.27.1 createV3는 기본 상세위치 라벨 \"전체 (자동)\"을 \"전체\"로 정규화",()=>{
+test("createV3 omits the automatic whole-room placeholder from canonical payload",()=>{
   const ui=read("apps/web/assets/issues.js");
   const flow=ui.slice(ui.indexOf("async function createV3"),ui.indexOf("async function detail"));
-  assert.match(flow,/normalizedAreaLabel=roomOption\?\.textContent/);
-  assert.match(flow,/areaLabel=normalizedAreaLabel/);
+  assert.match(flow,/areaLabel=roomOption\?\.value&&roomOption\?\.textContent!=="기타"\?roomOption\.textContent:""/);
+  assert.doesNotMatch(flow,/areaLabel=.*"전체"|payload\.set\("roomLabel"/);
 });
 
 test("NONE allows scrolling and a selected tool enables drawing without changing desktop default",()=>{

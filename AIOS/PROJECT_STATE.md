@@ -295,3 +295,14 @@ v0.24.4는 기존 5개 상위 Skill과 10개 전문 Skill, 정적 Validator와 T
 - 현장소장이 `e2e-v021-site-b` Context에서 site-a Issue에 접근했을 때 차단됐고, site-a로 전환한 뒤 정상 접근하여 현장 격리도 확인했다.
 - 역할별 Browser E2E Console error는 0건이다. Network 전체 자동 수집은 지원 표면 부재로 `NOT_EXECUTED`이며, 직접 권한 API 응답은 확인했다.
 - Migration 추가·D1 변경·R2 변경은 없으며 Production은 `NOT_CHANGED`다.
+# v0.27.2 Candidate Phase B verified (2026-08-14)
+
+- Phase A Simple Location List: `INTEGRATION_VERIFIED`.
+- Phase B Issue Location Lookup-only: `INTEGRATION_VERIFIED`.
+- Issue Create references active canonical location IDs or stores null location IDs; it does not create `site_locations` rows.
+- Integration smoke passed for canonical full path, omitted ROOM, and no-location registration.
+- Integration test-site `site_locations` count remained `1757` across all Phase B smoke registrations.
+- Integration Worker Version ID: `f6a99165-0244-420d-87cb-60a2588b3600`.
+- Integration Pages deployment: `f35d81d2`; canonical URL uses static revision `r20`.
+- Phase C Final Description to Location Resolver: `NOT_STARTED`.
+- Production: `NOT_CHANGED`.
