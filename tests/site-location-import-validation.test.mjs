@@ -189,10 +189,21 @@ test("validation rejects empty stable fields and invalid sort orders",()=>{
     [workbook([location("x","","BUILDING","key/x","")]),"LOCATION_IMPORT_FIELD_REQUIRED","display_name"],
     [workbook([location("x","","BUILDING","key/x","x",-1)]),"LOCATION_IMPORT_SORT_ORDER_INVALID","sort_order"],
     [workbook([location("x","","BUILDING","key/x","x",1.5)]),"LOCATION_IMPORT_SORT_ORDER_INVALID","sort_order"],
+    [workbook([location("x","","BUILDING","key/x","x",null)]),"LOCATION_IMPORT_SORT_ORDER_INVALID","sort_order"],
+    [workbook([location("x","","BUILDING","key/x","x","")]),"LOCATION_IMPORT_SORT_ORDER_INVALID","sort_order"],
     [workbook([location("root")],[alias("","root","alias")]),"LOCATION_IMPORT_FIELD_REQUIRED","alias_id"],
     [workbook([location("root")],[alias("a","root","")]),"LOCATION_IMPORT_FIELD_REQUIRED","alias_text"]
   ];
   for(const [book,code,field] of cases){const result=validate(book);assert.equal(result.applyAllowed,false,field);assert.ok(result.errors.some(item=>item.code===code&&item.field===field),field)}
+});
+
+test("validation rejects control characters in every imported normalized field",()=>{
+  const locationCases=[
+    ["locationId","location_id"],["parentLocationId","parent_location_id"],["locationType","location_type"],["canonicalKey","canonical_key"],["displayName","display_name"],["sortOrder","sort_order"]
+  ];
+  for(const [property,field] of locationCases){const row=location("child","root","ROOM","key/child","Child",1);row[property]=`${row[property]}\u0001`;const result=validate(workbook([location("root"),row]));assert.equal(result.applyAllowed,false,field);assert.ok(result.errors.some(item=>item.code==="LOCATION_IMPORT_CONTROL_CHARACTER"&&item.field===field),field)}
+  const aliasCases=[["aliasId","alias_id"],["locationId","location_id"],["aliasText","alias_text"],["aliasType","alias_type"]];
+  for(const [property,field] of aliasCases){const row=alias("alias-a","root","Alias","FIELD_NAME");row[property]=`${row[property]}\u0001`;const result=validate(workbook([location("root")],[row]));assert.equal(result.applyAllowed,false,field);assert.ok(result.errors.some(item=>item.code==="LOCATION_IMPORT_CONTROL_CHARACTER"&&item.field===field),field)}
 });
 
 test("omitted IMPORT parents remain active when an active retained child depends on them",()=>{

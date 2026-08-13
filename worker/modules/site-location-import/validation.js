@@ -8,6 +8,9 @@ const compatible=(child,parent)=>ROOT_TYPES.has(child)?!parent:child==="FLOOR"?R
 const value=(row,camel,snake)=>row?.[camel]??row?.[snake];
 const active=row=>Number(value(row,"isActive","is_active"))===1;
 const error=(code,row,field)=>({code,field,sourceSheetName:row?.sourceSheetName??null,sourceRow:row?.sourceRow??null});
+const CONTROL_CHARACTER=/[\u0000-\u001F\u007F]/u;
+const sortOrder=value=>value===null||value===undefined||String(value).trim()===""?null:Number(value);
+const rejectControlCharacters=(rows,fields,errors)=>{for(const row of rows)for(const [property,field] of fields)if(CONTROL_CHARACTER.test(String(row?.[property]??"")))errors.push(error("LOCATION_IMPORT_CONTROL_CHARACTER",row,field))};
 
 export function blockedLocationInactivationIds(siteId,incomingIds,currentLocations=[]){
   const activeRows=currentLocations.filter(row=>value(row,"siteId","site_id")===siteId&&active(row));
@@ -21,6 +24,8 @@ export function validateLocationImport({siteId,workbook,current={},identityGuard
   const errors=[];
   const locations=Array.isArray(workbook?.locations)?workbook.locations:[];
   const aliases=Array.isArray(workbook?.aliases)?workbook.aliases:[];
+  rejectControlCharacters(locations,[["locationId","location_id"],["parentLocationId","parent_location_id"],["locationType","location_type"],["canonicalKey","canonical_key"],["displayName","display_name"],["sortOrder","sort_order"]],errors);
+  rejectControlCharacters(aliases,[["aliasId","alias_id"],["locationId","location_id"],["aliasText","alias_text"],["aliasType","alias_type"],["normalizedAlias","alias_text"]],errors);
   const sheets=workbook?.workbookMeta?.sheetNames;
   if(Array.isArray(sheets))for(const sheet of REQUIRED_SHEETS)if(!sheets.includes(sheet))errors.push(error("LOCATION_IMPORT_SHEET_REQUIRED",null,"sheet"));
   if(!Array.isArray(workbook?.locations)||!Array.isArray(workbook?.aliases))errors.push(error("LOCATION_IMPORT_HEADER_REQUIRED",null,"headers"));
@@ -35,7 +40,7 @@ export function validateLocationImport({siteId,workbook,current={},identityGuard
   const normalizedLocations=locations.map(row=>({
     id:String(row.locationId??"").trim(),siteId,parentId:String(row.parentLocationId??"").trim()||null,
     locationType:String(row.locationType??"").trim().toUpperCase(),canonicalKey:String(row.canonicalKey??"").trim(),
-    displayName:String(row.displayName??"").trim(),sortOrder:Number(row.sortOrder),sourceSheetName:row.sourceSheetName,sourceRow:row.sourceRow
+    displayName:String(row.displayName??"").trim(),sortOrder:sortOrder(row.sortOrder),sourceSheetName:row.sourceSheetName,sourceRow:row.sourceRow
   }));
   const incomingById=new Map();
   const incomingByKey=new Map();

@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import fs from "node:fs";
 import crypto from "node:crypto";
 import {DatabaseSync} from "node:sqlite";
-import {handleSiteLocationImportRequest} from "../worker/modules/site-location-import.js";
+import {cleanupAbandonedLocationImportObjects,handleSiteLocationImportRequest} from "../worker/modules/site-location-import.js";
 import worker from "../worker/index.js";
 import {applyLocationImport,buildLocationImportApplyStatements,D1_LOCATION_IMPORT_LIMITS} from "../worker/modules/site-location-import/apply.js";
 import * as locationRepository from "../worker/modules/site-location-import/repository.js";
@@ -199,6 +199,19 @@ test("forced middle failure leaves no committed state and remains retry-ready",a
   assert.equal(value.batchCalls,1);assert.equal(value.status,"READY");
 });
 
+test("a failed concurrent Apply never deletes the successful import artifact",async()=>{
+  const objects=new Map(),metadata=new Map(),artifactKey="sites/site-a/location-imports/import-a/artifacts/file-a.xlsx",bytes=Buffer.from("same workbook");
+  const FILES={async head(key){const value=objects.get(key);return value?{size:value.byteLength,customMetadata:metadata.get(key)}:null},async put(key,value,options){const stored=Buffer.from(value);objects.set(key,stored);metadata.set(key,options.customMetadata);return{key}},async delete(key){objects.delete(key);metadata.delete(key)}};
+  let enterFailure,releaseFailure;const failureEntered=new Promise(resolve=>{enterFailure=resolve}),failureReleased=new Promise(resolve=>{releaseFailure=resolve});
+  const repository={getApplyReplay:async()=>null,restoreLocationImportApplyReady:async()=>{}};
+  const base={repository,importRow:{id:"import-a",site_id:"site-a",file_name:"locations.xlsx",file_hash:"file-a",base_master_fingerprint:"base-a",preview_hash:"preview-a",base_master_revision:0},siteId:"site-a",userId:"user-a",payloadHash:"payload",diff:applyDiff([]),fileHash:"file-a",requestId:"request",fileBytes:bytes,artifactObjectKey:artifactKey};
+  const failing=applyLocationImport({...base,idempotencyKey:"failure",env:{FILES,DB:{prepare:sql=>({sql,args:[],bind(...args){return{sql,args}}}),async batch(){enterFailure();await failureReleased;throw new Error("A_DB_FAIL")}}}});
+  await failureEntered;
+  const successful=await applyLocationImport({...base,idempotencyKey:"success",env:{FILES,DB:{prepare:sql=>({sql,args:[],bind(...args){return{sql,args}}}),async batch(){return[]}}}});
+  releaseFailure();await assert.rejects(failing,/A_DB_FAIL/);
+  assert.equal(successful.status,"APPLIED");assert.deepEqual(objects.get(artifactKey),bytes);
+});
+
 test("1700-row apply stays in one atomic D1 batch below Free-plan query and bound-size limits",async()=>{
   const operations=Array.from({length:1700},(_,index)=>{
     const id=`loc-${String(index).padStart(4,"0")}`;
@@ -304,8 +317,8 @@ function apiWorkbook({locations=[],aliases=[],locationHeaders=LOCATION_HEADERS,e
 const corruptDeclaredExpansion=(bytes,size)=>{const copy=new Uint8Array(bytes),view=new DataView(copy.buffer,copy.byteOffset,copy.byteLength);for(let offset=0;offset<=copy.length-46;offset++)if(view.getUint32(offset,true)===0x02014b50){view.setUint32(offset+24,size,true);copy[offset+46]^=0xff;break}return copy};
 
 test("malformed and adversarial XLSX payloads return stable 4xx errors with zero master writes",async()=>{
-  const valid=apiWorkbook({locations:[["loc-1","","BUILDING","site/root","Root",0]]}),formula=repackTemplate(entries=>{const name=locationSheetEntry(entries),xml=Buffer.from(entries[name]).toString("utf8");entries[name]=strToU8(xml.replace("</c>","<f>1+1</f></c>"))}),external=apiWorkbook({extraEntries:{"xl/externalLinks/externalLink1.xml":strToU8("<externalLink/>")}}),shared=apiWorkbook({extraEntries:{"xl/sharedStrings.xml":strToU8(`<sst>${"<si><t>x</t></si>".repeat(LOCATION_IMPORT_LIMITS.sharedStrings+1)}</sst>`)}}),expanded=apiWorkbook({extraEntries:{"xl/unused.xml":strToU8("x".repeat(LOCATION_IMPORT_LIMITS.expandedXmlBytes+1))}}),control=repackTemplate(entries=>{const name=locationSheetEntry(entries),xml=Buffer.from(entries[name]).toString("utf8");entries[name]=strToU8(xml.replace("location_id","location_\u0001id"))}),overlong=apiWorkbook({locations:[["loc-long","","BUILDING","site/long","x".repeat(LOCATION_IMPORT_LIMITS.cellChars+1),0]]}),corrupt=valid.slice(0,-12),central=corruptDeclaredExpansion(valid,LOCATION_IMPORT_LIMITS.expandedXmlBytes+1);
-  for(const [id,bytes,expected] of [["corrupt-central",corrupt,"LOCATION_XLSX_INVALID"],["declared-central",central,"LOCATION_XLSX_EXPANDED_LIMIT"],["expanded-valid-headers",expanded,"LOCATION_XLSX_EXPANDED_LIMIT"],["shared-strings",shared,"LOCATION_XLSX_SHARED_STRING_LIMIT"],["control",control,"LOCATION_XLSX_REQUIRED_HEADER_MISSING"],["overlong",overlong,"LOCATION_XLSX_CELL_LIMIT"],["formula",formula,"LOCATION_XLSX_UNSAFE_CONTENT"],["external",external,"LOCATION_XLSX_UNSAFE_CONTENT"]]){
+  const valid=apiWorkbook({locations:[["loc-1","","BUILDING","site/root","Root",0]]}),formula=repackTemplate(entries=>{const name=locationSheetEntry(entries),xml=Buffer.from(entries[name]).toString("utf8");entries[name]=strToU8(xml.replace("</c>","<f>1+1</f></c>"))}),external=apiWorkbook({extraEntries:{"xl/externalLinks/externalLink1.xml":strToU8("<externalLink/>")}}),shared=apiWorkbook({extraEntries:{"xl/sharedStrings.xml":strToU8(`<sst>${"<si><t>x</t></si>".repeat(LOCATION_IMPORT_LIMITS.sharedStrings+1)}</sst>`)}}),expanded=apiWorkbook({extraEntries:{"xl/unused.xml":strToU8("x".repeat(LOCATION_IMPORT_LIMITS.expandedXmlBytes+1))}}),control=repackTemplate(entries=>{const name=locationSheetEntry(entries),xml=Buffer.from(entries[name]).toString("utf8");entries[name]=strToU8(xml.replace("location_id","location_\u0001id"))}),controlData=(()=>{const entries=unzipSync(valid),name=locationSheetEntry(entries),xml=Buffer.from(entries[name]).toString("utf8");entries[name]=strToU8(xml.replace("Root","Root&#x1;Name"));return zipSync(entries)})(),overlong=apiWorkbook({locations:[["loc-long","","BUILDING","site/long","x".repeat(LOCATION_IMPORT_LIMITS.cellChars+1),0]]}),corrupt=valid.slice(0,-12),central=corruptDeclaredExpansion(valid,LOCATION_IMPORT_LIMITS.expandedXmlBytes+1);
+  for(const [id,bytes,expected] of [["corrupt-central",corrupt,"LOCATION_XLSX_INVALID"],["declared-central",central,"LOCATION_XLSX_EXPANDED_LIMIT"],["expanded-valid-headers",expanded,"LOCATION_XLSX_EXPANDED_LIMIT"],["shared-strings",shared,"LOCATION_XLSX_SHARED_STRING_LIMIT"],["control",control,"LOCATION_XLSX_UNSAFE_CONTENT"],["control-data",controlData,"LOCATION_XLSX_UNSAFE_CONTENT"],["overlong",overlong,"LOCATION_XLSX_CELL_LIMIT"],["formula",formula,"LOCATION_XLSX_UNSAFE_CONTENT"],["external",external,"LOCATION_XLSX_UNSAFE_CONTENT"]]){
     const value=await realEnv("MANAGE"),hash=crypto.createHash("sha256").update(bytes).digest("hex"),key=`sites/site-a/location-imports/${id}/original.xlsx`;
     value.db.prepare("INSERT INTO site_location_imports(id,site_id,file_name,file_hash,r2_object_key,template_version,status,created_by) VALUES(?,'site-a','locations.xlsx',?,?,'v1','UPLOADED','user-a')").run(id,hash,key);
     value.env.FILES.get=async()=>({size:bytes.length,arrayBuffer:async()=>bytes});
@@ -368,19 +381,21 @@ test("Apply rejects an oversized R2 replacement before reading bytes",async()=>{
   assert.equal(response.status,413);assert.equal((await response.json()).error,"LOCATION_IMPORT_OBJECT_SIZE_INVALID");assert.equal(read,false);value.db.close();
 });
 
-test("successful Apply preserves a hash-addressed artifact, removes the signed upload, and audits file hash",async()=>{
+test("successful Apply preserves a per-import hash artifact and tracks reusable signed upload keys until expiry cleanup",async()=>{
   const value=await realEnv("MANAGE"),bytes=routeWorkbook([["artifact-root","","BUILDING","artifact/root","Artifact Root",0]]),fileHash=crypto.createHash("sha256").update(bytes).digest("hex"),key="sites/site-a/location-imports/artifact-import/original.xlsx";
   value.db.prepare("INSERT INTO site_location_imports(id,site_id,file_name,file_hash,r2_object_key,template_version,status,created_by) VALUES('artifact-import','site-a','artifact.xlsx',?,?,'v1','UPLOADED','user-a')").run(fileHash,key);value.objects.set(key,bytes);value.env.DB=transactionalD1(value.db);
   let response=await worker.fetch(request("/api/v1/admin/site-locations/upload-sessions/artifact-import/validate",{method:"POST",headers:value.headers}),value.env),preview=await response.json();assert.equal(preview.status,"READY");
   response=await worker.fetch(request("/api/v1/admin/site-locations/imports/artifact-import/apply",{method:"POST",body:{previewHash:preview.previewHash,baseMasterFingerprint:preview.baseMasterFingerprint},headers:{...value.headers,"idempotency-key":"artifact-apply"}}),value.env);assert.equal(response.status,200,JSON.stringify(await response.clone().json()));
   const row=value.db.prepare("SELECT r2_object_key,artifact_object_key FROM site_location_imports WHERE id='artifact-import'").get(),expected=`sites/site-a/location-imports/artifact-import/artifacts/${fileHash}.xlsx`;
-  assert.equal(row.r2_object_key,null);assert.equal(row.artifact_object_key,expected);assert.equal(value.objects.has(key),false);assert.deepEqual(value.objects.get(expected),Buffer.from(bytes));assert.equal(value.metadata.get(expected).sha256,fileHash);
-  const audit=JSON.parse(value.db.prepare("SELECT metadata_json FROM audit_logs WHERE action='SITE_LOCATION_IMPORT_APPLIED' ORDER BY created_at DESC LIMIT 1").get().metadata_json);assert.equal(audit.fileHash,fileHash);value.db.close();
+  assert.equal(row.r2_object_key,key);assert.equal(row.artifact_object_key,expected);assert.equal(value.objects.has(key),false);assert.deepEqual(value.objects.get(expected),Buffer.from(bytes));assert.equal(value.metadata.get(expected).sha256,fileHash);
+  const audit=JSON.parse(value.db.prepare("SELECT metadata_json FROM audit_logs WHERE action='SITE_LOCATION_IMPORT_APPLIED' ORDER BY created_at DESC LIMIT 1").get().metadata_json);assert.equal(audit.fileHash,fileHash);
+  value.objects.set(key,Buffer.from("signed PUT reused"));await cleanupAbandonedLocationImportObjects(value.env,locationRepository,"site-a");assert.equal(value.objects.has(key),true);assert.equal(value.db.prepare("SELECT r2_object_key FROM site_location_imports WHERE id='artifact-import'").get().r2_object_key,key);
+  value.db.prepare("UPDATE site_location_imports SET created_at=datetime('now','-16 minutes') WHERE id='artifact-import'").run();await cleanupAbandonedLocationImportObjects(value.env,locationRepository,"site-a");assert.equal(value.objects.has(key),false);assert.equal(value.db.prepare("SELECT r2_object_key FROM site_location_imports WHERE id='artifact-import'").get().r2_object_key,null);assert.equal(value.objects.has(expected),true);value.db.close();
 });
 
-test("new upload opportunistically removes abandoned temporary objects without touching artifacts",async()=>{
-  const value=await realEnv("MANAGE"),key="sites/site-a/location-imports/abandoned/original.xlsx",artifact="sites/site-a/location-imports/applied/artifacts/hash.xlsx";value.objects.set(key,Buffer.from("old"));value.objects.set(artifact,Buffer.from("keep"));
-  value.db.exec("INSERT INTO site_location_imports(id,site_id,file_name,file_hash,r2_object_key,template_version,status,created_by,created_at) VALUES('abandoned','site-a','old.xlsx','oldhash','sites/site-a/location-imports/abandoned/original.xlsx','v1','READY','user-a',datetime('now','-2 days'))");
+test("new upload removes expired invalid and abandoned temporary objects without touching artifacts",async()=>{
+  const value=await realEnv("MANAGE"),key="sites/site-a/location-imports/abandoned/original.xlsx",invalidKey="sites/site-a/location-imports/invalid/original.xlsx",artifact="sites/site-a/location-imports/applied/artifacts/hash.xlsx";value.objects.set(key,Buffer.from("old"));value.objects.set(invalidKey,Buffer.from("invalid reused PUT"));value.objects.set(artifact,Buffer.from("keep"));
+  value.db.exec("INSERT INTO site_location_imports(id,site_id,file_name,file_hash,r2_object_key,template_version,status,created_by,created_at) VALUES('abandoned','site-a','old.xlsx','oldhash','sites/site-a/location-imports/abandoned/original.xlsx','v1','READY','user-a',datetime('now','-2 days')),('invalid','site-a','invalid.xlsx','invalidhash','sites/site-a/location-imports/invalid/original.xlsx','v1','INVALID','user-a',datetime('now','-16 minutes'))");
   const response=await handleSiteLocationImportRequest(request("/api/v1/admin/site-locations/upload-sessions",{method:"POST",body:{fileName:"new.xlsx",sizeBytes:template.length,sha256:digest},headers:value.headers}),value.env,undefined,{signUpload:async()=>"https://upload.test/new"});
-  assert.equal(response.status,201);assert.equal(value.objects.has(key),false);assert.equal(value.objects.has(artifact),true);const row=value.db.prepare("SELECT status,r2_object_key FROM site_location_imports WHERE id='abandoned'").get();assert.equal(row.status,"CANCELLED");assert.equal(row.r2_object_key,null);value.db.close();
+  assert.equal(response.status,201);assert.equal(value.objects.has(key),false);assert.equal(value.objects.has(invalidKey),false);assert.equal(value.objects.has(artifact),true);const row=value.db.prepare("SELECT status,r2_object_key FROM site_location_imports WHERE id='abandoned'").get(),invalid=value.db.prepare("SELECT status,r2_object_key FROM site_location_imports WHERE id='invalid'").get();assert.equal(row.status,"CANCELLED");assert.equal(row.r2_object_key,null);assert.equal(invalid.status,"INVALID");assert.equal(invalid.r2_object_key,null);value.db.close();
 });

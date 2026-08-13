@@ -38,12 +38,12 @@ export async function loadRecentLocationImports(env,siteId,limit=20){
 export async function loadLocationImportCleanupCandidates(env,siteId,limit=20){
   const bounded=Math.max(1,Math.min(20,Number(limit)||20));
   return results(await env.DB.prepare(`SELECT id,site_id,file_name,file_hash,r2_object_key,artifact_object_key,status FROM site_location_imports
-    WHERE site_id=?1 AND r2_object_key IS NOT NULL AND (status='APPLIED' OR (status IN ('UPLOADED','INVALID','READY','FAILED','CANCELLED') AND datetime(created_at)<=datetime('now','-1 day')))
+    WHERE site_id=?1 AND r2_object_key IS NOT NULL AND ((status IN ('APPLIED','INVALID','CANCELLED') AND datetime(created_at)<=datetime('now','-16 minutes')) OR (status IN ('UPLOADED','READY','FAILED') AND datetime(created_at)<=datetime('now','-1 day')))
     ORDER BY created_at LIMIT ?2`).bind(siteId,bounded).all());
 }
 
 export async function completeLocationImportUploadCleanup(env,{siteId,importId,objectKey,status}){
-  const terminal=status==="APPLIED"?"APPLIED":"CANCELLED";
+  const terminal=status==="APPLIED"?"APPLIED":status==="INVALID"?"INVALID":"CANCELLED";
   return env.DB.prepare("UPDATE site_location_imports SET r2_object_key=NULL,status=?4 WHERE id=?1 AND site_id=?2 AND r2_object_key=?3").bind(importId,siteId,objectKey,terminal).run();
 }
 

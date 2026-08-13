@@ -15,6 +15,7 @@ const decode=value=>String(value??"").replace(/&(?:#x([0-9a-f]+)|#(\d+)|amp|lt|g
   return {"&amp;":"&","&lt;":"<","&gt;":">","&quot;":"\"","&apos;":"'"}[token.toLowerCase()]??token;
 });
 const textNodes=xml=>decode([...xml.matchAll(/<t\b[^>]*>([\s\S]*?)<\/t>/g)].map(match=>match[1]).join(""));
+const CONTROL_CHARACTER=/[\u0000-\u001F\u007F]/u;
 const normalizeCell=value=>String(value??"").normalize("NFC").trim().replace(/\s+/gu," ");
 const resolvePath=target=>`xl/${target.replace(/^\/?xl\//,"").replace(/^\.\//,"")}`.replace("xl//","xl/");
 
@@ -90,6 +91,7 @@ function rowsFromSheet(xml,shared,counter){
       const type=/\bt="([^"]+)"/.exec(cellMatch[1])?.[1];
       const body=cellMatch[2],raw=/<v\b[^>]*>([\s\S]*?)<\/v>/.exec(body)?.[1]??"";
       const value=type==="s"?shared[Number(raw)]??"":type==="inlineStr"?textNodes(body):decode(raw);
+      if(CONTROL_CHARACTER.test(value))fail(CODES.UNSAFE_CONTENT,"셀에 허용되지 않는 제어문자가 있습니다.");
       const normalized=normalizeCell(value);
       if(normalized.length>LIMITS.cellChars)fail(CODES.CELL_LIMIT,"셀 문자열 길이 제한을 초과했습니다.");
       row[column]=normalized;
