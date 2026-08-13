@@ -1,6 +1,6 @@
 import fs from "node:fs";
 import {unzipSync} from "fflate";
-import {ALIAS_HEADERS,LOCATION_HEADERS,REQUIRED_SHEETS} from "../worker/modules/site-location-import/contracts.js";
+import {ALIAS_HEADERS,IMPORT_REQUIRED_SHEETS,LOCATION_HEADERS,TEMPLATE_SHEETS} from "../worker/modules/site-location-import/contracts.js";
 import {parseSiteLocationWorkbook} from "../worker/modules/site-location-import/xlsx-parser.js";
 const read=file=>fs.readFileSync(file,"utf8");
 const required=["AGENTS.md","DEVELOPMENT_RULES.md","VERSION.md","README.md","CHANGELOG.md","BASELINE.json","build-metadata.json","AIOS/PROJECT_STATE.md","AIOS/NEXT_TASK.md",".agents/skills/guis-arc-review/SKILL.md",".agents/skills/guis-arc-implement/SKILL.md",".agents/skills/guis-arc-verify/SKILL.md",".agents/skills/guis-arc-deploy/SKILL.md",".agents/skills/guis-arc-package/SKILL.md","docs/00_CONSTITUTION.md","docs/01_ARCHITECTURE.md","docs/02_MODULE_BOUNDARIES.md","docs/03_DATA_OWNERSHIP.md","docs/05_PERMISSION_MODEL.md","docs/08_VERSION_MATRIX.json","docs/21_WORKFORCE_MODULE_CONTRACT.md","docs/22_WORKFORCE_QR_CONTRACT.md","docs/23_WORKFORCE_ATTENDANCE_POLICY.md","docs/24_WORKFORCE_PRIVACY.md","docs/31_CONSTRUCTION_EXCEL_AND_OUTPUT_ARCHIVE_CONTRACT.md","docs/38_ENGINE_CONSTITUTION_V1.md","docs/98_NEXT_CHAT_HANDOFF.md","docs/99_START_NEXT_CHAT.md","docs/30_MINIMAL_CHANGE_WORKFLOW.md","scripts/task-scope.mjs"];
@@ -27,7 +27,8 @@ const phaseAMigration="database/migrations/0036_site_location_master_import.sql"
 for(const file of [phaseAMigration,phaseATemplate])if(!fs.existsSync(file))throw new Error(`Phase A artifact missing ${file}`);
 for(const token of ["canonical_key TEXT","source TEXT NOT NULL DEFAULT 'LEGACY'","SITE_LOCATION_IMPORT_CANONICAL_KEY_REQUIRED","CREATE TABLE site_location_aliases","UNIQUE(site_id,normalized_alias)","CREATE TABLE site_location_imports","artifact_object_key","base_master_revision","post_master_fingerprint","CREATE TABLE site_location_import_idempotency","FOREIGN KEY(site_id,location_id) REFERENCES site_locations(site_id,id)"])if(!read(phaseAMigration).includes(token))throw new Error(`Phase A schema contract missing ${token}`);
 const phaseAWorkbook=await parseSiteLocationWorkbook(fs.readFileSync(phaseATemplate));
-if(JSON.stringify(phaseAWorkbook.workbookMeta.sheetNames)!==JSON.stringify(REQUIRED_SHEETS)||REQUIRED_SHEETS.length!==6)throw new Error("Phase A template exact sheet contract mismatch");
+if(JSON.stringify(phaseAWorkbook.workbookMeta.sheetNames)!==JSON.stringify(TEMPLATE_SHEETS)||TEMPLATE_SHEETS.length!==6)throw new Error("Phase A template exact sheet contract mismatch");
+if(JSON.stringify(IMPORT_REQUIRED_SHEETS)!==JSON.stringify(["01_위치마스터","02_위치별칭"]))throw new Error("Phase A runtime import sheet contract mismatch");
 if(JSON.stringify(LOCATION_HEADERS)!==JSON.stringify(["location_id","parent_location_id","location_type","canonical_key","display_name","sort_order"])||JSON.stringify(ALIAS_HEADERS)!==JSON.stringify(["alias_id","location_id","alias_text","alias_type"]))throw new Error("Phase A exact header contract mismatch");
 const phaseAOpenXml=Object.values(unzipSync(fs.readFileSync(phaseATemplate))).map(bytes=>Buffer.from(bytes).toString("utf8")).join("\n");
 for(const header of ["location_id","parent_location_id","location_type","canonical_key","display_name","sort_order","alias_id","alias_text","alias_type"])if(!phaseAOpenXml.includes(header))throw new Error(`Phase A template header missing ${header}`);

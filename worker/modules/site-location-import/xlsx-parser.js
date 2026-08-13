@@ -4,7 +4,7 @@ import {
   LOCATION_HEADERS,
   LOCATION_IMPORT_ERROR_CODES as CODES,
   LOCATION_IMPORT_LIMITS as LIMITS,
-  REQUIRED_SHEETS,
+  IMPORT_REQUIRED_SHEETS,
   normalizeAlias
 } from "./contracts.js";
 
@@ -14,10 +14,11 @@ const decode=value=>String(value??"").replace(/&(?:#x([0-9a-f]+)|#(\d+)|amp|lt|g
   if(decimal)return String.fromCodePoint(Number(decimal));
   return {"&amp;":"&","&lt;":"<","&gt;":">","&quot;":"\"","&apos;":"'"}[token.toLowerCase()]??token;
 });
-const textNodes=xml=>decode([...xml.matchAll(/<t\b[^>]*>([\s\S]*?)<\/t>/g)].map(match=>match[1]).join(""));
+const textNodes=xml=>decode([...xml.matchAll(/<(?:[\w.-]+:)?t\b[^>]*>([\s\S]*?)<\/(?:[\w.-]+:)?t>/g)].map(match=>match[1]).join(""));
 const CONTROL_CHARACTER=/[\u0000-\u001F\u007F]/u;
 const normalizeCell=value=>String(value??"").normalize("NFC").trim().replace(/\s+/gu," ");
 const resolvePath=target=>`xl/${target.replace(/^\/?xl\//,"").replace(/^\.\//,"")}`.replace("xl//","xl/");
+const attribute=(tag,name)=>new RegExp(`\\b(?:[\\w.-]+:)?${name}="([^"]*)"`).exec(tag)?.[1];
 
 function zipPreflight(bytes){
   const view=new DataView(bytes.buffer,bytes.byteOffset,bytes.byteLength),minimum=Math.max(0,bytes.length-65557);
@@ -67,29 +68,35 @@ function packageParts(buffer){
   const get=name=>files[name]?strFromU8(files[name]):"";
   const workbook=get("xl/workbook.xml"),rels=get("xl/_rels/workbook.xml.rels");
   if(!workbook||!rels)fail(CODES.INVALID,"필수 XLSX 구성 요소가 없습니다.");
-  const relationships=Object.fromEntries([...rels.matchAll(/<Relationship\b[^>]*Id="([^"]+)"[^>]*Target="([^"]+)"/g)].map(match=>[match[1],resolvePath(match[2]) ]));
-  const sheets=[...workbook.matchAll(/<sheet\b[^>]*name="([^"]+)"[^>]*r:id="([^"]+)"[^>]*\/?\s*>/g)].map(match=>({name:decode(match[1]),path:relationships[match[2]]}));
+  const relationships=Object.fromEntries([...rels.matchAll(/<(?:[\w.-]+:)?Relationship\b[^>]*\/?\s*>/g)].map(match=>{
+    const id=attribute(match[0],"Id"),target=attribute(match[0],"Target");
+    return id&&target?[id,resolvePath(target)]:null;
+  }).filter(Boolean));
+  const sheets=[...workbook.matchAll(/<(?:[\w.-]+:)?sheet\b[^>]*\/?\s*>/g)].map(match=>{
+    const name=attribute(match[0],"name"),relationshipId=attribute(match[0],"id");
+    return name&&relationshipId?{name:decode(name),path:relationships[relationshipId]}:null;
+  }).filter(Boolean);
   if(sheets.length>LIMITS.worksheets)fail(CODES.WORKSHEET_LIMIT,"워크시트 수 제한을 초과했습니다.");
   const sharedXml=get("xl/sharedStrings.xml");
   if(files["xl/sharedStrings.xml"]?.byteLength>LIMITS.sharedStringBytes)fail(CODES.SHARED_STRING_BYTES_LIMIT,"공유 문자열 크기 제한을 초과했습니다.");
-  const shared=[];for(const match of sharedXml.matchAll(/<si\b[^>]*>([\s\S]*?)<\/si>/g)){if(shared.length>=LIMITS.sharedStrings)fail(CODES.SHARED_STRING_LIMIT,"공유 문자열 개수 제한을 초과했습니다.");shared.push(textNodes(match[1]))}
+  const shared=[];for(const match of sharedXml.matchAll(/<(?:[\w.-]+:)?si\b[^>]*>([\s\S]*?)<\/(?:[\w.-]+:)?si>/g)){if(shared.length>=LIMITS.sharedStrings)fail(CODES.SHARED_STRING_LIMIT,"공유 문자열 개수 제한을 초과했습니다.");shared.push(textNodes(match[1]))}
   return {files,get,sheets,shared};
 }
 
 function rowsFromSheet(xml,shared,counter){
   if(/<(?:[\w.-]+:)?f\b/i.test(xml))fail(CODES.UNSAFE_CONTENT,"수식 셀은 허용되지 않습니다.");
   const rows=[];
-  for(const rowMatch of xml.matchAll(/<row\b[^>]*r="(\d+)"[^>]*>([\s\S]*?)<\/row>/g)){
+  for(const rowMatch of xml.matchAll(/<(?:[\w.-]+:)?row\b[^>]*\br="(\d+)"[^>]*>([\s\S]*?)<\/(?:[\w.-]+:)?row>/g)){
     if(rows.length>=LIMITS.rowsPerWorksheet)fail(CODES.PHYSICAL_ROW_LIMIT,"워크시트 물리 행 수 제한을 초과했습니다.");
     const row={};
-    for(const cellMatch of rowMatch[2].matchAll(/<c\b([^>]*)>([\s\S]*?)<\/c>/g)){
+    for(const cellMatch of rowMatch[2].matchAll(/<(?:[\w.-]+:)?c\b([^>]*)>([\s\S]*?)<\/(?:[\w.-]+:)?c>/g)){
       const address=/\br="([A-Z]+)\d+"/.exec(cellMatch[1])?.[1];
       if(!address)continue;
       let column=0;for(const character of address)column=column*26+character.charCodeAt(0)-64;column--;
       if(column>=LIMITS.columns)fail(CODES.COLUMN_LIMIT,"워크시트 열 제한을 초과했습니다.");
       counter.cells++;if(counter.cells>LIMITS.cells)fail(CODES.CELL_COUNT_LIMIT,"워크북 셀 수 제한을 초과했습니다.");
       const type=/\bt="([^"]+)"/.exec(cellMatch[1])?.[1];
-      const body=cellMatch[2],raw=/<v\b[^>]*>([\s\S]*?)<\/v>/.exec(body)?.[1]??"";
+      const body=cellMatch[2],raw=/<(?:[\w.-]+:)?v\b[^>]*>([\s\S]*?)<\/(?:[\w.-]+:)?v>/.exec(body)?.[1]??"";
       const value=type==="s"?shared[Number(raw)]??"":type==="inlineStr"?textNodes(body):decode(raw);
       if(CONTROL_CHARACTER.test(value))fail(CODES.UNSAFE_CONTENT,"셀에 허용되지 않는 제어문자가 있습니다.");
       const normalized=normalizeCell(value);
@@ -122,23 +129,23 @@ function importRows(parts,sheetName,requiredHeaders,limit,mapper){
 export function parseSiteLocationWorkbook(buffer){
   const parts=packageParts(buffer);
   parts.counter={cells:0};
-  for(const name of REQUIRED_SHEETS)if(!parts.sheets.some(sheet=>sheet.name===name))fail(CODES.SHEET_MISSING,`${name} 시트가 없습니다.`);
-  const locations=importRows(parts,REQUIRED_SHEETS[1],LOCATION_HEADERS,LIMITS.locations,(row,indexes)=>({
+  for(const name of IMPORT_REQUIRED_SHEETS)if(!parts.sheets.some(sheet=>sheet.name===name))fail(CODES.SHEET_MISSING,`${name} 시트가 없습니다.`);
+  const locations=importRows(parts,IMPORT_REQUIRED_SHEETS[0],LOCATION_HEADERS,LIMITS.locations,(row,indexes)=>({
     locationId:row.values[indexes.location_id]??"",
     parentLocationId:row.values[indexes.parent_location_id]??"",
     locationType:row.values[indexes.location_type]??"",
     canonicalKey:row.values[indexes.canonical_key]??"",
     displayName:row.values[indexes.display_name]??"",
     sortOrder:row.values[indexes.sort_order]===""||row.values[indexes.sort_order]===undefined?null:Number(row.values[indexes.sort_order]),
-    sourceSheetName:REQUIRED_SHEETS[1],sourceRow:row.number
+    sourceSheetName:IMPORT_REQUIRED_SHEETS[0],sourceRow:row.number
   }));
-  const aliases=importRows(parts,REQUIRED_SHEETS[2],ALIAS_HEADERS,LIMITS.aliases,(row,indexes)=>({
+  const aliases=importRows(parts,IMPORT_REQUIRED_SHEETS[1],ALIAS_HEADERS,LIMITS.aliases,(row,indexes)=>({
     aliasId:row.values[indexes.alias_id]??"",
     locationId:row.values[indexes.location_id]??"",
     aliasText:row.values[indexes.alias_text]??"",
     aliasType:row.values[indexes.alias_type]??"",
     normalizedAlias:normalizeAlias(row.values[indexes.alias_text]),
-    sourceSheetName:REQUIRED_SHEETS[2],sourceRow:row.number
+    sourceSheetName:IMPORT_REQUIRED_SHEETS[1],sourceRow:row.number
   }));
   return {locations,aliases,workbookMeta:{templateVersion:"LOCATION_MASTER_V1",sheetNames:parts.sheets.map(sheet=>sheet.name)},diagnostics:[]};
 }

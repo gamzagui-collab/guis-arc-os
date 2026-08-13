@@ -13,7 +13,7 @@ export const LOCATION_IMPORT_LIMITS=Object.freeze({
   sharedStringBytes:10*1024*1024
 });
 
-export const REQUIRED_SHEETS=Object.freeze([
+export const TEMPLATE_SHEETS=Object.freeze([
   "00_사용안내",
   "01_위치마스터",
   "02_위치별칭",
@@ -21,6 +21,7 @@ export const REQUIRED_SHEETS=Object.freeze([
   "04_도면근거",
   "05_ChatGPT작성규칙"
 ]);
+export const IMPORT_REQUIRED_SHEETS=Object.freeze(["01_위치마스터","02_위치별칭"]);
 
 export const LOCATION_HEADERS=Object.freeze(["location_id","parent_location_id","location_type","canonical_key","display_name","sort_order"]);
 export const ALIAS_HEADERS=Object.freeze(["alias_id","location_id","alias_text","alias_type"]);

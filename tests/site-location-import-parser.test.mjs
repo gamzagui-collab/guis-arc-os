@@ -6,9 +6,10 @@ import test from "node:test";
 import { strFromU8, strToU8, unzipSync, zipSync } from "fflate";
 import {
   ALIAS_HEADERS,
+  IMPORT_REQUIRED_SHEETS,
   LOCATION_HEADERS,
   LOCATION_IMPORT_LIMITS,
-  REQUIRED_SHEETS,
+  TEMPLATE_SHEETS,
   normalizeAlias
 } from "../worker/modules/site-location-import/contracts.js";
 import { parseSiteLocationWorkbook } from "../worker/modules/site-location-import/xlsx-parser.js";
@@ -19,12 +20,12 @@ const column=index=>{let value="";for(let n=index+1;n;n=Math.floor((n-1)/26))val
 const worksheet=rows=>`<?xml version="1.0" encoding="UTF-8" standalone="yes"?><worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"><sheetData>${rows.map((row,rowIndex)=>`<row r="${rowIndex+1}">${row.map((value,columnIndex)=>`<c r="${column(columnIndex)}${rowIndex+1}" t="inlineStr"><is><t>${esc(value)}</t></is></c>`).join("")}</row>`).join("")}</sheetData></worksheet>`;
 function workbook({locations=[],aliases=[],review="IMPORT 미사용",locationHeaders=LOCATION_HEADERS,aliasHeaders=ALIAS_HEADERS,extraEntries={}}={}){
   const sheets=[
-    [REQUIRED_SHEETS[0],[[review]]],
-    [REQUIRED_SHEETS[1],[locationHeaders,...locations]],
-    [REQUIRED_SHEETS[2],[aliasHeaders,...aliases]],
-    [REQUIRED_SHEETS[3],[[review]]],
-    [REQUIRED_SHEETS[4],[[review]]],
-    [REQUIRED_SHEETS[5],[[review]]]
+    [TEMPLATE_SHEETS[0],[[review]]],
+    [TEMPLATE_SHEETS[1],[locationHeaders,...locations]],
+    [TEMPLATE_SHEETS[2],[aliasHeaders,...aliases]],
+    [TEMPLATE_SHEETS[3],[[review]]],
+    [TEMPLATE_SHEETS[4],[[review]]],
+    [TEMPLATE_SHEETS[5],[[review]]]
   ];
   const workbookXml=`<?xml version="1.0" encoding="UTF-8" standalone="yes"?><workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"><sheets>${sheets.map(([name],index)=>`<sheet name="${name}" sheetId="${index+1}" r:id="rId${index+1}"/>`).join("")}</sheets></workbook>`;
   const rels=`<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">${sheets.map((_,index)=>`<Relationship Id="rId${index+1}" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet${index+1}.xml"/>`).join("")}</Relationships>`;
@@ -46,7 +47,8 @@ test("static workbook has exactly six sheets and exact import headers",()=>{
   const bytes=fs.readFileSync(templatePath),files=unzipSync(bytes);
   const workbookXml=strFromU8(files["xl/workbook.xml"]);
   const names=[...workbookXml.matchAll(/<sheet\b[^>]*name="([^"]+)"/g)].map(match=>match[1]);
-  assert.deepEqual(names,REQUIRED_SHEETS);
+  assert.deepEqual(names,TEMPLATE_SHEETS);
+  assert.deepEqual(IMPORT_REQUIRED_SHEETS,["01_위치마스터","02_위치별칭"]);
   const parsed=parseSiteLocationWorkbook(bytes);
   assert.ok(parsed.workbookMeta.templateVersion==="LOCATION_MASTER_V1");
 });
@@ -112,6 +114,32 @@ test("parser bounds aliases, blank physical rows, columns, cells, worksheets, an
 test("parser rejects namespace-qualified formulas",async()=>{
   const namespaced=worksheet([LOCATION_HEADERS,sampleLocation]).replace("</c>","<x:f>1+1</x:f></c>");
   await rejectCode(replaceEntry(workbook({locations:[sampleLocation]}),"xl/worksheets/sheet2.xml",namespaced),"LOCATION_XLSX_UNSAFE_CONTENT");
+});
+
+test("parser accepts namespace-prefixed OpenXML and ignores non-import support sheets",()=>{
+  const supportName="00_현장정보",locationName="01_위치마스터",aliasName="02_위치별칭";
+  const sheets=[supportName,locationName,aliasName];
+  const workbookXml=`<x:workbook xmlns:x="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"><x:sheets>${sheets.map((name,index)=>`<x:sheet name="${name}" sheetId="${index+1}" r:id="rId${index+1}"/>`).join("")}</x:sheets></x:workbook>`;
+  const relationships=`<p:Relationships xmlns:p="http://schemas.openxmlformats.org/package/2006/relationships">${sheets.map((_,index)=>`<p:Relationship Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet${index+1}.xml" Id="rId${index+1}"/>`).join("")}</p:Relationships>`;
+  const namespacedSheet=rows=>`<x:worksheet xmlns:x="http://schemas.openxmlformats.org/spreadsheetml/2006/main"><x:sheetData>${rows.map((row,rowIndex)=>`<x:row r="${rowIndex+1}">${row.map((value,columnIndex)=>`<x:c r="${column(columnIndex)}${rowIndex+1}" t="inlineStr"><x:is><x:t>${esc(value)}</x:t></x:is></x:c>`).join("")}</x:row>`).join("")}</x:sheetData></x:worksheet>`;
+  const shared=[...ALIAS_HEADERS,...sampleAlias];
+  const sharedXml=`<x:sst xmlns:x="http://schemas.openxmlformats.org/spreadsheetml/2006/main">${shared.map(value=>`<x:si><x:t>${esc(value)}</x:t></x:si>`).join("")}</x:sst>`;
+  const sharedSheet=`<x:worksheet xmlns:x="http://schemas.openxmlformats.org/spreadsheetml/2006/main"><x:sheetData>${[ALIAS_HEADERS,sampleAlias].map((row,rowIndex)=>`<x:row r="${rowIndex+1}">${row.map((_,columnIndex)=>`<x:c r="${column(columnIndex)}${rowIndex+1}" t="s"><x:v>${rowIndex*ALIAS_HEADERS.length+columnIndex}</x:v></x:c>`).join("")}</x:row>`).join("")}</x:sheetData></x:worksheet>`;
+  const bytes=zipSync({
+    "xl/workbook.xml":strToU8(workbookXml),
+    "xl/_rels/workbook.xml.rels":strToU8(relationships),
+    "xl/sharedStrings.xml":strToU8(sharedXml),
+    "xl/worksheets/sheet1.xml":strToU8(namespacedSheet([["review only"]])),
+    "xl/worksheets/sheet2.xml":strToU8(namespacedSheet([LOCATION_HEADERS,sampleLocation])),
+    "xl/worksheets/sheet3.xml":strToU8(sharedSheet)
+  });
+
+  const parsed=parseSiteLocationWorkbook(bytes);
+  assert.equal(parsed.locations.length,1);
+  assert.equal(parsed.locations[0].locationId,"loc-1");
+  assert.equal(parsed.aliases.length,1);
+  assert.equal(parsed.aliases[0].aliasId,"alias-1");
+  assert.deepEqual(parsed.workbookMeta.sheetNames,sheets);
 });
 
 test("build produces a byte-identical template at the exact path",()=>{
