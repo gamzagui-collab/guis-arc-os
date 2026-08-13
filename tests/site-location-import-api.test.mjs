@@ -285,8 +285,8 @@ test("DB revision guard failure maps to stable stale-preview 409 and remains ret
 
 test("status CAS guard is load-bearing and 1700 locations plus aliases remain below D1 invocation limits",()=>{
   const operations=Array.from({length:1700},(_,index)=>({type:"ADD",id:`x-${index}`,after:location(`x-${index}`)}));operations.push(...Array.from({length:1700},(_,index)=>({type:"ALIAS_ADD",id:`a-${index}`,after:alias(`a-${index}`,`x-${index}`)})));const value=applyHarness({diff:applyDiff(operations)}),response={newMasterFingerprint:"post"};
-  const statements=buildLocationImportApplyStatements(value.env,{importRow:{id:"import-a",base_master_revision:0},siteId:"site-a",userId:"user-a",idempotencyKey:"key",payloadHash:"payload",diff:value.diff,requestId:"request",response});
-  assert.match(statements[0].sql,/status='READY'/);assert.match(statements[1].sql,/site_location_import_apply_guards/);assert.ok(statements.length<=D1_LOCATION_IMPORT_LIMITS.maxStatements);assert.ok(statements.every(item=>item.args.length<=100));
+  const statements=buildLocationImportApplyStatements(value.env,{importRow:{id:"import-a",base_master_revision:0},siteId:"site-a",userId:"user-a",idempotencyKey:"key",payloadHash:"payload",diff:value.diff,requestId:"request",response,applyClaimToken:"apply-owner"});
+  assert.match(statements[0].sql,/apply_claim_token/);assert.match(statements[1].sql,/site_location_import_apply_guards/);assert.ok(statements.length<=D1_LOCATION_IMPORT_LIMITS.maxStatements);assert.ok(statements.every(item=>item.args.length<=100));
 });
 
 test("configured maximum with pathological cell widths is rejected before exceeding D1 invocation limits",()=>{
@@ -405,7 +405,7 @@ test("Apply ownership makes a stale cleanup candidate skip every R2 object",asyn
   value.db.exec("INSERT INTO site_location_imports(id,site_id,file_name,file_hash,r2_object_key,artifact_object_key,template_version,status,base_master_revision,created_by,created_at) VALUES('apply-wins','site-a','apply.xlsx','hash','sites/site-a/location-imports/apply-wins/original.xlsx','sites/site-a/location-imports/apply-wins/artifacts/hash.xlsx','v1','READY',0,'user-a',datetime('now','-2 days'))");
   value.objects.set(key,Buffer.from("upload"));value.objects.set(artifact,Buffer.from("artifact"));value.env.DB=transactionalD1(value.db);
   const stale=(await locationRepository.loadLocationImportCleanupCandidates(value.env,"site-a",20))[0];
-  assert.equal(await locationRepository.beginLocationImportApply(value.env,"site-a","apply-wins"),true);
+  assert.equal(await locationRepository.beginLocationImportApply(value.env,"site-a","apply-wins","apply-owner"),true);
   await cleanupAbandonedLocationImportObjects(value.env,{...locationRepository,loadLocationImportCleanupCandidates:async()=>[stale]},"site-a");
   assert.equal(value.objects.has(key),true);assert.equal(value.objects.has(artifact),true);
   const row=value.db.prepare("SELECT status,r2_object_key,artifact_object_key FROM site_location_imports WHERE id='apply-wins'").get();assert.equal(row.status,"APPLYING");assert.equal(row.r2_object_key,key);assert.equal(row.artifact_object_key,artifact);value.db.close();
@@ -418,7 +418,7 @@ test("cleanup ownership blocks Apply until successful R2 deletion completes",asy
   let releaseDelete,deleteStartedResolve;const deleteStarted=new Promise(resolve=>{deleteStartedResolve=resolve}),release=new Promise(resolve=>{releaseDelete=resolve});
   value.env.FILES.delete=async objectKeys=>{deleteStartedResolve();await release;for(const item of Array.isArray(objectKeys)?objectKeys:[objectKeys])value.objects.delete(item)};
   const cleanup=cleanupAbandonedLocationImportObjects(value.env,locationRepository,"site-a");await deleteStarted;
-  assert.equal(await locationRepository.beginLocationImportApply(value.env,"site-a","cleanup-wins"),false);
+  assert.equal(await locationRepository.beginLocationImportApply(value.env,"site-a","cleanup-wins","apply-owner"),false);
   releaseDelete();await cleanup;
   const row=value.db.prepare("SELECT status,r2_object_key,cleanup_claim_token FROM site_location_imports WHERE id='cleanup-wins'").get();assert.equal(row.status,"CANCELLED");assert.equal(row.r2_object_key,null);assert.equal(row.cleanup_claim_token,null);assert.equal(value.objects.has(key),false);value.db.close();
 });
@@ -431,4 +431,36 @@ test("failed R2 cleanup releases ownership and preserves retryable DB state",asy
   let row=value.db.prepare("SELECT status,r2_object_key,cleanup_claim_token FROM site_location_imports WHERE id='delete-fails'").get();assert.equal(row.status,"READY");assert.equal(row.r2_object_key,key);assert.equal(row.cleanup_claim_token,null);assert.equal(value.objects.has(key),true);assert.equal(value.objects.has(artifact),true);
   value.env.FILES.delete=async objectKeys=>{for(const item of Array.isArray(objectKeys)?objectKeys:[objectKeys])value.objects.delete(item)};await cleanupAbandonedLocationImportObjects(value.env,locationRepository,"site-a");
   row=value.db.prepare("SELECT status,r2_object_key,cleanup_claim_token FROM site_location_imports WHERE id='delete-fails'").get();assert.equal(row.status,"CANCELLED");assert.equal(row.r2_object_key,null);assert.equal(row.cleanup_claim_token,null);assert.equal(value.objects.has(key),false);assert.equal(value.objects.has(artifact),false);value.db.close();
+});
+
+test("expired Apply lease recovers a worker-death strand and rejects the stale owner",async()=>{
+  const value=await realEnv("MANAGE");
+  value.db.exec("INSERT INTO site_location_imports(id,site_id,file_name,file_hash,r2_object_key,template_version,status,base_master_fingerprint,preview_hash,base_master_revision,created_by) VALUES('lease-import','site-a','lease.xlsx','hash','sites/site-a/location-imports/lease-import/original.xlsx','v1','READY','base','preview',0,'user-a')");
+  value.env.DB=transactionalD1(value.db);
+  assert.equal(await locationRepository.beginLocationImportApply(value.env,"site-a","lease-import","owner-one"),true);
+  let row=value.db.prepare("SELECT status,apply_claim_token,apply_claimed_at FROM site_location_imports WHERE id='lease-import'").get();
+  assert.equal(row.status,"APPLYING");assert.equal(row.apply_claim_token,"owner-one");assert.ok(row.apply_claimed_at);
+  assert.equal(await locationRepository.beginLocationImportApply(value.env,"site-a","lease-import","owner-two"),false);
+  assert.equal((await locationRepository.loadLocationImportCleanupCandidates(value.env,"site-a",20)).some(item=>item.id==="lease-import"),false);
+
+  value.db.prepare("UPDATE site_location_imports SET apply_claimed_at=datetime('now','-16 minutes') WHERE id='lease-import'").run();
+  assert.equal(await locationRepository.beginLocationImportApply(value.env,"site-a","lease-import","owner-two"),true);
+  assert.equal(await locationRepository.restoreLocationImportApplyReady(value.env,"site-a","lease-import","owner-one"),false);
+  row=value.db.prepare("SELECT status,apply_claim_token FROM site_location_imports WHERE id='lease-import'").get();
+  assert.equal(row.status,"APPLYING");assert.equal(row.apply_claim_token,"owner-two");
+
+  const emptyDiff={baseMasterFingerprint:"base",previewHash:"preview",counts:{added:0,updated:0,unchanged:0,inactivated:0,aliasAdded:0,aliasUpdated:0,aliasInactivated:0,error:0},operations:[]};
+  const response={importId:"lease-import",status:"APPLIED",counts:emptyDiff.counts,newMasterFingerprint:fingerprintLocationMaster("site-a",{locations:[],aliases:[]})};
+  const staleStatements=buildLocationImportApplyStatements(value.env,{importRow:{id:"lease-import",base_master_revision:0},siteId:"site-a",userId:"user-a",idempotencyKey:"stale-key",payloadHash:"stale-payload",diff:emptyDiff,requestId:"stale-request",response,applyClaimToken:"owner-one"});
+  await assert.rejects(value.env.DB.batch(staleStatements));
+  assert.equal(value.db.prepare("SELECT status FROM site_location_imports WHERE id='lease-import'").get().status,"APPLYING");
+  assert.equal(value.db.prepare("SELECT COUNT(*) count FROM site_location_import_idempotency WHERE import_id='lease-import'").get().count,0);
+
+  const ownerStatements=buildLocationImportApplyStatements(value.env,{importRow:{id:"lease-import",base_master_revision:0},siteId:"site-a",userId:"user-a",idempotencyKey:"owner-key",payloadHash:"owner-payload",diff:emptyDiff,requestId:"owner-request",response,applyClaimToken:"owner-two"});
+  await value.env.DB.batch(ownerStatements);
+  row=value.db.prepare("SELECT status,apply_claim_token,apply_claimed_at,artifact_object_key FROM site_location_imports WHERE id='lease-import'").get();
+  assert.equal(row.status,"APPLIED");assert.equal(row.apply_claim_token,null);assert.equal(row.apply_claimed_at,null);
+  assert.equal(value.db.prepare("SELECT COUNT(*) count FROM site_location_import_idempotency WHERE import_id='lease-import' AND idempotency_key='owner-key'").get().count,1);
+  assert.equal((await locationRepository.loadLocationImportCleanupCandidates(value.env,"site-a",20)).some(item=>item.id==="lease-import"),false);
+  value.db.close();
 });

@@ -96,11 +96,14 @@ export async function getApplyReplay(env,{siteId,userId,importId,idempotencyKey}
   return {...row,response:JSON.parse(row.response_json)};
 }
 
-export async function beginLocationImportApply(env,siteId,importId){
-  const result=await env.DB.prepare("UPDATE site_location_imports SET status='APPLYING' WHERE id=?1 AND site_id=?2 AND status='READY' AND cleanup_claim_token IS NULL").bind(importId,siteId).run();
+export async function beginLocationImportApply(env,siteId,importId,claimToken){
+  if(!claimToken)return false;
+  const result=await env.DB.prepare(`UPDATE site_location_imports SET status='APPLYING',apply_claim_token=?3,apply_claimed_at=CURRENT_TIMESTAMP
+    WHERE id=?1 AND site_id=?2 AND cleanup_claim_token IS NULL AND ((status='READY' AND apply_claim_token IS NULL) OR (status='APPLYING' AND apply_claim_token IS NOT NULL AND datetime(apply_claimed_at)<=datetime('now','-15 minutes')))` ).bind(importId,siteId,claimToken).run();
   return Number(result?.meta?.changes||0)===1;
 }
 
-export async function restoreLocationImportApplyReady(env,siteId,importId){
-  return env.DB.prepare("UPDATE site_location_imports SET status='READY' WHERE id=?1 AND site_id=?2 AND status IN ('READY','APPLYING')").bind(importId,siteId).run();
+export async function restoreLocationImportApplyReady(env,siteId,importId,claimToken){
+  const result=await env.DB.prepare("UPDATE site_location_imports SET status='READY',apply_claim_token=NULL,apply_claimed_at=NULL WHERE id=?1 AND site_id=?2 AND status='APPLYING' AND apply_claim_token=?3").bind(importId,siteId,claimToken).run();
+  return Number(result?.meta?.changes||0)===1;
 }
