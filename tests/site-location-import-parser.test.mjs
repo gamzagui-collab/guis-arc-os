@@ -1,4 +1,6 @@
 import assert from "node:assert/strict";
+import crypto from "node:crypto";
+import { spawnSync } from "node:child_process";
 import fs from "node:fs";
 import test from "node:test";
 import { strFromU8, strToU8, unzipSync, zipSync } from "fflate";
@@ -31,6 +33,12 @@ function workbook({locations=[],aliases=[],review="IMPORT 미사용",locationHea
 const sampleLocation=["loc-1","","SITE","현장/본관","본관",0];
 const sampleAlias=["alias-1","loc-1"," 본관  1층 ","FIELD_NAME"];
 const rejectCode=async(bytes,code)=>assert.rejects(Promise.resolve().then(()=>parseSiteLocationWorkbook(bytes)),error=>error.code===code);
+const replaceEntry=(bytes,name,value)=>zipSync({...unzipSync(bytes),[name]:strToU8(value)});
+const declaredExpansion=(bytes,size)=>{
+  const copy=new Uint8Array(bytes),view=new DataView(copy.buffer,copy.byteOffset,copy.byteLength);
+  for(let offset=0;offset<=copy.length-46;offset++)if(view.getUint32(offset,true)===0x02014b50){view.setUint32(offset+24,size,true);break}
+  return copy;
+};
 
 test("static workbook has exactly six sheets and exact import headers",()=>{
   assert.deepEqual(LOCATION_HEADERS,["location_id","parent_location_id","location_type","canonical_key","display_name","sort_order"]);
@@ -78,7 +86,39 @@ test("parser enforces compressed, expanded XML, cell, and row limits",async()=>{
   await rejectCode(workbook({extraEntries:{"xl/unused.xml":strToU8("x".repeat(LOCATION_IMPORT_LIMITS.expandedXmlBytes+1))}}),"LOCATION_XLSX_EXPANDED_LIMIT");
 });
 
-test("build script preserves the exact template copy path",()=>{
+test("central-directory expansion is rejected before corrupt compressed data is inflated",async()=>{
+  const bytes=declaredExpansion(workbook({locations:[sampleLocation]}),LOCATION_IMPORT_LIMITS.expandedXmlBytes+1);
+  bytes[40]^=0xff;
+  await rejectCode(bytes,"LOCATION_XLSX_EXPANDED_LIMIT");
+});
+
+test("parser bounds aliases, blank physical rows, columns, cells, worksheets, and XML parts",async()=>{
+  const aliases=Array.from({length:LOCATION_IMPORT_LIMITS.aliases+1},(_,index)=>[`alias-${index}`,"loc-1",`별칭 ${index}`,"FIELD_NAME"]);
+  await rejectCode(workbook({aliases}),"LOCATION_XLSX_ROW_LIMIT");
+  const blankRows=Array.from({length:LOCATION_IMPORT_LIMITS.rowsPerWorksheet},()=>[]);
+  await rejectCode(replaceEntry(workbook(),"xl/worksheets/sheet2.xml",worksheet([LOCATION_HEADERS,...blankRows])),"LOCATION_XLSX_PHYSICAL_ROW_LIMIT");
+  await rejectCode(workbook({locations:[[...sampleLocation,...Array.from({length:LOCATION_IMPORT_LIMITS.columns},()=>"x")]]}),"LOCATION_XLSX_COLUMN_LIMIT");
+  const denseRows=Array.from({length:Math.ceil(LOCATION_IMPORT_LIMITS.cells/LOCATION_IMPORT_LIMITS.columns)+1},()=>Array.from({length:LOCATION_IMPORT_LIMITS.columns},()=>"x"));
+  await rejectCode(replaceEntry(workbook(),"xl/worksheets/sheet2.xml",worksheet(denseRows)),"LOCATION_XLSX_CELL_COUNT_LIMIT");
+  const extraSheets=Array.from({length:LOCATION_IMPORT_LIMITS.worksheets+1},(_,index)=>`<sheet name="extra-${index}" sheetId="${index+10}" r:id="extra${index}"/>`).join("");
+  const base=unzipSync(workbook()),workbookXml=strFromU8(base["xl/workbook.xml"]).replace("</sheets>",`${extraSheets}</sheets>`);
+  await rejectCode(zipSync({...base,"xl/workbook.xml":strToU8(workbookXml)}),"LOCATION_XLSX_WORKSHEET_LIMIT");
+  await rejectCode(replaceEntry(workbook(),"xl/worksheets/sheet2.xml","x".repeat(LOCATION_IMPORT_LIMITS.worksheetBytes+1)),"LOCATION_XLSX_WORKSHEET_BYTES_LIMIT");
+  const shared=`<sst>${Array.from({length:LOCATION_IMPORT_LIMITS.sharedStrings+1},()=>"<si><t>x</t></si>").join("")}</sst>`;
+  await rejectCode(workbook({extraEntries:{"xl/sharedStrings.xml":strToU8(shared)}}),"LOCATION_XLSX_SHARED_STRING_LIMIT");
+  await rejectCode(workbook({extraEntries:{"xl/sharedStrings.xml":strToU8(`<sst><si><t>${"x".repeat(LOCATION_IMPORT_LIMITS.sharedStringBytes+1)}</t></si></sst>`)}}),"LOCATION_XLSX_SHARED_STRING_BYTES_LIMIT");
+});
+
+test("parser rejects namespace-qualified formulas",async()=>{
+  const namespaced=worksheet([LOCATION_HEADERS,sampleLocation]).replace("</c>","<x:f>1+1</x:f></c>");
+  await rejectCode(replaceEntry(workbook({locations:[sampleLocation]}),"xl/worksheets/sheet2.xml",namespaced),"LOCATION_XLSX_UNSAFE_CONTENT");
+});
+
+test("build produces a byte-identical template at the exact path",()=>{
   const build=fs.readFileSync("scripts/build.mjs","utf8");
-  assert.match(build,/dist\/templates/);
+  assert.match(build,/copyFileSync\("apps\/web\/templates\/GUI_Arc_현장위치마스터_기본서식_v1\.xlsx", "dist\/templates\/GUI_Arc_현장위치마스터_기본서식_v1\.xlsx"\)/);
+  const result=spawnSync(process.execPath,["scripts/build.mjs"],{encoding:"utf8"});
+  assert.equal(result.status,0,result.stderr);
+  const digest=path=>crypto.createHash("sha256").update(fs.readFileSync(path)).digest("hex");
+  assert.equal(digest(templatePath),digest("dist/templates/GUI_Arc_현장위치마스터_기본서식_v1.xlsx"));
 });

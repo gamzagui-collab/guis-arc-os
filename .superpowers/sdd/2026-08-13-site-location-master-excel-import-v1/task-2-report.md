@@ -40,3 +40,42 @@
 ## Commit
 
 - Planned message: `feat: add location master workbook parser`
+
+## Fix round 1/5
+
+### Review fixes
+
+- Added a bounded ZIP central-directory preflight that sums declared uncompressed sizes before `unzipSync`; retained `fflate` filter-time and post-decompression byte checks as defense in depth.
+- Added explicit limits for worksheet count and bytes, physical rows, columns, total cells, shared-string count and bytes, plus direct alias-row coverage.
+- Replaced sparse row arrays with bounded column-keyed objects.
+- Rejected namespace-qualified formula tags such as `<x:f>`.
+- Strengthened the build-copy test to run `scripts/build.mjs` and compare source/artifact SHA-256 values.
+
+### RED
+
+- Command: `node --test tests/site-location-import-parser.test.mjs`
+- Result: FAIL, 3 new groups exposed missing central-directory preflight, structural limits, and namespace formula rejection.
+- First implementation run: FAIL, header lookup retained array methods after sparse-array removal.
+- Second implementation run: FAIL, alias limit was masked by an equal physical-row threshold; separated the physical-row bound to preserve both contracts.
+
+### GREEN and verification
+
+- Command: `node --test tests/site-location-import-parser.test.mjs`
+- Result: PASS, 9 tests, 0 failures.
+- Command: `npm.cmd run build`
+- Result: PASS.
+- Command: `git diff --check`
+- Result: PASS.
+
+### Limits after fix
+
+- Compressed workbook: 10 MiB.
+- Declared and actual expanded package: 40 MiB.
+- Worksheets: 16; worksheet bytes: 20 MiB.
+- Physical rows per worksheet: 12,000; columns: 64; total imported-sheet cells: 100,000.
+- Shared strings: 20,000 entries and 10 MiB.
+- Locations: 5,000 rows; aliases: 10,000 rows; cell string: 500 characters.
+
+### Commit
+
+- Planned fix message: `fix: bound location workbook parsing`
