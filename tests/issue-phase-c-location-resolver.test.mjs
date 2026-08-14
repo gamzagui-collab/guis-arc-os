@@ -71,6 +71,17 @@ test("Phase C keeps the most-specific unique safe parent",()=>{
   assert.equal(nonExactRoom.path.roomId,null);
 });
 
+test("Phase C never overrides an explicit floor with a conflicting unit parent",()=>{
+  const conflictLocations=[
+    ...locations,
+    {id:"f18",parent_id:"b202",location_type:"FLOOR",display_name:"18\uCE35"}
+  ];
+  const result=resolveIssueDescriptionLocation("202\uB3D9 18\uCE35 1401\uD638 \uAC70\uC2E4 \uBA74\uAC08\uC774",{locations:conflictLocations,aliases});
+  assert.equal(result.status,"PARTIAL");
+  assert.deepEqual(result.path,{buildingId:"b202",floorId:"f18",unitId:null,roomId:null});
+  assert.deepEqual(result.labels,{building:"202\uB3D9",floor:"18\uCE35"});
+});
+
 test("Phase C never invents missing units or locations",()=>{
   const missing=resolve("202동 1501호 거실");
   assert.equal(missing.status,"PARTIAL");
@@ -97,17 +108,19 @@ test("resolver selection ownership clears stale automatic values and preserves m
   assert.deepEqual(reconcileResolverSelection(manual,automatic,ambiguous,true).path,manual);
 });
 
-test("createV3 resolves only on explicit final-description apply and preserves manual override",()=>{
+test("createV3 keeps speech as a candidate and merges it only on explicit apply",()=>{
   const ui=fs.readFileSync(new URL("../apps/web/assets/issues.js",import.meta.url),"utf8");
   const flow=ui.slice(ui.indexOf("async function createV3"),ui.indexOf("async function detail"));
   assert.match(flow,/id="description-apply"/);
-  assert.match(flow,/resolveIssueDescriptionLocation\(form\.elements\.description\.value/);
+  assert.match(flow,/makeSpeechCandidate=rawTranscript=>/);
+  assert.match(flow,/resolveIssueDescriptionLocation\(resolutionInput/);
   assert.match(flow,/descriptionApply\.onclick/);
-  assert.doesNotMatch(flow,/description\.addEventListener\("input".*resolveIssueDescriptionLocation/s);
+  assert.match(flow,/description\.addEventListener\("input",\(\)=>\{issueDraft=setManualContent/);
   const speech=flow.slice(flow.indexOf("recognition.onresult"),flow.indexOf("recognition.onerror"));
-  assert.doesNotMatch(speech,/resolveIssueDescriptionLocation|applyResolvedLocationPath/);
-  assert.match(flow,/form\.dataset\.manualLocationOverride="true"/);
-  assert.doesNotMatch(flow,/manualLocationOverride.*description\.addEventListener/s);
+  assert.match(speech,/speechCandidate=makeSpeechCandidate\(rawTranscript\)/);
+  assert.doesNotMatch(speech,/applyLocationPathToForm|applyResolvedLocationPath/);
+  assert.match(flow,/mergeSpeechCandidateIntoDraft\(issueDraft,speechCandidate\)/);
+  assert.match(flow,/setManualBuilding|setManualFloor|setManualUnit/);
 });
 
 test("form-options exposes only current-site active aliases for read-only resolving",()=>{

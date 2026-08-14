@@ -307,7 +307,7 @@ test("new Issue UI applies one canonical lookup-only policy for direct and Today
   assert.match(flow,/name="detailLocation"/);
   assert.doesNotMatch(flow,/name="building" required/);
   assert.match(flow,/unit\.required=false/);
-  assert.match(flow,/issueLocationSubmission\(/);
+  assert.match(flow,/buildDraftPayloadView\(issueDraft\)/);
   assert.doesNotMatch(flow,/unitOther|areaOther|value="DIRECT"|payload\.set\("(?:building|floor|unit|room)Label"/);
   assert.match(flow,/floorLocationId/);
   assert.match(flow,/sourcePayload=data\.sourceContext/);
@@ -315,7 +315,7 @@ test("new Issue UI applies one canonical lookup-only policy for direct and Today
   assert.doesNotMatch(flow.slice(flow.indexOf("catch(error)")),/form\.reset\(\)/);
 });
 
-test("speech parser remains evidence-only and cannot create or select ROOM",()=>{const ui=read("apps/web/assets/issues.js"),createFlow=ui.slice(ui.indexOf("async function createV3"),ui.indexOf("async function detail")),onresult=createFlow.slice(createFlow.indexOf("recognition.onresult"),createFlow.indexOf("recognition.onerror"));assert.match(onresult,/extractLocationSpeech\(rawTranscript/);assert.doesNotMatch(onresult,/currentLocationParentId|addAndSelect|form\.elements\.area\.value/);assert.match(onresult,/description\.value=rawTranscript/)})
+test("speech parser separates a candidate from editable Draft detail and content",()=>{const ui=read("apps/web/assets/issues.js"),createFlow=ui.slice(ui.indexOf("async function createV3"),ui.indexOf("async function detail")),onresult=createFlow.slice(createFlow.indexOf("recognition.onresult"),createFlow.indexOf("recognition.onerror"));assert.match(createFlow,/extractLocationSpeech\(rawTranscript/);assert.match(createFlow,/finalizeIssueSpeechCandidates\(rawParsed,resolution\)/);assert.doesNotMatch(onresult,/currentLocationParentId|addAndSelect|form\.elements\.area\.value|description\.value=|detailLocation\.value=/);assert.match(onresult,/speechCandidate=makeSpeechCandidate\(rawTranscript\)/)})
 
 test("standalone PWA launch emphasizes the existing camera action once without an automatic picker",()=>{
   const ui=read("apps/web/assets/issues.js"),css=read("apps/web/assets/issues.css"),flow=ui.slice(ui.indexOf("const PWA_CAMERA_LAUNCH_KEY"),ui.indexOf("const OFFLINE"));
@@ -366,15 +366,15 @@ test("mobile photo editor defaults to NONE and preserves tool geometry contracts
   assert.match(css,/\.photo-editor-wrap\.drawing-enabled canvas\{touch-action:none/);
 });
 
-test("collapsed Issue rows stay two-line, photo-free, and location-free",()=>{
+test("collapsed Issue rows stay lean, photo-free, and management-focused",()=>{
   const ui=read("apps/web/assets/issues.js"),css=read("apps/web/assets/issues.css");
   const cardSource=ui.slice(ui.indexOf("const card="),ui.indexOf("async function expandCard"));
-  for(const token of ["issue-compact-primary","issue-compact-secondary","compact-assignee","compact-classification"])assert.match(cardSource,new RegExp(token));
-  assert.doesNotMatch(cardSource,/issue\.location|<img/);
+  for(const token of ["issue-category","issue-management-summary","issueListShareAction","issue-expand"])assert.match(cardSource,new RegExp(token));
+  assert.doesNotMatch(cardSource,/<img/);
   assert.match(ui,/const compactTitle=/);
-  assert.match(css,/issue-compact-primary\{grid-template-columns:auto minmax\(0,1fr\) auto/);
-  assert.match(css,/issue-compact-secondary\{grid-template-columns:minmax\(0,1fr\) auto 48px/);
-  assert.match(css,/issue-compact-secondary \.issue-expand\{width:44px/);
+  assert.match(css,/issue-compact-summary\{grid-template-columns:72px 92px 72px minmax\(0,1fr\) 92px 52px/);
+  assert.match(css,/issue-management-summary[^}]*text-overflow:ellipsis/);
+  assert.match(css,/issue-expand\{min-width:48px;min-height:44px/);
 });
 
 test("mobile shell header separates brand and site-user context",()=>{
@@ -391,8 +391,8 @@ test("v0.21.0 mobile Issue flow keeps only photo location and content before ass
   assert.match(flow,/name="floor"/);
   assert.doesNotMatch(flow,/name="contractorCompanyId"|name="tradeCode"|name="assigneeUserId"|name="categoryCode"/);
   for(const token of ["사진 촬영","파일 선택","직접 입력","name=\"description\"","이슈 등록","UNCLASSIFIED","ISSUE_LOCATION"])assert.ok((flow+worker).includes(token));
-  assert.match(flow,/payload\.set\("floorLocationId",submission\.floorLocationId\)/);
-  assert.match(flow,/detailText:detailLocation\.value/);
+  assert.match(flow,/payload\.set\("floorLocationId",draftPayload\.floorLocationId\)/);
+  assert.match(flow,/setManualDetail\(issueDraft,detailLocation\.value\)/);
   assert.match(ui,/업체·공종·담당자 배정/);
   assert.match(ui,/업체 미배정/);
   assert.match(worker,/Issue created without assignment/);
@@ -444,7 +444,7 @@ test("resolveIssueLocation ROOM는 동일 building 기준 기존값 재사용 �
 test("createV3 omits the automatic whole-room placeholder from canonical payload",()=>{
   const ui=read("apps/web/assets/issues.js");
   const flow=ui.slice(ui.indexOf("async function createV3"),ui.indexOf("async function detail"));
-  assert.match(flow,/payload\.set\("roomLocationId",submission\.roomLocationId\)/);
+  assert.match(flow,/payload\.set\("roomLocationId",draftPayload\.roomLocationId\)/);
   assert.doesNotMatch(flow,/areaLabel=.*"전체"|payload\.set\("roomLabel"/);
 });
 

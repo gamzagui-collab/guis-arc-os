@@ -78,7 +78,7 @@ export function resolveIssueDescriptionLocation(description,{locations,aliases=[
   let floor=explicitFloors.length===1?explicitFloors[0]:null,ambiguous=explicitFloors.length>1;
   const fullUnitToken=text.match(/(?:b\d+|\d{3,4})\uD638/i)?.[0]||null,descendantUnits=floors.flatMap(value=>children(locations,value.id,"UNIT"));
   let unit=null;
-  if(fullUnitToken){const matches=descendantUnits.filter(value=>normalize(value.display_name||value.name)===fullUnitToken.toLowerCase());if(matches.length===1){unit=matches[0];floor=byId.get(unit.parent_id)||floor}else if(matches.length>1)ambiguous=true}
+  if(fullUnitToken){const eligibleUnits=floorTokens.size?floor?children(locations,floor.id,"UNIT"):[]:descendantUnits,matches=eligibleUnits.filter(value=>normalize(value.display_name||value.name)===fullUnitToken.toLowerCase());if(matches.length===1){unit=matches[0];if(!floor)floor=byId.get(unit.parent_id)||null}else if(matches.length>1)ambiguous=true}
   else if(floor){const short=text.match(/(?:^|[^0-9])(\d{1,2})\uD638(?:$|[^0-9])/i)?.[1],floorNumber=normalize(floor.display_name||floor.name).match(/(\d+)\uCE35/)?.[1],candidate=short&&floorNumber?`${floorNumber}${String(short).padStart(2,"0")}\uD638`:null,matches=candidate?children(locations,floor.id,"UNIT").filter(value=>normalize(value.display_name||value.name)===candidate):[];if(matches.length===1)unit=matches[0];else if(matches.length>1)ambiguous=true}
   if(floor){path.floorId=floor.id;labels.floor=floor.display_name||floor.name}if(unit){path.unitId=unit.id;labels.unit=unit.display_name||unit.name}
   const parentId=unit?.id||floor?.id||building.id,rooms=children(locations,parentId,"ROOM"),exactRooms=rooms.filter(value=>wordTokens.has(normalize(value.display_name||value.name)));
