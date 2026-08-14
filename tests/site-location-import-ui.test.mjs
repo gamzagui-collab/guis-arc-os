@@ -9,6 +9,7 @@ import {
   ensureApplyIntent,
   finishLocationImportAction,
   hasLocationImportManageAccess,
+  appliedFileCard,
   replaceLocationImportPreview,
   visiblePreviewItems
 } from "../apps/web/assets/site-location-import.js";
@@ -18,8 +19,8 @@ const read=file=>fs.readFileSync(file,"utf8");
 test("admin route keeps its existing shell and loads the location import module",()=>{
   const app=read("apps/web/assets/app.js"),admin=read("apps/web/assets/integrated-admin.js"),html=read("apps/web/index.html");
   assert.match(app,/\/admin\/site-locations/);
-  assert.match(admin,/site-location-import\.js\?v=0\.27\.1-r25/);
-  assert.match(html,/site-location-import\.css\?v=0\.27\.1-r25/);
+  assert.match(admin,/site-location-import\.js\?v=0\.27\.1-r26/);
+  assert.match(html,/site-location-import\.css\?v=0\.27\.1-r26/);
 });
 
 test("admin navigation exposes the existing location information route",async()=>{
@@ -66,10 +67,16 @@ test("Apply stays blocked until every rename candidate has an explicit valid dec
   ]}),true);
 });
 
-test("v2 UI explains four human columns and contains no alias mutation action",()=>{
+test("v3 UI explains three structural columns and contains no alias mutation action",()=>{
   const ui=read("apps/web/assets/site-location-import.js"),css=read("apps/web/assets/site-location-import.css");
-  for(const text of ["동/구역, 층, 호/공간, 세부위치","이름 변경 후보","기본서식 다운로드","role=\"status\"","aria-busy"])assert.match(ui,new RegExp(text));
+  for(const text of ["건물/구역, 층, 호/공간만 입력하세요","세부 위치는 이슈 등록에서 선택하거나 직접 입력합니다","이름 변경 후보","기본서식 다운로드","role=\"status\"","aria-busy"])assert.match(ui,new RegExp(text));
   assert.doesNotMatch(ui,/ALIAS_ADD|ALIAS_UPDATE|ALIAS_INACTIVE|별칭 추가/);
   assert.match(css,/rename-choice/);
   assert.match(css,/min-height:44px/);
+});
+
+test("current and previous applied file cards expose authorized original downloads",()=>{
+  const current=appliedFileCard("현재 적용 파일",{id:"current",file_name:"current.xlsx",applied_at:"2026-08-14",applied_by_name:"관리자",location_count:181});
+  assert.match(current,/현재 적용 파일/);assert.match(current,/current\.xlsx/);assert.match(current,/181/);assert.match(current,/\/imports\/current\/original/);
+  assert.match(appliedFileCard("이전 적용 파일",null),/없음/);
 });

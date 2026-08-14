@@ -30,6 +30,33 @@ export async function loadRecentLocationImports(env,siteId,limit=20){
     u.display_name created_by_name FROM site_location_imports i LEFT JOIN users u ON u.id=i.created_by WHERE i.site_id=?1 ORDER BY i.created_at DESC LIMIT ?2`).bind(siteId,bounded).all());
 }
 
+export async function loadAppliedLocationFiles(env,siteId,limit=2){
+  const bounded=Math.max(1,Math.min(2,Number(limit)||2));
+  return results(await env.DB.prepare(`SELECT i.id,i.file_name,i.file_hash,i.artifact_object_key,i.applied_at,
+    (i.added_count+i.updated_count+i.unchanged_count) location_count,u.display_name applied_by_name
+    FROM site_location_imports i LEFT JOIN users u ON u.id=i.created_by
+    WHERE i.site_id=?1 AND i.status='APPLIED' AND i.artifact_object_key IS NOT NULL
+    ORDER BY i.applied_at DESC,i.created_at DESC LIMIT ?2`).bind(siteId,bounded).all());
+}
+
+export function getRetainedAppliedLocationFile(env,siteId,importId){
+  return env.DB.prepare(`SELECT * FROM (SELECT i.id,i.site_id,i.file_name,i.artifact_object_key,i.applied_at,
+    ROW_NUMBER() OVER (ORDER BY i.applied_at DESC,i.created_at DESC) retained_rank
+    FROM site_location_imports i WHERE i.site_id=?1 AND i.status='APPLIED' AND i.artifact_object_key IS NOT NULL) retained
+    WHERE retained.id=?2 AND retained.retained_rank<=2`).bind(siteId,importId).first();
+}
+
+export async function loadExpiredAppliedLocationArtifacts(env,siteId){
+  return results(await env.DB.prepare(`SELECT id,artifact_object_key FROM (
+    SELECT id,artifact_object_key,ROW_NUMBER() OVER (ORDER BY applied_at DESC,created_at DESC) retained_rank
+    FROM site_location_imports WHERE site_id=?1 AND status='APPLIED' AND artifact_object_key IS NOT NULL)
+    WHERE retained_rank>2 ORDER BY retained_rank`).bind(siteId).all());
+}
+
+export function clearAppliedLocationArtifact(env,siteId,importId,objectKey){
+  return env.DB.prepare("UPDATE site_location_imports SET artifact_object_key=NULL WHERE id=?1 AND site_id=?2 AND status='APPLIED' AND artifact_object_key=?3").bind(importId,siteId,objectKey).run();
+}
+
 export async function loadLocationImportCleanupCandidates(env,siteId,limit=20){
   const bounded=Math.max(1,Math.min(20,Number(limit)||20));
   return results(await env.DB.prepare(`SELECT id,site_id,file_name,file_hash,r2_object_key,artifact_object_key,status,
@@ -76,7 +103,7 @@ export function getLocationImport(env,siteId,importId){
 
 export async function createLocationImport(env,row){
   await env.DB.prepare(`INSERT INTO site_location_imports(id,site_id,file_name,file_hash,r2_object_key,template_version,status,created_by)
-    VALUES(?1,?2,?3,?4,?5,'SIMPLE_LOCATION_LIST_V2','UPLOADED',?6)`).bind(row.id,row.siteId,row.fileName,row.fileHash,row.r2ObjectKey,row.createdBy).run();
+    VALUES(?1,?2,?3,?4,?5,'SIMPLE_LOCATION_MASTER_V3','UPLOADED',?6)`).bind(row.id,row.siteId,row.fileName,row.fileHash,row.r2ObjectKey,row.createdBy).run();
   return row;
 }
 

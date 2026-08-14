@@ -124,11 +124,11 @@ export function parseSiteLocationWorkbook(buffer){
   parts.counter={cells:0};
   for(const name of IMPORT_REQUIRED_SHEETS)if(!parts.sheets.some(sheet=>sheet.name===name))fail(CODES.SHEET_MISSING,`${name} 시트가 없습니다.`);
   const locations=importRows(parts,SIMPLE_LOCATION_SHEET,SIMPLE_LOCATION_HEADERS,LIMITS.locations,(row,indexes)=>({
-    area:row.values[indexes["동/구역"]]??"",
+    area:row.values[indexes["건물/구역"]]??"",
     floor:row.values[indexes["층"]]??"",
     space:row.values[indexes["호/공간"]]??"",
-    detail:row.values[indexes["세부위치"]]??"",
+    detail:"",
     sourceSheetName:SIMPLE_LOCATION_SHEET,sourceRow:row.number
   }));
-  return {locations,aliases:[],workbookMeta:{templateVersion:"SIMPLE_LOCATION_LIST_V2",sheetNames:parts.sheets.map(sheet=>sheet.name)},diagnostics:[]};
+  return {locations,aliases:[],workbookMeta:{templateVersion:"SIMPLE_LOCATION_MASTER_V3",sheetNames:parts.sheets.map(sheet=>sheet.name)},diagnostics:[]};
 }

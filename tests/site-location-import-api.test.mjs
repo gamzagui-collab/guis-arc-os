@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import fs from "node:fs";
 import crypto from "node:crypto";
 import {DatabaseSync} from "node:sqlite";
-import {cleanupAbandonedLocationImportObjects,handleSiteLocationImportRequest} from "../worker/modules/site-location-import.js";
+import {cleanupAbandonedLocationImportObjects,handleSiteLocationImportRequest,retainLatestAppliedLocationArtifacts} from "../worker/modules/site-location-import.js";
 import worker from "../worker/index.js";
 import {applyLocationImport,buildLocationImportApplyStatements,D1_LOCATION_IMPORT_LIMITS} from "../worker/modules/site-location-import/apply.js";
 import * as locationRepository from "../worker/modules/site-location-import/repository.js";
@@ -11,8 +11,10 @@ import {fingerprintLocationMaster} from "../worker/modules/site-location-import/
 import {buildLocationImportDiff} from "../worker/modules/site-location-import/diff.js";
 import {strToU8,unzipSync,zipSync} from "fflate";
 import {LOCATION_HEADERS,LOCATION_IMPORT_LIMITS,TEMPLATE_SHEETS} from "../worker/modules/site-location-import/contracts.js";
+import {validateLocationImport} from "../worker/modules/site-location-import/validation.js";
+import * as locationValidation from "../worker/modules/site-location-import/validation.js";
 
-const template=fs.readFileSync("apps/web/templates/GUI_Arc_현장위치목록_기본서식_v2.xlsx");
+const template=fs.readFileSync("apps/web/templates/GUI_Arc_현장위치목록_기본서식_v3.xlsx");
 const digest=crypto.createHash("sha256").update(template).digest("hex");
 const request=(path,{method="GET",body,headers={}}={})=>new Request(`https://example.test${path}`,{method,headers:{...headers,...(body?{"content-type":"application/json"}:{})},body:body?JSON.stringify(body):undefined});
 const auth=(access="MANAGE",siteId="site-a")=>async(_request,_env,options={})=>{
@@ -39,13 +41,13 @@ function fixture({access="MANAGE",siteId="site-a",sessionSite="site-a",bytes=tem
 test("summary, template and compact history require ADMINISTRATION VIEW in the active site",async()=>{
   const {env,deps}=fixture({access:"VIEW"});
   const summary=await handleSiteLocationImportRequest(request("/api/v1/admin/site-locations/summary"),env,undefined,deps);
-  assert.deepEqual(await summary.json(),{activeFixedLocationCount:4,lastSuccessfulImport:null});
+  assert.deepEqual(await summary.json(),{activeFixedLocationCount:4,lastSuccessfulImport:null,currentAppliedFile:null,previousAppliedFile:null});
   const history=await handleSiteLocationImportRequest(request("/api/v1/admin/site-locations/imports"),env,undefined,deps);
   assert.deepEqual((await history.json()).items,[{id:"old",status:"READY",added_count:2,error_count:0}]);
   let fetchedUrl="";deps.fetchTemplate=async assetRequest=>{fetchedUrl=assetRequest.url;return new Response(template)};
   const download=await handleSiteLocationImportRequest(request("/api/v1/admin/site-locations/template"),env,undefined,deps);
-  assert.equal(fetchedUrl,"https://guis-arc-integrated-dev.pages.dev/templates/GUI_Arc_%ED%98%84%EC%9E%A5%EC%9C%84%EC%B9%98%EB%AA%A9%EB%A1%9D_%EA%B8%B0%EB%B3%B8%EC%84%9C%EC%8B%9D_v2.xlsx");
-  assert.equal(download.status,200);assert.equal(download.headers.get("content-type"),"application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");assert.equal(download.headers.get("content-disposition"),"attachment; filename*=UTF-8''GUI_Arc_%ED%98%84%EC%9E%A5%EC%9C%84%EC%B9%98%EB%AA%A9%EB%A1%9D_%EA%B8%B0%EB%B3%B8%EC%84%9C%EC%8B%9D_v2.xlsx");assert.deepEqual(Buffer.from(await download.arrayBuffer()),template);
+  assert.equal(fetchedUrl,"https://guis-arc-integrated-dev.pages.dev/templates/GUI_Arc_%ED%98%84%EC%9E%A5%EC%9C%84%EC%B9%98%EB%AA%A9%EB%A1%9D_%EA%B8%B0%EB%B3%B8%EC%84%9C%EC%8B%9D_v3.xlsx");
+  assert.equal(download.status,200);assert.equal(download.headers.get("content-type"),"application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");assert.equal(download.headers.get("content-disposition"),"attachment; filename*=UTF-8''GUI_Arc_%ED%98%84%EC%9E%A5%EC%9C%84%EC%B9%98%EB%AA%A9%EB%A1%9D_%EA%B8%B0%EB%B3%B8%EC%84%9C%EC%8B%9D_v3.xlsx");assert.deepEqual(Buffer.from(await download.arrayBuffer()),template);
 });
 
 test("VIEW cannot create an upload session",async()=>{
@@ -121,6 +123,19 @@ test("real auth path enforces session, membership, ADMINISTRATION access, CSRF a
   value.db.prepare("UPDATE memberships SET approval_status='PENDING'").run();response=await worker.fetch(request("/api/v1/admin/site-locations/summary",{headers:{cookie:value.headers.cookie}}),value.env);assert.equal(response.status,403);assert.equal((await response.json()).error,"ADMIN_SITE_SCOPE_DENIED");value.db.close();
 });
 
+test("current and previous applied originals stay downloadable while a third Apply deletes only the oldest binary",async()=>{
+  const value=await realEnv("VIEW"),insert=(id,appliedAt,key)=>{value.db.prepare("INSERT INTO site_location_imports(id,site_id,file_name,file_hash,artifact_object_key,template_version,status,created_by,applied_at,added_count,updated_count,unchanged_count) VALUES(?,'site-a',?,'hash',?,'SIMPLE_LOCATION_MASTER_V3','APPLIED','user-a',?,1,2,3)").run(id,`${id}.xlsx`,key,appliedAt);value.objects.set(key,Buffer.from(id))};
+  insert("old","2026-08-01 00:00:00","sites/site-a/location-imports/old/artifacts/hash.xlsx");insert("previous","2026-08-02 00:00:00","sites/site-a/location-imports/previous/artifacts/hash.xlsx");insert("current","2026-08-03 00:00:00","sites/site-a/location-imports/current/artifacts/hash.xlsx");
+  const summary=await (await worker.fetch(request("/api/v1/admin/site-locations/summary",{headers:{cookie:value.headers.cookie}}),value.env)).json();
+  assert.equal(summary.currentAppliedFile.id,"current");assert.equal(summary.previousAppliedFile.id,"previous");assert.equal(summary.currentAppliedFile.location_count,6);
+  let response=await worker.fetch(request("/api/v1/admin/site-locations/imports/current/original",{headers:{cookie:value.headers.cookie}}),value.env);assert.equal(response.status,200);assert.deepEqual(Buffer.from(await response.arrayBuffer()),Buffer.from("current"));
+  response=await worker.fetch(request("/api/v1/admin/site-locations/imports/old/original",{headers:{cookie:value.headers.cookie}}),value.env);assert.equal(response.status,404);
+  await retainLatestAppliedLocationArtifacts(value.env,locationRepository,"site-a");
+  assert.equal(value.objects.has("sites/site-a/location-imports/old/artifacts/hash.xlsx"),false);assert.equal(value.objects.has("sites/site-a/location-imports/previous/artifacts/hash.xlsx"),true);assert.equal(value.objects.has("sites/site-a/location-imports/current/artifacts/hash.xlsx"),true);
+  assert.equal(value.db.prepare("SELECT COUNT(*) count FROM site_location_imports WHERE site_id='site-a' AND status='APPLIED'").get().count,3);
+  assert.equal(value.db.prepare("SELECT artifact_object_key FROM site_location_imports WHERE id='old'").get().artifact_object_key,null);value.db.close();
+});
+
 test("real valid and invalid validation paths perform zero Location/Alias master writes",async()=>{
   const value=await realEnv("MANAGE"),objects=new Map(),insert=(id,bytes)=>{const fileHash=crypto.createHash("sha256").update(bytes).digest("hex"),key=`sites/site-a/location-imports/${id}/original.xlsx`;value.db.prepare("INSERT INTO site_location_imports(id,site_id,file_name,file_hash,r2_object_key,template_version,status,created_by) VALUES(?, 'site-a','locations.xlsx',?,?,'v1','UPLOADED','user-a')").run(id,fileHash,key);objects.set(key,bytes)};
   insert("valid",template);insert("invalid",Buffer.from([0x50,0x4b,0x05,0x06]));value.env.FILES.get=async key=>objects.has(key)?{size:objects.get(key).length,arrayBuffer:async()=>objects.get(key)}:null;
@@ -166,6 +181,28 @@ test("exact typed legacy hierarchy is adopted as IMPORT without changing IDs or 
   assert.deepEqual(diff.operations.map(item=>item.id),["legacy-building","legacy-floor"]);
   assert.deepEqual(diff.operations.map(item=>item.after.source),["IMPORT","IMPORT"]);
   assert.equal(diff.operations.find(item=>item.id==="legacy-floor").after.parentId,"legacy-building");
+});
+
+test("inactive exact LEGACY parent present in the workbook is reactivated without rejecting its children",()=>{
+  const current={locations:[location("legacy-202",{locationType:"BUILDING",canonicalKey:null,displayName:"202동",source:"LEGACY",isActive:0})]};
+  const workbook={locations:[
+    {area:"202동",floor:"",space:"",detail:"",sourceSheetName:"01_위치목록",sourceRow:3},
+    {area:"202동",floor:"1층",space:"",detail:"",sourceSheetName:"01_위치목록",sourceRow:26},
+    {area:"202동",floor:"2층",space:"",detail:"",sourceSheetName:"01_위치목록",sourceRow:27}
+  ]};
+  const checked=validateLocationImport({siteId:"site-a",workbook,current});
+  assert.equal(checked.errors.some(item=>item.code==="LOCATION_IMPORT_PARENT_INACTIVE"),false);
+  const diff=buildLocationImportDiff({siteId:"site-a",normalized:checked.normalized,current});
+  assert.equal(diff.operations.filter(item=>item.type==="UPDATE"&&item.id==="legacy-202").length,1);
+  assert.equal(diff.operations.filter(item=>item.type==="ADD"&&item.after.locationType==="BUILDING").length,0);
+  assert.equal(diff.operations.filter(item=>item.after?.parentId==="legacy-202"&&item.after.locationType==="FLOOR").length,2);
+});
+
+test("inactive parent absent from the workbook remains rejected",()=>{
+  assert.equal(typeof locationValidation.isLocationImportParentInactive,"function");
+  const existingById=new Map([["legacy-202",location("legacy-202",{locationType:"BUILDING",displayName:"202동",source:"LEGACY",isActive:0})]]);
+  assert.equal(locationValidation.isLocationImportParentInactive("legacy-202",new Set(),existingById),true);
+  assert.equal(locationValidation.isLocationImportParentInactive("legacy-202",new Set(["legacy-202"]),existingById),false);
 });
 function applyHarness({diff=applyDiff([]),row={},replayed=null,failAt=0}={}){
   const executed=[];let batchCalls=0,status="READY";

@@ -304,10 +304,10 @@ test("new Issue UI applies one canonical lookup-only policy for direct and Today
   assert.match(flow,/locationOptions\(locations\.buildings,[^\n]+natural:false/);
   assert.match(worker,/floors:byType\("FLOOR"\)/);
   assert.match(flow,/locationOptions\(locations\.units/);
-  assert.match(flow,/locationOptions\(locations\.areas/);
+  assert.match(flow,/name="detailLocation"/);
   assert.doesNotMatch(flow,/name="building" required/);
   assert.match(flow,/unit\.required=false/);
-  assert.match(flow,/areaLabel=roomOption\?\.value&&roomOption\?\.textContent!=="기타"\?roomOption\.textContent:""/);
+  assert.match(flow,/issueLocationSubmission\(/);
   assert.doesNotMatch(flow,/unitOther|areaOther|value="DIRECT"|payload\.set\("(?:building|floor|unit|room)Label"/);
   assert.match(flow,/floorLocationId/);
   assert.match(flow,/sourcePayload=data\.sourceContext/);
@@ -391,8 +391,8 @@ test("v0.21.0 mobile Issue flow keeps only photo location and content before ass
   assert.match(flow,/name="floor"/);
   assert.doesNotMatch(flow,/name="contractorCompanyId"|name="tradeCode"|name="assigneeUserId"|name="categoryCode"/);
   for(const token of ["사진 촬영","파일 선택","직접 입력","name=\"description\"","이슈 등록","UNCLASSIFIED","ISSUE_LOCATION"])assert.ok((flow+worker).includes(token));
-  assert.match(flow,/payload\.set\("floorLocationId",canonicalLocationId\(floorOption\)\)/);
-  assert.match(flow,/join\(" \/ "\)/);
+  assert.match(flow,/payload\.set\("floorLocationId",submission\.floorLocationId\)/);
+  assert.match(flow,/detailText:detailLocation\.value/);
   assert.match(ui,/업체·공종·담당자 배정/);
   assert.match(ui,/업체 미배정/);
   assert.match(worker,/Issue created without assignment/);
@@ -444,14 +444,14 @@ test("resolveIssueLocation ROOM는 동일 building 기준 기존값 재사용 �
 test("createV3 omits the automatic whole-room placeholder from canonical payload",()=>{
   const ui=read("apps/web/assets/issues.js");
   const flow=ui.slice(ui.indexOf("async function createV3"),ui.indexOf("async function detail"));
-  assert.match(flow,/areaLabel=roomOption\?\.value&&roomOption\?\.textContent!=="기타"\?roomOption\.textContent:""/);
+  assert.match(flow,/payload\.set\("roomLocationId",submission\.roomLocationId\)/);
   assert.doesNotMatch(flow,/areaLabel=.*"전체"|payload\.set\("roomLabel"/);
 });
 
 test("NONE allows scrolling and a selected tool enables drawing without changing desktop default",()=>{
  const ui=read("apps/web/assets/issues.js"),editor=ui.slice(ui.indexOf("function bindPhotoEditor"),ui.indexOf("const locationOptions"));assert.match(editor,/wrap\.classList\.toggle\("drawing-enabled",tool!=="none"\)/);assert.match(editor,/if\(!drawing\|\|tool==="none"\)return/);assert.match(editor,/setTool\(mobileEditor\?"none":"circle"\)/);
 });
-test("manual ROOM selection remains independent from speech evidence collection",()=>{const ui=read("apps/web/assets/issues.js"),createFlow=ui.slice(ui.indexOf("async function createV3"),ui.indexOf("async function detail")),onresult=createFlow.slice(createFlow.indexOf("recognition.onresult"),createFlow.indexOf("recognition.onerror"));assert.match(createFlow,/form\.dataset\.manualArea/);assert.doesNotMatch(onresult,/dataset\.manualArea|speechRoomValue|form\.elements\.area/)})
+test("free-text detail remains independent from speech evidence collection",()=>{const ui=read("apps/web/assets/issues.js"),createFlow=ui.slice(ui.indexOf("async function createV3"),ui.indexOf("async function detail")),onresult=createFlow.slice(createFlow.indexOf("recognition.onresult"),createFlow.indexOf("recognition.onerror"));assert.match(createFlow,/name="detailLocation"/);assert.doesNotMatch(onresult,/speechRoomValue|form\.elements\.area/)})
 
 
 test("annotation palette has seven colors with red selected by default",()=>{

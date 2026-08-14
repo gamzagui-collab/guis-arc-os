@@ -38,15 +38,29 @@ export function reconcileResolverSelection(current,lastOwned,resolverResult,manu
  return {path:resolvedPath,ownedPath:resolvedPath};
 }
 
-export function issueLocationSubmission({mode="CANONICAL",manualText="",canonical={},canonicalText=""}={}){
+const DETAIL_SUGGESTIONS=Object.freeze({
+ RESIDENTIAL:["거실","주방/식당","현관","침실","욕실","발코니","드레스룸","팬트리","기타"],
+ COMMON:["계단실","복도","엘리베이터홀","공용부","화장실","출입구","기타"],
+ PARKING:["주차구역","램프","출입구","계단실","기계실","전기실","기타"],
+ EXTERIOR:["외곽","출입구","보도","조경","비계","옥상","기타"],
+ INDEPENDENT:["내부","입구","벽","천장","바닥","기타"]
+});
+
+export function issueDetailSuggestions({building="",floor="",space=""}={}){
+ const labels=`${building} ${floor} ${space}`.normalize("NFKC"),kind=/(?:B?\d{3,4})호/i.test(space)?"RESIDENTIAL":/주차|램프/.test(labels)?"PARKING":/외부|옥상/.test(`${building} ${floor}`)?"EXTERIOR":String(space).trim()?"INDEPENDENT":"COMMON";
+ return {kind,items:[...DETAIL_SUGGESTIONS[kind]]};
+}
+
+export function issueLocationSubmission({mode="CANONICAL",manualText="",canonical={},canonicalText="",detailText=""}={}){
  const direct=mode==="DIRECT";
+ const structural=String(canonicalText).trim(),detail=String(detailText).trim();
  return {
-  location:direct?String(manualText).trim():String(canonicalText).trim(),
+  location:direct?String(manualText).trim():[structural,detail].filter(Boolean).join(" / "),
   buildingLocationId:direct?"":canonical.buildingLocationId||"",
   buildingType:direct?"BUILDING":canonical.buildingType||"BUILDING",
   floorLocationId:direct?"":canonical.floorLocationId||"",
   unitLocationId:direct?"":canonical.unitLocationId||"",
-  roomLocationId:direct?"":canonical.roomLocationId||""
+  roomLocationId:""
  };
 }
 

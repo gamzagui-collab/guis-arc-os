@@ -50,17 +50,17 @@ test("v2 reuses an exact same-site physical path and isolates the same ID in ano
   assert.equal(isolated.errors.some(item=>item.code==="LOCATION_IMPORT_ID_COLLISION"),false);
 });
 
-test("v2 parses only the four human location columns and builds a deduplicated hierarchy",()=>{
-  assert.deepEqual(SIMPLE_LOCATION_HEADERS,["동/구역","층","호/공간","세부위치"]);
+test("v3 parses only the three structural columns and builds a deduplicated hierarchy",()=>{
+  assert.deepEqual(SIMPLE_LOCATION_HEADERS,["건물/구역","층","호/공간"]);
   const parsed=parseSiteLocationWorkbook(workbook([["202동","14층","1401호","거실"],["202동","14층","1401호","주방"]]));
   assert.deepEqual(parsed.aliases,[]);
   assert.deepEqual(parsed.locations.map(({area,floor,space,detail})=>({area,floor,space,detail})),[
-    {area:"202동",floor:"14층",space:"1401호",detail:"거실"},
-    {area:"202동",floor:"14층",space:"1401호",detail:"주방"}
+    {area:"202동",floor:"14층",space:"1401호",detail:""},
+    {area:"202동",floor:"14층",space:"1401호",detail:""}
   ]);
   const tree=buildLocationCandidateTree({siteId:"site-a",rows:parsed.locations});
   assert.deepEqual(tree.locations.map(({locationType,displayName})=>[locationType,displayName]),[
-    ["BUILDING","202동"],["FLOOR","14층"],["UNIT","1401호"],["ROOM","거실"],["ROOM","주방"]
+    ["BUILDING","202동"],["FLOOR","14층"],["UNIT","1401호"]
   ]);
 });
 
@@ -82,7 +82,7 @@ test("v2 exact re-import preserves IDs while only omitted IMPORT nodes become in
   const diff=buildLocationImportDiff({siteId:"site-a",normalized:second.normalized,current:{locations:old,aliases:[]}});
   assert.equal(diff.counts.added,0);
   assert.equal(diff.counts.inactivated,0);
-  assert.equal(diff.counts.unchanged,4);
+  assert.equal(diff.counts.unchanged,3);
   assert.equal(diff.operations.some(item=>item.id==="legacy-root"),false);
 });
 
@@ -90,7 +90,7 @@ test("v2 emits a rename candidate and retains the existing ID only after an expl
   const current={locations:[
     {id:"root",site_id:"site-a",parent_id:null,location_type:"BUILDING",canonical_key:"legacy/root",display_name:"202동",sort_order:10,is_active:1,source:"IMPORT"},
     {id:"floor",site_id:"site-a",parent_id:"root",location_type:"FLOOR",canonical_key:"legacy/floor",display_name:"14층",sort_order:10,is_active:1,source:"IMPORT"},
-    {id:"old",site_id:"site-a",parent_id:"floor",location_type:"FACILITY",canonical_key:"legacy/old",display_name:"복도",sort_order:10,is_active:1,source:"IMPORT"}
+    {id:"old",site_id:"site-a",parent_id:"floor",location_type:"UNIT",canonical_key:"legacy/old",display_name:"복도",sort_order:10,is_active:1,source:"IMPORT"}
   ],aliases:[{id:"untouched-alias"}]};
   const parsed=parseSiteLocationWorkbook(workbook([["202동","14층","경로",""]]));
   const checked=validateLocationImport({siteId:"site-a",workbook:parsed,current});
@@ -137,11 +137,11 @@ test("v2 parent SAME_LOCATION preserves descendant IDs and rewrites parent refer
   assert.ok(candidate);
   const decided=buildLocationImportDiff({siteId:"site-a",normalized:checked.normalized,current,renameDecisions:[{fromId:candidate.from.id,toId:candidate.to.id,decision:"SAME_LOCATION"}]});
   assert.equal(decided.counts.error,0);
-  for(const id of ["building-old","floor-old","unit-old","room-old"])assert.ok(decided.operations.some(item=>item.id===id&&item.type==="UPDATE"));
+  for(const id of ["building-old","floor-old","unit-old"])assert.ok(decided.operations.some(item=>item.id===id&&item.type==="UPDATE"));
   assert.equal(decided.operations.find(item=>item.id==="floor-old").after.parentId,"building-old");
   assert.equal(decided.operations.find(item=>item.id==="unit-old").after.parentId,"floor-old");
-  assert.equal(decided.operations.find(item=>item.id==="room-old").after.parentId,"unit-old");
-  assert.equal(decided.operations.some(item=>item.type==="ADD"||item.type==="INACTIVE"),false);
+  assert.ok(decided.operations.some(item=>item.id==="room-old"&&item.type==="INACTIVE"));
+  assert.equal(decided.operations.some(item=>item.type==="ADD"),false);
 });
 
 test("v2 parent and child renames each require an explicit hierarchical decision",()=>{

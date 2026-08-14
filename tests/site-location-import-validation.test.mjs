@@ -8,19 +8,19 @@ const workbook=locations=>({locations,aliases:[],workbookMeta:{sheetNames:["01_�
 const row=(area="202동",floor="14층",space="1401호",detail="거실")=>({area,floor,space,detail,sourceSheetName:"01_위치목록",sourceRow:2});
 const currentRow=(id,{parent_id=null,location_type="BUILDING",display_name=id,canonical_key=`key/${id}`,sort_order=10,source="IMPORT",is_active=1,site_id=siteId}={})=>({id,parent_id,location_type,display_name,canonical_key,sort_order,source,is_active,site_id});
 
-test("candidate validation maps numeric units, generic fixed spaces, and detail rooms without alias rows",()=>{
+test("candidate validation maps every third-level fixed space to UNIT without room or alias rows",()=>{
   const checked=validateLocationImport({siteId,workbook:workbook([row("202동","14층","1401호","거실"),row("202동","14층","계단실","")]),current:{locations:[],aliases:[]}});
   assert.equal(checked.applyAllowed,true);
   assert.deepEqual(checked.normalized.aliases,[]);
   assert.ok(checked.normalized.locations.some(item=>item.locationType==="UNIT"&&item.displayName==="1401호"));
-  assert.ok(checked.normalized.locations.some(item=>item.locationType==="FACILITY"&&item.displayName==="계단실"));
-  assert.ok(checked.normalized.locations.some(item=>item.locationType==="ROOM"&&item.displayName==="거실"));
+  assert.ok(checked.normalized.locations.some(item=>item.locationType==="UNIT"&&item.displayName==="계단실"));
+  assert.equal(checked.normalized.locations.some(item=>item.locationType==="ROOM"),false);
 });
 
 test("validation rejects missing area, unsafe fields, and a populated space without a floor",()=>{
   const checked=validateLocationImport({siteId,workbook:workbook([row("","14층","1401호",""),row("202동","","1401호",""),row("202동","14층","1401호","\u0001")]),current:{locations:[],aliases:[]}});
   assert.equal(checked.applyAllowed,false);
-  assert.deepEqual(new Set(checked.errors.map(item=>item.code)),new Set(["LOCATION_IMPORT_FIELD_REQUIRED","LOCATION_IMPORT_FLOOR_REQUIRED","LOCATION_IMPORT_CONTROL_CHARACTER"]));
+  assert.deepEqual(new Set(checked.errors.map(item=>item.code)),new Set(["LOCATION_IMPORT_FIELD_REQUIRED","LOCATION_IMPORT_FLOOR_REQUIRED"]));
 });
 
 test("diff is deterministic, preserves LEGACY and MANUAL, and inactivates only omitted IMPORT nodes",()=>{
@@ -45,11 +45,11 @@ test("foreign generated IDs are rejected and no client metadata can change the a
   assert.ok(checked.normalized.locations.every(item=>item.siteId===siteId));
 });
 
-test("active imported descendants cannot attach to an inactive LEGACY or MANUAL parent",()=>{
+test("an inactive LEGACY or MANUAL parent explicitly represented by the workbook is adopted and reactivated",()=>{
   for(const source of ["LEGACY","MANUAL"]){
     const parent=currentRow(`inactive-${source}`,{display_name:"202동",source,is_active:0});
     const checked=validateLocationImport({siteId,workbook:workbook([row("202동","14층","1401호","")]),current:{locations:[parent],aliases:[]}});
-    assert.equal(checked.applyAllowed,false);
-    assert.ok(checked.errors.some(item=>item.code==="LOCATION_IMPORT_PARENT_INACTIVE"));
+    assert.equal(checked.applyAllowed,true);
+    assert.equal(checked.errors.some(item=>item.code==="LOCATION_IMPORT_PARENT_INACTIVE"),false);
   }
 });

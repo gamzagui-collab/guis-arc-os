@@ -13,12 +13,12 @@ export const LOCATION_IMPORT_LIMITS=Object.freeze({
 });
 
 export const SIMPLE_LOCATION_SHEET="01_위치목록";
-export const SIMPLE_LOCATION_HEADERS=Object.freeze(["동/구역","층","호/공간","세부위치"]);
-export const TEMPLATE_SHEETS=Object.freeze(["00_사용안내",SIMPLE_LOCATION_SHEET,"02_검토안내"]);
+export const SIMPLE_LOCATION_HEADERS=Object.freeze(["건물/구역","층","호/공간"]);
+export const TEMPLATE_SHEETS=Object.freeze(["00_사용안내",SIMPLE_LOCATION_SHEET]);
 export const IMPORT_REQUIRED_SHEETS=Object.freeze([SIMPLE_LOCATION_SHEET]);
 
-// Compatibility exports for internal callers. They represent the v2 user
-// contract and do not re-enable the removed database-shaped workbook format.
+// Compatibility exports for internal callers. They represent the v3 user
+// contract and do not expose database identity fields.
 export const LOCATION_HEADERS=SIMPLE_LOCATION_HEADERS;
 export const ALIAS_HEADERS=Object.freeze([]);
 

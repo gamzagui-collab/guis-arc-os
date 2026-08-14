@@ -3,7 +3,6 @@ import {generatedLocationIdentity} from "./identity.js";
 
 const ROOT_TYPES=new Set(["BUILDING","PARKING","COMMERCIAL","COMMON","FACILITY","EXTERIOR","OTHER"]);
 const rootType=value=>/^\d+동$/u.test(value)?"BUILDING":"OTHER";
-const unitType=value=>/^\d+호$/u.test(value)?"UNIT":"FACILITY";
 const segment=(type,name)=>`${type}:${normalizeLocationText(name)}`;
 const currentValue=(row,camel,snake)=>row?.[camel]??row?.[snake];
 
@@ -47,8 +46,7 @@ export function buildLocationCandidateTree({siteId,rows=[],currentLocations=[]})
     if((space||detail)&&!floor){errors.push({code:"LOCATION_IMPORT_FLOOR_REQUIRED",field:"층",sourceSheetName:row.sourceSheetName,sourceRow:row.sourceRow});continue}
     let parent=ensure(null,rootType(area),area,row);
     if(floor)parent=ensure(parent,"FLOOR",floor,row);
-    if(space)parent=ensure(parent,unitType(space),space,row);
-    if(detail)ensure(parent,"ROOM",detail,row);
+    if(space)parent=ensure(parent,"UNIT",space,row);
   }
   const locations=[...nodes.values()].sort((a,b)=>a.path.localeCompare(b.path)||a.sortOrder-b.sortOrder);
   const keys=new Map(),ids=new Map();
