@@ -38,7 +38,7 @@ test("existing household unit parsing stays canonical",()=>{
 
 
 
-test("manual UNIT selection remains available while speech auto-location stays off",()=>{const manual=ui.slice(ui.indexOf("function selectCanonicalUnitParentChain"),ui.indexOf("function bindPhotoInputs")),createFlow=ui.slice(ui.indexOf("async function createV3"),ui.indexOf("async function detail")),onresult=createFlow.slice(createFlow.indexOf("recognition.onresult"),createFlow.indexOf("recognition.onerror"));assert.match(manual,/floorOption\.dataset\.parentId/);assert.match(manual,/form\.elements\.floor\.value=floorOption\.value/);assert.match(ui,/unit\.onchange=.*selectCanonicalUnitParentChain/);assert.doesNotMatch(onresult,/form\.elements\.(?:building|floor|unit|area)\.value/);assert.doesNotMatch(onresult,/addAndSelect\(/);assert.match(onresult,/description\.value=rawTranscript/)})
+test("manual UNIT selection uses the shared parent cascade while speech auto-location stays off",()=>{const createFlow=ui.slice(ui.indexOf("async function createV3"),ui.indexOf("async function detail")),onresult=createFlow.slice(createFlow.indexOf("recognition.onresult"),createFlow.indexOf("recognition.onerror"));assert.match(ui,/filterLocationSelect\(unit,locations\.units,unitParent,"UNIT"\)/);assert.match(ui,/unit\.addEventListener\("change",\(\)=>applyLocationPathToForm/);assert.match(ui,/reconcileLocationCascadePath\(resolverLocations,path\)/);assert.doesNotMatch(onresult,/form\.elements\.(?:building|floor|unit|area)\.value/);assert.doesNotMatch(onresult,/addAndSelect\(/);assert.match(onresult,/description\.value=rawTranscript/)})
 
 test("department evidence policy uses latest category semantics",()=>{
  assert.deepEqual(issueCompletionEvidenceDecision({department:"CONSTRUCTION",actionPhotoCount:0,siteVerifier:true,status:"OPEN"}),{allowed:true,method:"SITE_VERIFIED"});
@@ -103,6 +103,7 @@ test("share rendering enlarges text and removes only leading location tokens",()
  assert.match(ui,/descriptionSize=Math\.max\(40/);
  assert.match(ui,/value\.startsWith\(token\)/);
  assert.match(ui,/safeShareName/);
+ assert.equal((ui.match(/dateSize=Math\.max\(1,Math\.round\(descriptionSize\*\.95\)\)/g)||[]).length,2);
 });
 
 test("create success share shows prominent progress and prevents duplicate clicks",()=>{

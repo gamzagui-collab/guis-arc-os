@@ -1,7 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import fs from "node:fs";
-import {reconcileResolverSelection,resolveIssueDescriptionLocation} from "../apps/web/assets/issue-location-resolver.js";
+import {locationChildrenForParent,reconcileLocationCascadePath,reconcileResolverSelection,resolveIssueDescriptionLocation} from "../apps/web/assets/issue-location-resolver.js";
 
 const locations=[
   {id:"b202",parent_id:null,location_type:"BUILDING",display_name:"202동"},
@@ -11,6 +11,29 @@ const locations=[
   {id:"rMasterBath",parent_id:"u1401",location_type:"ROOM",display_name:"부부욕실"},
   {id:"rCommonBath",parent_id:"u1401",location_type:"ROOM",display_name:"공용욕실"},
 ];
+
+test("manual location cascade exposes only direct children and rejects null-parent legacy rows",()=>{
+ const fixture=[
+  ...locations,
+  {id:"facility",parent_id:null,location_type:"FACILITY",display_name:"커뮤니티센터"},
+  {id:"legacyB3",parent_id:null,location_type:"FLOOR",display_name:"지하3층"},
+  {id:"facilityRoom",parent_id:"facility",location_type:"ROOM",display_name:"직속계단"},
+  {id:"floorRoom",parent_id:"f14",location_type:"ROOM",display_name:"1번계단"},
+  {id:"otherFloor",parent_id:"other",location_type:"FLOOR",display_name:"14층"},
+  {id:"otherRoom",parent_id:"otherFloor",location_type:"ROOM",display_name:"1번계단"}
+ ];
+ assert.deepEqual(locationChildrenForParent(fixture,"facility","FLOOR"),[]);
+ assert.deepEqual(locationChildrenForParent(fixture,"facility","ROOM").map(value=>value.id),["facilityRoom"]);
+ assert.deepEqual(locationChildrenForParent(fixture,"f14","ROOM").map(value=>value.id),["floorRoom"]);
+ assert.deepEqual(reconcileLocationCascadePath(fixture,{buildingId:"facility",floorId:"legacyB3",roomId:"floorRoom"}),{buildingId:"facility",floorId:null,unitId:null,roomId:null});
+});
+
+test("manual location cascade clears stale descendants and supports unit-less or canonical apartment paths",()=>{
+ const unitless=[...locations,{id:"stairs",parent_id:"f14",location_type:"ROOM",display_name:"1번계단"}];
+ assert.deepEqual(reconcileLocationCascadePath(unitless,{buildingId:"b202",floorId:"f14",roomId:"stairs"}),{buildingId:"b202",floorId:"f14",unitId:null,roomId:"stairs"});
+ assert.deepEqual(reconcileLocationCascadePath(unitless,{buildingId:"b202",floorId:"f14",unitId:"u1401",roomId:"rLiving"}),{buildingId:"b202",floorId:"f14",unitId:"u1401",roomId:"rLiving"});
+ assert.deepEqual(reconcileLocationCascadePath(unitless,{buildingId:"b202",floorId:"other",unitId:"u1401",roomId:"rLiving"}),{buildingId:"b202",floorId:null,unitId:null,roomId:null});
+});
 const aliases=[{alias_text:"2동",normalized_alias:"2동",location_id:"b202"}];
 const resolve=(description,options={})=>resolveIssueDescriptionLocation(description,{locations,aliases,...options});
 

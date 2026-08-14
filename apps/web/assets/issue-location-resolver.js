@@ -7,6 +7,25 @@ const result=(status,path,labels={},detail=null)=>({status,path,labels,detail});
 const locationTokens=(text,pattern)=>new Set(text.match(pattern)||[]);
 const samePath=(left,right)=>["buildingId","floorId","unitId","roomId"].every(key=>(left?.[key]||null)===(right?.[key]||null));
 
+export function locationChildrenForParent(locations,parentId,type){
+ if(!parentId||!Array.isArray(locations))return [];
+ return locations.filter(value=>value.parent_id===parentId&&value.location_type===type);
+}
+
+export function reconcileLocationCascadePath(locations,path={}){
+ const byId=new Map((locations||[]).map(value=>[value.id,value])),resolved=EMPTY_PATH();
+ const building=byId.get(path.buildingId);
+ if(!building||!BUILDING_TYPES.has(building.location_type))return resolved;
+ resolved.buildingId=building.id;
+ const floor=byId.get(path.floorId);
+ if(floor?.location_type==="FLOOR"&&floor.parent_id===building.id)resolved.floorId=floor.id;
+ const unitParent=resolved.floorId||resolved.buildingId,unit=byId.get(path.unitId);
+ if(unit?.location_type==="UNIT"&&unit.parent_id===unitParent)resolved.unitId=unit.id;
+ const roomParent=resolved.unitId||resolved.floorId||resolved.buildingId,room=byId.get(path.roomId);
+ if(room?.location_type==="ROOM"&&room.parent_id===roomParent)resolved.roomId=room.id;
+ return resolved;
+}
+
 export function reconcileResolverSelection(current,lastOwned,resolverResult,manualOverride=false){
  const currentPath={...EMPTY_PATH(),...current},resolvedPath={...EMPTY_PATH(),...resolverResult?.path};
  if(["UNRESOLVED","ERROR_FALLBACK"].includes(resolverResult?.status)){

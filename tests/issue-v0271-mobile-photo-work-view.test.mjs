@@ -96,19 +96,19 @@ test("photo work always resets to UNHANDLED and refreshes server data",()=>{
 test("photo work reuses the common header menu without a dedicated hamburger",()=>{
  assert.doesNotMatch(js,/class="issue-photo-menu-toggle secondary"/);assert.doesNotMatch(js,/querySelector\("\.issue-photo-menu-toggle"\)/);assert.equal((appJs.match(/id="mobile-more-button"/g)||[]).length,1);assert.match(appJs,/mobile-site-menu/);assert.match(appCss,/grid-template-columns:minmax\(0,1fr\) 46px/);
 });
-test("share photo is a temporary client JPEG with location and description only",()=>{
-  assert.match(js,/async function createSharePhoto/);assert.match(js,/canvas\.toBlob/);assert.match(js,/navigator\.share\(\{files:\[file\]\}\)/);assert.match(js,/download="GUI-Arc-share-photo\.jpg"/);assert.match(js,/공유사진을 만들지 못했습니다/);
+test("share photo is a temporary client JPEG with location, registration date, and description",()=>{
+  assert.match(js,/async function createSharePhoto/);assert.match(js,/canvas\.toBlob/);assert.match(js,/navigator\.share\(\{files:\[file\]\}\)/);assert.match(js,/download="GUI-Arc-share-photo\.jpg"/);assert.match(js,/공유사진을 만들지 못했습니다/);assert.match(js,/formatIssuePhotoDateKst\(issue\.createdAt\)/);assert.match(js,/fitWatermarkLocation/);
 });
 test("photo slide requests the next page near the loaded edge without replacing loaded slides",()=>{assert.match(js,/onNeedMore:\(\)=>currentIssues\.length<currentTotal&&load\(\{append:true\}\)/);assert.match(js,/index>=issues\.length-3/);assert.match(js,/requestedMore/);});
 
 test("service worker revision invalidates stale shell and all changed asset URLs",()=>{
   const sw=fs.readFileSync("apps/web/service-worker.js","utf8"),html=fs.readFileSync("apps/web/index.html","utf8"),app=fs.readFileSync("apps/web/assets/app.js","utf8"),issues=fs.readFileSync("apps/web/assets/issues.js","utf8");
-  assert.match(sw,/guis-arc-integrated-v0\.27\.1-r21-shell/);
+ assert.match(sw,/guis-arc-integrated-v0\.27\.1-r24-shell/);
   assert.match(sw,/key\.startsWith\("guis-arc-integrated-"\)&&key!==CACHE/);
-  for(const asset of ["app.js","issues.js","issues.css","app.css","manifest.webmanifest"])assert.match(sw,new RegExp(asset.replace(".","\\.")+"\\?v=0\\.27\\.1-r21"));for(const asset of ["issue-speech.js","integrated-admin.js","version.js"])assert.match(sw,new RegExp(asset.replace(".","\\.")+"\\?v=0\\.27\\.1-r21"));
-  assert.match(html,/issues\.css\?v=0\.27\.1-r21/);assert.match(html,/app\.js\?v=0\.27\.1-r21/);
-  assert.match(app,/version\.js\?v=0\.27\.1-r21/);assert.match(app,/issues\.js\?v=0\.27\.1-r21/);assert.match(app,/integrated-admin\.js\?v=0\.27\.1-r21/);
-  assert.match(issues,/issue-speech\.js\?v=0\.27\.1-r21/);
+  for(const asset of ["app.js","issues.js","issues.css","app.css","manifest.webmanifest"])assert.match(sw,new RegExp(asset.replace(".","\\.")+"\\?v=0\\.27\\.1-r24"));for(const asset of ["issue-speech.js","integrated-admin.js","version.js"])assert.match(sw,new RegExp(asset.replace(".","\\.")+"\\?v=0\\.27\\.1-r24"));
+  assert.match(html,/issues\.css\?v=0\.27\.1-r24/);assert.match(html,/app\.js\?v=0\.27\.1-r24/);
+  assert.match(app,/version\.js\?v=0\.27\.1-r24/);assert.match(app,/issues\.js\?v=0\.27\.1-r24/);assert.match(app,/integrated-admin\.js\?v=0\.27\.1-r24/);
+  assert.match(issues,/issue-speech\.js\?v=0\.27\.1-r24/);
 });
 
 
