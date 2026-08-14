@@ -97,10 +97,30 @@ test("new SST v3 issues share cleanly while r29 historical defense remains",()=>
   assert.equal(historical.content,"면갈이");
 });
 
-test("SST v3 frontend surfaces use the r33 static revision",()=>{
+test("r36 speech completes with automatic Draft merge and no apply control",()=>{
+  const ui=fs.readFileSync(new URL("../apps/web/assets/issues.js",import.meta.url),"utf8"),flow=ui.slice(ui.indexOf("async function createV3"),ui.indexOf("async function detail"));
+  const recognition=flow.slice(flow.indexOf("recognition.onresult"),flow.indexOf("recognition.onerror"));
+  assert.match(recognition,/mergeSpeechCandidateIntoDraft\(issueDraft,speechCandidate\)/);
+  assert.match(recognition,/renderDraftToForm\(\)/);
+  assert.doesNotMatch(flow,/id="description-apply"|내용 적용/);
+  assert.match(flow,/등록 내용/);
+  assert.match(flow,/buildDraftFinalSentence\(issueDraft\)/);
+});
+
+test("r36 speech result renders only tracked unresolved tokens with safe status markup",()=>{
+  const ui=fs.readFileSync(new URL("../apps/web/assets/issues.js",import.meta.url),"utf8"),flow=ui.slice(ui.indexOf("async function createV3"),ui.indexOf("async function detail"));
+  assert.match(flow,/speech-unresolved-warning/);
+  assert.match(flow,/document\.createElement\("mark"\)/);
+  assert.match(flow,/document\.createTextNode/);
+  assert.match(flow,/unresolvedStructural/);
+  assert.doesNotMatch(flow,/voiceStatus\.innerHTML|speechUnresolvedWarning\.innerHTML/);
+  assert.match(flow,/등록된 위치에서 .*찾지 못했습니다\. 내용을 확인해 주세요\./);
+});
+
+test("SST v3 frontend surfaces use the r36 static revision",()=>{
   const read=path=>fs.readFileSync(new URL(`../${path}`,import.meta.url),"utf8");
-  assert.match(read("apps/web/index.html"),/app\.js\?v=0\.27\.1-r33/);
-  assert.match(read("apps/web/assets/app.js"),/issues\.js\?v=0\.27\.1-r33/);
-  assert.match(read("apps/web/assets/issues.js"),/issue-speech\.js\?v=0\.27\.1-r33/);
-  assert.match(read("apps/web/service-worker.js"),/guis-arc-integrated-v0\.27\.1-r33-shell/);
+  assert.match(read("apps/web/index.html"),/app\.js\?v=0\.27\.1-r38/);
+  assert.match(read("apps/web/assets/app.js"),/issues\.js\?v=0\.27\.1-r38/);
+  assert.match(read("apps/web/assets/issues.js"),/issue-speech\.js\?v=0\.27\.1-r38/);
+  assert.match(read("apps/web/service-worker.js"),/guis-arc-integrated-v0\.27\.1-r38-shell/);
 });

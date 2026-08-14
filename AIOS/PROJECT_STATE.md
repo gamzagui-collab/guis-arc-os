@@ -307,6 +307,19 @@ v0.24.4는 기존 5개 상위 Skill과 10개 전문 Skill, 정적 Validator와 T
 - Phase C Final Description to Location Resolver: `NOT_STARTED`.
 - Production: `NOT_CHANGED`.
 
+## v0.27.1-r38 공식 checkpoint (2026-08-15)
+
+- 공식 제품 버전: `v0.27.1`; static revision: `v0.27.1-r38`.
+- 실제 branch: `v0.27.0-official`; checkpoint 직전 HEAD: `ffe889fd8c3bfe3fdbbbe82d491cb289ce49db6c`.
+- checkpoint commit subject: `feat: finalize v0.27.1 mobile issue workflow`; commit hash는 이 문서를 포함한 해당 commit 자체다.
+- Integration Pages Deployment ID: `a275fd58-62ba-4cf0-a0eb-8b7c45c6d50b`.
+- Canonical URL: `https://guis-arc-integrated-dev.pages.dev`.
+- 자동 테스트, Integration 브라우저 smoke, 320/360/412px geometry, 실제 사용자 모바일 smoke: `PASS`.
+- Worker, D1, R2, Migration, Location Master, Production: `NOT_CHANGED`.
+- 현재 branch에는 configured upstream이 없어 일반 Push는 `BLOCKED_NO_UPSTREAM`; force·임의 remote branch 추측은 금지한다.
+- 공식 ZIP은 Push 성공 후 생성하는 규칙이므로 현재 `NOT_CREATED`다.
+- 다음 단계는 신규 기능 개발이 아니라 실제 현장 사용 관찰이다.
+
 # v0.27.2 Candidate Phase C verified (2026-08-14)
 
 - Step 0 legacy ROOM `전체` is hidden from new Issue form options; historical Issue display remains unchanged.

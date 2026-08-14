@@ -18,11 +18,12 @@ test("share watermark shortens only the location to preserve the date area",()=>
  assert.equal(fitWatermarkLocation("위치 정보 없음",120,measure),"위치 정보 없음");
 });
 
-test("r29 uses location as the stable base for the 10 to 8 to 6 ratio",()=>{
+test("r37 uses the short photo edge for orientation-independent font sizes",()=>{
  const layout=issueShareWatermarkLayout(1200,1600);
- assert.equal(layout.locationSize,38);
- assert.equal(layout.contentSize,30.400000000000002);
- assert.equal(layout.dateSize,22.8);
+ const rotated=issueShareWatermarkLayout(1600,1200);
+ assert.deepEqual([layout.locationSize,layout.contentSize,layout.dateSize],[rotated.locationSize,rotated.contentSize,rotated.dateSize]);
+ const narrow=issueShareWatermarkLayout(900,1600),wide=issueShareWatermarkLayout(1600,900);
+ assert.deepEqual([narrow.locationSize,narrow.contentSize,narrow.dateSize],[wide.locationSize,wide.contentSize,wide.dateSize]);
  assert.ok(layout.locationMaxWidth+layout.dateWidthBudget+layout.gap<=1200-layout.padding*2);
  assert.ok(layout.contentTop+layout.contentLineHeight*2<=1600-layout.padding);
 });
@@ -55,10 +56,10 @@ test("r29 content falls back independently when detail or description is absent"
  assert.deepEqual(issueShareDisplay({location:"201동 / 19층 / 1903호 / 거실 벽면",description:"",buildingLocationId:"b",floorLocationId:"f",unitLocationId:"u"}),{location:"201동 / 19층 / 1903호",content:"거실 벽면"});
 });
 
-test("r29 uses the exact location content date ratio 10 to 8 to 6",()=>{
+test("r37 uses the exact location content date ratio 10 to 9 to 8",()=>{
  const layout=issueShareWatermarkLayout(1200,1600);
- assert.equal(layout.contentSize/layout.locationSize,.8);
- assert.equal(layout.dateSize/layout.locationSize,.6);
+ assert.equal(layout.contentSize/layout.locationSize,.9);
+ assert.equal(layout.dateSize/layout.locationSize,.8);
 });
 
 test("r29 content wrapping stays within two measured lines without clipping",()=>{
@@ -67,4 +68,24 @@ test("r29 content wrapping stays within two measured lines without clipping",()=
  assert.equal(lines.length,2);
  assert.ok(lines.every(line=>measure(line)<=100));
  assert.ok(lines.some(line=>line.endsWith("…")));
+});
+
+test("r36 uses a compact three-line overlay with alpha point five eight",()=>{
+ for(const [width,height] of [[320,480],[480,320],[1200,1600]]){
+  const layout=issueShareWatermarkLayout(width,height);
+  assert.equal(layout.overlayAlpha,.58);
+  assert.ok(layout.footerHeight<=height);
+  assert.ok(layout.contentTop+layout.contentLineHeight*2<=height-layout.padding);
+  assert.ok(layout.footerHeight<Math.min(height,Math.round(width*.5)));
+ }
+});
+
+test("r37 clamps fonts and keeps small portrait and landscape overlays unclipped",()=>{
+ for(const [width,height] of [[240,320],[320,240],[320,480],[480,320]]){
+  const layout=issueShareWatermarkLayout(width,height);
+  assert.ok(layout.locationSize>=24&&layout.locationSize<=48);
+  assert.ok(layout.footerHeight<=height);
+  assert.ok(layout.locationMaxWidth>=0);
+  assert.ok(layout.contentTop+layout.contentLineHeight*2<=height-layout.padding);
+ }
 });

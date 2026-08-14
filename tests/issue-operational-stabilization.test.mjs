@@ -357,9 +357,9 @@ test("mobile photo editor defaults to NONE and preserves tool geometry contracts
   assert.match(editor,/if\(!original\|\|tool==="none"\)return;event\.preventDefault\(\);canvas\.setPointerCapture/);
   assert.match(editor,/setTool=next=>/);
   assert.match(editor,/button\.onclick=\(\)=>setTool\(button\.dataset\.editTool\)/);
-  for(const tool of ["none","circle","rectangle","ellipse","arrow","line","pen"])assert.match(ui,new RegExp(`data-edit-tool="${tool}"`));
+  for(const tool of ["none","circle","rectangle","cloud","arrow","line","pen"])assert.match(ui,new RegExp(`data-edit-tool="${tool}"`));
   assert.match(editor,/ctx\.rect\(from\.x-Math\.abs\(dx\),from\.y-Math\.abs\(dy\),Math\.abs\(dx\)\*2,Math\.abs\(dy\)\*2\)/);
-  assert.match(editor,/ctx\.ellipse\(\(from\.x\+to\.x\)\/2,\(from\.y\+to\.y\)\/2,Math\.abs\(dx\)\/2,Math\.abs\(dy\)\/2/);
+  assert.match(editor,/tool==="cloud"\)\{drawCloudPath\(ctx,from,to\)/);
   assert.match(editor,/ctx\.moveTo\(from\.x,from\.y\);ctx\.lineTo\(to\.x,to\.y\)/);
   assert.match(ui,/<option value="2">[^<]+<\/option><option value="10" selected>[^<]+<\/option><option value="18">[^<]+<\/option>/);
   assert.match(css,/\.photo-editor-wrap canvas\{touch-action:pan-y/);
@@ -454,8 +454,15 @@ test("NONE allows scrolling and a selected tool enables drawing without changing
 test("free-text detail remains independent from speech evidence collection",()=>{const ui=read("apps/web/assets/issues.js"),createFlow=ui.slice(ui.indexOf("async function createV3"),ui.indexOf("async function detail")),onresult=createFlow.slice(createFlow.indexOf("recognition.onresult"),createFlow.indexOf("recognition.onerror"));assert.match(createFlow,/name="detailLocation"/);assert.doesNotMatch(onresult,/speechRoomValue|form\.elements\.area/)})
 
 
-test("annotation palette has seven colors with red selected by default",()=>{
- const ui=read("apps/web/assets/issues.js"),palettes=[...ui.matchAll(/<select id="edit-color">([\s\S]*?)<\/select>/g)].map(match=>match[1]);assert.equal(palettes.length,1);for(const palette of palettes){assert.equal((palette.match(/<option /g)||[]).length,7);assert.match(palette,/^<option value="#e11d2e" selected>/)}assert.match(ui,/color="#e11d2e"/);for(const tool of ["none","circle","rectangle","ellipse","arrow","line","pen"])assert.match(ui,new RegExp(`data-edit-tool="${tool}"`));
+test("annotation toolbar has a four-color accessible palette and cloud instead of ellipse",()=>{
+ const ui=read("apps/web/assets/issues.js"),css=read("apps/web/assets/issues.css"),palette=ui.slice(ui.indexOf('class="editor-color-palette"'),ui.indexOf('class="editor-width-control"'));
+ assert.equal((palette.match(/data-edit-color=/g)||[]).length,4);
+ for(const [color,label] of [["#e11d2e","빨강"],["#f4cf22","노랑"],["#1769e0","파랑"],["#ffffff","흰색"]])assert.match(palette,new RegExp(`data-edit-color="${color}"[^>]*aria-label="${label}"`));
+ assert.equal((palette.match(/aria-pressed="true"/g)||[]).length,1);assert.match(palette,/data-edit-color="#e11d2e"[^>]*aria-pressed="true"/);
+ assert.doesNotMatch(ui,/<select id="edit-color"|#16a34a|#f97316|#7c3aed/);assert.match(ui,/color="#e11d2e"/);
+ for(const tool of ["none","circle","rectangle","cloud","arrow","line","pen"])assert.match(ui,new RegExp(`data-edit-tool="${tool}"`));
+ assert.doesNotMatch(ui,/data-edit-tool="ellipse"/);assert.match(ui,/drawCloudPath\(ctx,from,to\)/);
+ assert.match(css,/\.editor-color-button\{[^}]*min-width:44px[^}]*min-height:44px/);assert.match(css,/\.editor-color-button\[aria-pressed="true"\]/);assert.match(css,/\.editor-color-button\[data-edit-color="#ffffff"\]/);
 });
 
 test("assignment trade labels use safe slash separators and preserve canonical option ids",()=>{

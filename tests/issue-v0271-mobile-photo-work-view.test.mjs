@@ -52,11 +52,12 @@ test("v0.27.1 mobile list keeps stateful status and department chips", () => {
 
 test("v0.27.1 issue slide supports gesture + viewer interactions", () => {
   assert.match(js, /photo\.addEventListener\("pointerup"/);
-  assert.match(js, /move\(dx<0\?1:-1\)/);
+  assert.match(js, /viewer\.movePhoto\(dx<0\?1:-1\)/);
+  assert.match(js, /moveIssue\(dy<0\?1:-1\)/);
   assert.match(js, /photo\.ondblclick=openPhoto/);
-  assert.match(js, /photo\.onkeydown=event=>\{if\(event\.key==="ArrowLeft"\)move\(-1\);/);
-  assert.match(js, /openPhoto=\(\)=>\{const issue=issues\[index\],dialog=imageViewer\(\);/);
-  assert.match(js, /dataset\.original=`\/api\/v1\/issues\/\$\{issue\.id\}\/media\/original`/);
+  assert.match(js, /event\.key==="ArrowLeft"\)viewer\.movePhoto\(-1\)/);
+  assert.match(js, /event\.key==="ArrowUp"/);
+  assert.match(js, /snapshot\.photo\?\.originalUrl\|\|image\.src/);
 });
 
 test("v0.27.1 overlay and list/photo mode classes exist in CSS", () => {
@@ -99,16 +100,16 @@ test("photo work reuses the common header menu without a dedicated hamburger",()
 test("share photo is a temporary client JPEG with location, registration date, and description",()=>{
   assert.match(js,/async function createSharePhoto/);assert.match(js,/canvas\.toBlob/);assert.match(js,/navigator\.share\(\{files:\[file\]\}\)/);assert.match(js,/download="GUI-Arc-share-photo\.jpg"/);assert.match(js,/공유사진을 만들지 못했습니다/);assert.match(js,/formatIssuePhotoDateKst\(issue\.createdAt\)/);assert.match(js,/fitWatermarkLocation/);
 });
-test("photo slide requests the next page near the loaded edge without replacing loaded slides",()=>{assert.match(js,/onNeedMore:\(\)=>currentIssues\.length<currentTotal&&load\(\{append:true\}\)/);assert.match(js,/index>=issues\.length-3/);assert.match(js,/requestedMore/);});
+test("photo slide requests the next page near the loaded edge without replacing loaded slides",()=>{assert.match(js,/onNeedMore:\(\)=>currentIssues\.length<currentTotal&&load\(\{append:true\}\)/);assert.match(js,/snapshot\.issueIndex>=issues\.length-3/);assert.match(js,/requestedMore/);});
 
 test("service worker revision invalidates stale shell and all changed asset URLs",()=>{
   const sw=fs.readFileSync("apps/web/service-worker.js","utf8"),html=fs.readFileSync("apps/web/index.html","utf8"),app=fs.readFileSync("apps/web/assets/app.js","utf8"),issues=fs.readFileSync("apps/web/assets/issues.js","utf8");
- assert.match(sw,/guis-arc-integrated-v0\.27\.1-r33-shell/);
+ assert.match(sw,/guis-arc-integrated-v0\.27\.1-r38-shell/);
   assert.match(sw,/key\.startsWith\("guis-arc-integrated-"\)&&key!==CACHE/);
-  for(const asset of ["app.js","issues.js","issues.css","app.css","manifest.webmanifest"])assert.match(sw,new RegExp(asset.replace(".","\\.")+"\\?v=0\\.27\\.1-r33"));for(const asset of ["issue-speech.js","integrated-admin.js","version.js"])assert.match(sw,new RegExp(asset.replace(".","\\.")+"\\?v=0\\.27\\.1-r33"));
-  assert.match(html,/issues\.css\?v=0\.27\.1-r33/);assert.match(html,/app\.js\?v=0\.27\.1-r33/);
-  assert.match(app,/version\.js\?v=0\.27\.1-r33/);assert.match(app,/issues\.js\?v=0\.27\.1-r33/);assert.match(app,/integrated-admin\.js\?v=0\.27\.1-r33/);
-  assert.match(issues,/issue-speech\.js\?v=0\.27\.1-r33/);
+  for(const asset of ["app.js","issues.js","issues.css","app.css","manifest.webmanifest","issue-photo-viewer.js"])assert.match(sw,new RegExp(asset.replace(".","\\.")+"\\?v=0\\.27\\.1-r38"));for(const asset of ["issue-speech.js","integrated-admin.js","version.js"])assert.match(sw,new RegExp(asset.replace(".","\\.")+"\\?v=0\\.27\\.1-r38"));
+  assert.match(html,/issues\.css\?v=0\.27\.1-r38/);assert.match(html,/app\.js\?v=0\.27\.1-r38/);
+  assert.match(app,/version\.js\?v=0\.27\.1-r38/);assert.match(app,/issues\.js\?v=0\.27\.1-r38/);assert.match(app,/integrated-admin\.js\?v=0\.27\.1-r38/);
+  assert.match(issues,/issue-speech\.js\?v=0\.27\.1-r38/);
 });
 
 
@@ -138,4 +139,35 @@ test("photo work menu owns vertical touch scrolling without triggering photo swi
 
 test("photo work bottom sheet renders only the active state content",()=>{
  assert.match(css,/\.issue-overlay-collapsed\[hidden\],\.issue-overlay-content\[hidden\]\{display:none!important\}/);assert.match(js,/view\.querySelector\("\.issue-overlay-content"\)\.hidden=!expanded/);assert.match(js,/view\.querySelector\("\.issue-overlay-collapsed"\)\.hidden=expanded/);
+});
+
+test("r36 mobile Issue input uses one structural row, a separated direct area, and two-line content",()=>{
+ assert.match(js,/class="location-building-field"/);assert.match(js,/class="location-floor-field"/);assert.match(js,/class="location-unit-field"/);
+ assert.match(css,/@media\(max-width:760px\)\{\.mobile-issue-form \.section-grid\{grid-template-columns:minmax\(0,1\.45fr\) minmax\(0,\.72fr\) minmax\(0,1\.15fr\)/);
+ assert.match(css,/\.location-building-field\{grid-column:1/);assert.match(css,/\.detail-location-field\{grid-column:1\/-1/);
+ assert.match(css,/\.location-direct-area\{[^}]*border-top:/);assert.match(css,/\.detail-location-suggestions\{[^}]*flex-wrap:wrap/);
+ assert.match(js,/<textarea name="description" maxlength="4000" required/);assert.match(js,/id="voice" aria-label="음성으로 위치·내용 말하기"/);
+ assert.match(css,/\.mobile-issue-form \.description-field textarea\{[^}]*min-height:calc\(2em \+ 22px\)[^}]*max-height:calc\(2em \+ 22px\)[^}]*overflow-y:auto/);
+});
+
+test("r36 mobile create keeps a compact final sentence without horizontal overflow",()=>{
+ assert.match(js,/issue-draft-final-sentence/);
+ assert.match(css,/\.issue-draft-final-sentence\{[^}]*overflow-wrap:anywhere/);
+ assert.doesNotMatch(js,/최종 등록 미리보기/);
+ assert.match(css,/@media\(max-width:760px\)[\s\S]*\.mobile-issue-form/);
+});
+
+test("r37 mobile Issue creation is photo then voice then location confirmation",()=>{
+ const flow=js.slice(js.indexOf("async function createV3"),js.indexOf("async function detail"));
+ const photo=flow.indexOf('class="photo-field full"'),voice=flow.indexOf('class="full voice-first-field"'),location=flow.indexOf('class="form-section full location-confirmation-section"'),preview=flow.indexOf('class="full issue-draft-final-sentence"'),submit=flow.indexOf('id="submit"');
+ assert.ok(photo>=0&&photo<voice&&voice<location&&location<preview&&preview<submit);
+ assert.match(flow,/음성으로 위치·내용 말하기/);
+ assert.match(flow,/사진을 찍고 버튼을 누른 뒤 위치와 문제를 한 문장으로 말씀하세요\./);
+ assert.match(flow,/예시 1\. 101동 202호 거실 쓰레기 정리/);
+ assert.match(flow,/예시 2\. 102동 16층 1번 계단 안전난간 설치/);
+ assert.match(flow,/내용 확인·수정/);
+ assert.match(flow,/위치 확인·수정/);
+ assert.match(flow,/음성으로 입력된 위치를 확인하고, 틀린 경우에만 수정하세요\./);
+ assert.match(flow,/<textarea name="description" maxlength="4000" required placeholder="예: 101동 202호 거실 쓰레기 정리"/);
+ assert.match(css,/@media\(max-width:760px\)[\s\S]*\.voice-button\{[^}]*width:100%[^}]*min-height:52px/);
 });

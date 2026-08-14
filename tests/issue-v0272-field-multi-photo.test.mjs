@@ -99,11 +99,12 @@ test("site verifier UI calls the dedicated evidence endpoint",()=>{
 });
 
 test("share rendering enlarges text and removes only leading location tokens",()=>{
- assert.match(ui,/locationSize=Math\.max\(56/);
- assert.match(ui,/descriptionSize=Math\.max\(40/);
+ assert.match(ui,/createFieldShareFile\(photo,issue,index\).*issueShareWatermarkLayout\(width,height\)/s);
+ assert.match(ui,/createFieldShareFile\(photo,issue,index\).*issueShareDisplay\(issue\)/s);
+ assert.match(ui,/createFieldShareFile\(photo,issue,index\).*layout\.overlayAlpha/s);
+ assert.match(ui,/createFieldShareFile\(photo,issue,index\).*wrapWatermarkContent\(display\.content,[^;]+,2\)/s);
  assert.match(ui,/value\.startsWith\(token\)/);
  assert.match(ui,/safeShareName/);
- assert.equal((ui.match(/dateSize=Math\.max\(1,Math\.round\(descriptionSize\*\.95\)\)/g)||[]).length,2);
 });
 
 test("create success share shows prominent progress and prevents duplicate clicks",()=>{

@@ -1,0 +1,35 @@
+<!doctype html>
+<html lang="ko">
+<head>
+ <meta charset="utf-8">
+ <meta name="viewport" content="width=device-width,initial-scale=1">
+ <link rel="stylesheet" href="../../apps/web/assets/app.css">
+ <link rel="stylesheet" href="../../apps/web/assets/issues.css">
+</head>
+<body>
+ <main class="content">
+  <form class="issue-form mobile-issue-form">
+   <section class="form-section">
+    <div class="section-grid">
+     <label class="location-building-field">건물·구역<select><option>202동</option></select></label>
+     <label class="location-floor-field">층<select><option>15층</option></select></label>
+     <label class="location-unit-field">호·공간<select><option>미지정</option></select></label>
+     <label class="full detail-location-field">세부 위치<input value="거실 벽면"><span class="detail-location-suggestions"><button type="button">계단실</button><button type="button">복도</button><button type="button">엘리베이터홀</button></span></label>
+    </div>
+    <div class="editor-toolbar" aria-label="사진 편집 도구">
+     <div class="editor-operation-group">
+      <button type="button" class="secondary editor-scroll-button" data-edit-tool="none" aria-label="사진 스크롤">이동</button>
+      <div class="editor-color-palette" role="group" aria-label="색상">
+       <button type="button" class="editor-color-button" data-edit-color="#e11d2e" aria-label="빨강" aria-pressed="true"><span class="editor-color-swatch"></span><span class="editor-color-check">✓</span></button>
+       <button type="button" class="editor-color-button" data-edit-color="#f4cf22" aria-label="노랑" aria-pressed="false"><span class="editor-color-swatch"></span><span class="editor-color-check">✓</span></button>
+       <button type="button" class="editor-color-button" data-edit-color="#1769e0" aria-label="파랑" aria-pressed="false"><span class="editor-color-swatch"></span><span class="editor-color-check">✓</span></button>
+       <button type="button" class="editor-color-button" data-edit-color="#ffffff" aria-label="흰색" aria-pressed="false"><span class="editor-color-swatch"></span><span class="editor-color-check">✓</span></button>
+      </div>
+      <label class="editor-width-control"><span class="visually-hidden">선 굵기</span><select aria-label="선 굵기"><option>보통</option></select></label>
+     </div>
+    </div>
+   </section>
+  </form>
+ </main>
+</body>
+</html>

@@ -6,6 +6,7 @@ const clean=value=>String(value||"").trim();
 const clone=draft=>structuredClone(draft);
 const normalizeLocation=(value,source)=>({id:value?.id||null,label:clean(value?.label),source:value?.id?source:"NONE"});
 const removeToken=(text,label)=>clean(text).split(/\s+/).filter(token=>token!==clean(label)).join(" ");
+const hasToken=(text,label)=>{const target=clean(label);return Boolean(target)&&clean(text).split(/\s+/).includes(target)};
 
 export function createIssueDraft(){return {
  building:emptyLocation(),floor:emptyLocation(),unit:emptyLocation(),detail:emptyText(),content:emptyText(),
@@ -20,12 +21,12 @@ function resolveUnresolvedLevel(draft,level){
  return next
 }
 
-export function setManualBuilding(draft,value){let next=resolveUnresolvedLevel(draft,"building");next.building=normalizeLocation(value,"MANUAL");next.floor=emptyLocation();next.unit=emptyLocation();next.notice="";return next}
-export function setManualFloor(draft,value){let next=resolveUnresolvedLevel(draft,"floor");next.floor=normalizeLocation(value,"MANUAL");next.unit=emptyLocation();next.notice="";return next}
-export function setManualUnit(draft,value){let next=resolveUnresolvedLevel(draft,"unit");next.unit=normalizeLocation(value,"MANUAL");next.notice="";return next}
-export function setManualDetail(draft,text){const next=clone(draft);next.detail={text:clean(text),source:"MANUAL"};return next}
-export function setManualContent(draft,text){const next=clone(draft);next.content={text:clean(text),source:"MANUAL"};return next}
-export function setDirectLocation(draft,enabled,text=""){const next=clone(draft);next.directLocation={enabled:Boolean(enabled),text:clean(text)};if(enabled){next.building=emptyLocation();next.floor=emptyLocation();next.unit=emptyLocation()}next.notice="";return next}
+export function setManualBuilding(draft,value){let next=value?.id?resolveUnresolvedLevel(draft,"building"):clone(draft);next.building=normalizeLocation(value,"MANUAL");next.floor=emptyLocation();next.unit=emptyLocation();next.notice="";return next}
+export function setManualFloor(draft,value){let next=value?.id?resolveUnresolvedLevel(draft,"floor"):clone(draft);next.floor=normalizeLocation(value,"MANUAL");next.unit=emptyLocation();next.notice="";return next}
+export function setManualUnit(draft,value){let next=value?.id?resolveUnresolvedLevel(draft,"unit"):clone(draft);next.unit=normalizeLocation(value,"MANUAL");next.notice="";return next}
+export function setManualDetail(draft,text){const next=clone(draft),value=clean(text);next.detail={text:value,source:value?"MANUAL":"NONE"};return next}
+export function setManualContent(draft,text){const next=clone(draft),value=clean(text);next.content={text:value,source:value?"MANUAL":"NONE"};return next}
+export function setDirectLocation(draft,enabled,text=""){const next=clone(draft),directText=clean(text);next.directLocation={enabled:Boolean(enabled),text:directText};if(enabled){const resolved=(next.unresolvedStructural||[]).filter(value=>hasToken(directText,value.label));for(const value of resolved)next.content.text=removeToken(next.content.text,value.label);next.content.source=next.content.text?next.content.source:"NONE";next.unresolvedStructural=(next.unresolvedStructural||[]).filter(value=>!hasToken(directText,value.label));next.building=emptyLocation();next.floor=emptyLocation();next.unit=emptyLocation()}next.notice="";return next}
 
 const same=(left,right)=>Boolean(left?.id&&right?.id&&left.id===right.id);
 const speechLocation=value=>normalizeLocation(value,"SPEECH");
@@ -51,5 +52,7 @@ export function mergeSpeechCandidateIntoDraft(draft,candidate={}){
 }
 
 export function buildDraftLocationText(draft){return draft.directLocation.enabled?clean(draft.directLocation.text):[draft.building.label,draft.floor.label,draft.unit.label,draft.detail.text].map(clean).filter(Boolean).join(" / ")}
+export function buildDraftUnresolvedLabels(draft){const tokens=clean(draft.content.text).split(/\s+/),seen=new Set();return (draft.unresolvedStructural||[]).map(value=>clean(value.label)).filter(label=>label&&tokens.includes(label)&&!seen.has(label)&&seen.add(label))}
+export function buildDraftFinalSentence(draft){const unresolved=buildDraftUnresolvedLabels(draft);let content=clean(draft.content.text);for(const label of unresolved)content=removeToken(content,label);return [draft.directLocation.enabled?draft.directLocation.text:draft.building.label,draft.directLocation.enabled?"":draft.floor.label,draft.directLocation.enabled?"":draft.unit.label,...unresolved,draft.detail.text,content].map(clean).filter(Boolean).join(" ")}
 export function buildDraftDisplay(draft){return {location:draft.directLocation.enabled?clean(draft.directLocation.text):[draft.building.label,draft.floor.label,draft.unit.label].map(clean).filter(Boolean).join(" / ")||"위치정보 없음",detail:clean(draft.detail.text),content:clean(draft.content.text),notice:draft.notice==="MANUAL_LOCATION_PRIORITY"?"수동 위치를 우선하여 음성 위치는 적용하지 않았습니다.":""}}
 export function buildDraftPayloadView(draft){return {location:buildDraftLocationText(draft),description:clean(draft.content.text),buildingLocationId:draft.directLocation.enabled?"":draft.building.id||"",buildingType:"BUILDING",floorLocationId:draft.directLocation.enabled?"":draft.floor.id||"",unitLocationId:draft.directLocation.enabled?"":draft.unit.id||"",roomLocationId:"",speech:clone(draft.speech)}}

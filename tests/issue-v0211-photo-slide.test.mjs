@@ -5,12 +5,12 @@ import fs from "node:fs";
 const js=fs.readFileSync("apps/web/assets/issues.js","utf8");
 const css=fs.readFileSync("apps/web/assets/issues.css","utf8");
 
-test("Issue 사진 슬라이드는 한 이슈 단위 메타데이터와 썸네일을 재사용한다",()=>{
+test("Issue 사진 슬라이드는 목록 메타데이터와 활성 이슈 상세만 재사용한다",()=>{
   assert.match(js,/function issueSlideView/);
   assert.match(js,/bindIssueSlides/);
   assert.match(js,/issue\.thumbnailUrl/);
-  assert.match(js,/new Image\(\)\.src/);
-  assert.doesNotMatch(js,/move=.*api\(/);
+  assert.match(js,/loadDetail:id=>api\(`\/issues\/\$\{id\}`\)/);
+  assert.match(js,/createIssuePhotoViewerState/);
 });
 
 test("모바일은 슬라이드 기본, PC는 목록 기본이며 보기 전환을 지원한다",()=>{
@@ -34,12 +34,12 @@ test("사진은 화면을 채우고 하단 오버레이는 기본 펼침과 접�
 
 test("슬라이드에 위치 내용 상태 번호와 주요 조치 링크를 제공한다",()=>{
   for(const token of ["issue-slide-count","issue-slide-status","issue-slide-location","issue-slide-description","issue-slide-action"]) assert.match(js,new RegExp(token));
-  assert.match(js,/좌우로 밀어 이전 또는 다음 이슈 보기/);
+  assert.match(js,/좌우로 사진 이동, 위아래로 이슈 이동/);
   assert.match(js,/조치하기/);
 });
 
-test("v0.22.0 Viewer는 썸네일에서 시작하고 확대할 때만 원본을 불러온다",()=>{
-  assert.match(js,/dataset\.original=`\/api\/v1\/issues\/\$\{issue\.id\}\/media\/original`/);
+test("Viewer는 활성 사진 썸네일에서 시작하고 확대할 때 해당 원본을 불러온다",()=>{
+  assert.match(js,/snapshot\.photo\?\.originalUrl\|\|image\.src/);
   assert.match(js,/viewer-original/);
   assert.match(js,/원본 보기/);
   assert.match(js,/ondblclick=openPhoto/);

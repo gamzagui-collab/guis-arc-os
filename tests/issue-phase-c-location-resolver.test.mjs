@@ -108,16 +108,18 @@ test("resolver selection ownership clears stale automatic values and preserves m
   assert.deepEqual(reconcileResolverSelection(manual,automatic,ambiguous,true).path,manual);
 });
 
-test("createV3 keeps speech as a candidate and merges it only on explicit apply",()=>{
+test("createV3 keeps speech as a candidate and automatically merges it into Draft",()=>{
   const ui=fs.readFileSync(new URL("../apps/web/assets/issues.js",import.meta.url),"utf8");
   const flow=ui.slice(ui.indexOf("async function createV3"),ui.indexOf("async function detail"));
-  assert.match(flow,/id="description-apply"/);
+  assert.doesNotMatch(flow,/id="description-apply"/);
+  assert.match(flow,/issueDraft=mergeSpeechCandidateIntoDraft\(issueDraft,speechCandidate\)/);
   assert.match(flow,/makeSpeechCandidate=rawTranscript=>/);
   assert.match(flow,/resolveIssueDescriptionLocation\(resolutionInput/);
-  assert.match(flow,/descriptionApply\.onclick/);
+  assert.doesNotMatch(flow,/descriptionApply\.onclick/);
   assert.match(flow,/description\.addEventListener\("input",\(\)=>\{issueDraft=setManualContent/);
   const speech=flow.slice(flow.indexOf("recognition.onresult"),flow.indexOf("recognition.onerror"));
   assert.match(speech,/speechCandidate=makeSpeechCandidate\(rawTranscript\)/);
+  assert.match(speech,/issueDraft=mergeSpeechCandidateIntoDraft\(issueDraft,speechCandidate\)/);
   assert.doesNotMatch(speech,/applyLocationPathToForm|applyResolvedLocationPath/);
   assert.match(flow,/mergeSpeechCandidateIntoDraft\(issueDraft,speechCandidate\)/);
   assert.match(flow,/setManualBuilding|setManualFloor|setManualUnit/);

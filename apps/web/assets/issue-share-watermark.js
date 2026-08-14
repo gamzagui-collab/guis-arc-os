@@ -55,9 +55,10 @@ export function wrapWatermarkContent(value,maxWidth,measure,maxLines=2){
 }
 
 export function issueShareWatermarkLayout(width,height){
- const padding=28,gap=Math.max(18,Math.round(width*.018)),locationSize=Math.max(24,Math.round(width*.032));
- const contentSize=locationSize*.8,dateSize=locationSize*.6;
+ const shortEdge=Math.min(width,height),clamp=(value,min,max)=>Math.max(min,Math.min(max,value));
+ const padding=Math.max(12,Math.round(shortEdge*.016)),gap=Math.max(8,Math.round(shortEdge*.012)),locationSize=clamp(Math.round(shortEdge*.032),24,48);
+ const contentSize=locationSize*.9,dateSize=locationSize*.8;
  const dateWidthBudget=Math.round(dateSize*7.6),contentLineHeight=Math.max(34,Math.round(contentSize*1.25));
- const footerHeight=Math.min(height,22+Math.max(locationSize,dateSize)+12+contentLineHeight*2+padding);
- return {padding,gap,locationSize,contentSize,dateSize,dateWidthBudget,contentLineHeight,footerHeight,locationMaxWidth:Math.max(0,width-padding*2-dateWidthBudget-gap),contentTop:height-footerHeight+22+Math.max(locationSize,dateSize)+12};
+ const headerGap=8,footerHeight=Math.min(height,padding+Math.max(locationSize,dateSize)+headerGap+contentLineHeight*2+padding);
+ return {padding,gap,locationSize,contentSize,dateSize,dateWidthBudget,contentLineHeight,footerHeight,overlayAlpha:.58,locationMaxWidth:Math.max(0,width-padding*2-dateWidthBudget-gap),contentTop:height-footerHeight+padding+Math.max(locationSize,dateSize)+headerGap};
 }

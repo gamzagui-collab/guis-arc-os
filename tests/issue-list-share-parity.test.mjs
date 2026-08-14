@@ -58,6 +58,14 @@ test("r29 common share pipeline derives one structural header and one normalized
  assert.doesNotMatch(pipeline,/issue\.location\|\|"위치 정보 없음"/);
 });
 
+test("r36 keeps one active common share renderer and removes the overwritten point seven eight layer",()=>{
+ const pipeline=extract("createSharePhoto=async function","const downloadIssueShareFile");
+ assert.doesNotMatch(pipeline,/rgba\(0,0,0,\.78\)/);
+ assert.match(pipeline,/rgba\(0,0,0,\$\{layout\.overlayAlpha\}\)/);
+ assert.match(pipeline,/issueShareWatermarkLayout/);
+ assert.match(pipeline,/wrapWatermarkContent\([\s\S]*?,2\);contentLines/);
+});
+
 test("list share markup preserves v3 and historical location text and stays mobile-safe",()=>{
   assert.match(js,/issue\.location/);
   assert.match(js,/room_location_id|roomLocationId/);
