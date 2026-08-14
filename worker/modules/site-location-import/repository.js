@@ -1,3 +1,4 @@
+import {countEffectiveActiveLocations} from "../location-master-policy.js";
 const results=value=>value?.results??[];
 const unique=values=>[...new Set(values.map(value=>String(value??"").trim()).filter(Boolean))];
 const encoder=new TextEncoder(),IDENTITY_JSON_BYTES=1536*1024;
@@ -66,8 +67,7 @@ export async function clearLocationImportUploadObject(env,{siteId,importId,objec
 }
 
 export async function countActiveFixedLocations(env,siteId){
-  const row=await env.DB.prepare("SELECT COUNT(*) count FROM site_locations WHERE site_id=?1 AND is_active=1").bind(siteId).first();
-  return Number(row?.count||0);
+  return countEffectiveActiveLocations(env,siteId);
 }
 
 export function getLocationImport(env,siteId,importId){

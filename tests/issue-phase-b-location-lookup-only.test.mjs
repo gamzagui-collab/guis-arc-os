@@ -1,6 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import fs from "node:fs";
+import {issueLocationSubmission} from "../apps/web/assets/issue-location-resolver.js";
 
 const read=file=>fs.readFileSync(file,"utf8");
 const worker=read("worker/modules/issues.js");
@@ -34,4 +35,22 @@ test("createV3 sends canonical IDs only and does not submit dynamic location lab
   for(const field of ["buildingLabel","floorLabel","unitLabel","roomLabel"])assert.doesNotMatch(createUi,new RegExp(`payload\\.set\\("${field}"`));
   assert.doesNotMatch(createUi,/value="DIRECT"|unitOther|areaOther/);
   for(const field of ["buildingLocationId","floorLocationId","unitLocationId","roomLocationId"])assert.match(createUi,new RegExp(`payload\\.set\\("${field}"`));
+});
+
+test("direct input submission is mutually exclusive with canonical IDs and leaves the master untouched",()=>{
+  assert.deepEqual(issueLocationSubmission({mode:"DIRECT",manualText:"  옥상 물탱크실 옆  ",canonical:{buildingLocationId:"b",floorLocationId:"f",unitLocationId:"u",roomLocationId:"r"},canonicalText:"201동 / 16층"}),{
+    location:"옥상 물탱크실 옆",buildingLocationId:"",buildingType:"BUILDING",floorLocationId:"",unitLocationId:"",roomLocationId:""
+  });
+  assert.deepEqual(issueLocationSubmission({mode:"CANONICAL",manualText:"ignored",canonical:{buildingLocationId:"b",buildingType:"FACILITY",floorLocationId:"",unitLocationId:"",roomLocationId:""},canonicalText:"기계실"}),{
+    location:"기계실",buildingLocationId:"b",buildingType:"FACILITY",floorLocationId:"",unitLocationId:"",roomLocationId:""
+  });
+});
+
+test("createV3 exposes a reversible direct-input mode without a Location Master mutation endpoint",()=>{
+  assert.match(createUi,/location-mode-toggle/);
+  assert.match(createUi,/목록에 없음 · 직접 입력/);
+  assert.match(createUi,/manualInput\.required=direct/);
+  assert.match(createUi,/canonicalGrid\.hidden=direct/);
+  assert.doesNotMatch(createUi,/directOption\.dataset\.locationId/);
+  assert.doesNotMatch(createUi,/site-locations|location-import|addAndSelect/);
 });

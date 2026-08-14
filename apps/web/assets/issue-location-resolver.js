@@ -38,6 +38,18 @@ export function reconcileResolverSelection(current,lastOwned,resolverResult,manu
  return {path:resolvedPath,ownedPath:resolvedPath};
 }
 
+export function issueLocationSubmission({mode="CANONICAL",manualText="",canonical={},canonicalText=""}={}){
+ const direct=mode==="DIRECT";
+ return {
+  location:direct?String(manualText).trim():String(canonicalText).trim(),
+  buildingLocationId:direct?"":canonical.buildingLocationId||"",
+  buildingType:direct?"BUILDING":canonical.buildingType||"BUILDING",
+  floorLocationId:direct?"":canonical.floorLocationId||"",
+  unitLocationId:direct?"":canonical.unitLocationId||"",
+  roomLocationId:direct?"":canonical.roomLocationId||""
+ };
+}
+
 export function resolveIssueDescriptionLocation(description,{locations,aliases=[]}={}){
  try{
   if(!Array.isArray(locations)||!Array.isArray(aliases))throw new TypeError("Invalid resolver input");

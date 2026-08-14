@@ -18,8 +18,8 @@ export function assessLocationImportApplyCapacity(diff){try{const chunks=mutatio
 const SQL={
   LOCATION_UPSERT:`INSERT INTO site_locations(id,site_id,parent_id,location_type,code,name,display_name,sort_order,canonical_key,source,is_active)
     SELECT json_extract(j.value,'$.id'),json_extract(j.value,'$.siteId'),json_extract(j.value,'$.parentId'),json_extract(j.value,'$.locationType'),json_extract(j.value,'$.code'),json_extract(j.value,'$.name'),json_extract(j.value,'$.displayName'),CAST(json_extract(j.value,'$.sortOrder') AS INTEGER),json_extract(j.value,'$.canonicalKey'),'IMPORT',1 FROM json_each(?1) j WHERE 1
-    ON CONFLICT(id) DO UPDATE SET parent_id=excluded.parent_id,location_type=excluded.location_type,code=excluded.code,name=excluded.name,display_name=excluded.display_name,sort_order=excluded.sort_order,is_active=1,updated_at=CURRENT_TIMESTAMP
-    WHERE site_locations.site_id=excluded.site_id AND site_locations.canonical_key=excluded.canonical_key AND site_locations.source='IMPORT'`,
+    ON CONFLICT(id) DO UPDATE SET parent_id=excluded.parent_id,location_type=excluded.location_type,code=excluded.code,name=excluded.name,display_name=excluded.display_name,sort_order=excluded.sort_order,canonical_key=excluded.canonical_key,source='IMPORT',is_active=1,updated_at=CURRENT_TIMESTAMP
+    WHERE site_locations.site_id=excluded.site_id`,
   LOCATION_INACTIVE:`UPDATE site_locations SET is_active=0,updated_at=CURRENT_TIMESTAMP WHERE site_id=?1 AND source='IMPORT' AND id IN (SELECT json_extract(value,'$.id') FROM json_each(?2))`,
 
 };

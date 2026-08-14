@@ -10,5 +10,6 @@ export const MODULES=[
  {code:"documents",label:"문서 관리",path:"/documents",children:[["문서 작성","/documents"],["문서 양식","/documents/templates"],["결재 대기","/documents/approvals"],["보관함","/documents/archive"]]},
  {code:"admin",label:"통합 관리",path:"/admin",children:[["현장 관리","/admin/sites"],["회사 관리","/admin/companies"],["공종 관리","/admin/trades"],["현장 참여 회사","/admin/site-companies"],["사용자 관리","/admin/users"],["사용자 초대","/admin/invitations"],["역할·권한","/admin/permissions"],["게시판 권한","/admin/board-access"]]}
 ];
+MODULES.find(module=>module.code==="admin").children.splice(1,0,["위치정보","/admin/site-locations"]);
 export const byPath=path=>path.startsWith("/pwa/issues/")?MODULES.find(v=>v.code==="issue"):path.startsWith("/pwa/workforce")?MODULES.find(v=>v.code==="workforce"):MODULES.find(v=>path===v.path||v.children.some(([,child])=>path===child)||path.startsWith(v.path+"/"));
 export const childByPath=path=>byPath(path)?.children.find(([,child])=>child===path);

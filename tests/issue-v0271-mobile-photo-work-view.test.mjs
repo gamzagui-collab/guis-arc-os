@@ -103,12 +103,12 @@ test("photo slide requests the next page near the loaded edge without replacing 
 
 test("service worker revision invalidates stale shell and all changed asset URLs",()=>{
   const sw=fs.readFileSync("apps/web/service-worker.js","utf8"),html=fs.readFileSync("apps/web/index.html","utf8"),app=fs.readFileSync("apps/web/assets/app.js","utf8"),issues=fs.readFileSync("apps/web/assets/issues.js","utf8");
- assert.match(sw,/guis-arc-integrated-v0\.27\.1-r24-shell/);
+ assert.match(sw,/guis-arc-integrated-v0\.27\.1-r25-shell/);
   assert.match(sw,/key\.startsWith\("guis-arc-integrated-"\)&&key!==CACHE/);
-  for(const asset of ["app.js","issues.js","issues.css","app.css","manifest.webmanifest"])assert.match(sw,new RegExp(asset.replace(".","\\.")+"\\?v=0\\.27\\.1-r24"));for(const asset of ["issue-speech.js","integrated-admin.js","version.js"])assert.match(sw,new RegExp(asset.replace(".","\\.")+"\\?v=0\\.27\\.1-r24"));
-  assert.match(html,/issues\.css\?v=0\.27\.1-r24/);assert.match(html,/app\.js\?v=0\.27\.1-r24/);
-  assert.match(app,/version\.js\?v=0\.27\.1-r24/);assert.match(app,/issues\.js\?v=0\.27\.1-r24/);assert.match(app,/integrated-admin\.js\?v=0\.27\.1-r24/);
-  assert.match(issues,/issue-speech\.js\?v=0\.27\.1-r24/);
+  for(const asset of ["app.js","issues.js","issues.css","app.css","manifest.webmanifest"])assert.match(sw,new RegExp(asset.replace(".","\\.")+"\\?v=0\\.27\\.1-r25"));for(const asset of ["issue-speech.js","integrated-admin.js","version.js"])assert.match(sw,new RegExp(asset.replace(".","\\.")+"\\?v=0\\.27\\.1-r25"));
+  assert.match(html,/issues\.css\?v=0\.27\.1-r25/);assert.match(html,/app\.js\?v=0\.27\.1-r25/);
+  assert.match(app,/version\.js\?v=0\.27\.1-r25/);assert.match(app,/issues\.js\?v=0\.27\.1-r25/);assert.match(app,/integrated-admin\.js\?v=0\.27\.1-r25/);
+  assert.match(issues,/issue-speech\.js\?v=0\.27\.1-r25/);
 });
 
 

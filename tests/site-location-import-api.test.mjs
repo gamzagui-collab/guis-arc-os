@@ -8,6 +8,7 @@ import worker from "../worker/index.js";
 import {applyLocationImport,buildLocationImportApplyStatements,D1_LOCATION_IMPORT_LIMITS} from "../worker/modules/site-location-import/apply.js";
 import * as locationRepository from "../worker/modules/site-location-import/repository.js";
 import {fingerprintLocationMaster} from "../worker/modules/site-location-import/diff.js";
+import {buildLocationImportDiff} from "../worker/modules/site-location-import/diff.js";
 import {strToU8,unzipSync,zipSync} from "fflate";
 import {LOCATION_HEADERS,LOCATION_IMPORT_LIMITS,TEMPLATE_SHEETS} from "../worker/modules/site-location-import/contracts.js";
 
@@ -149,6 +150,23 @@ test("validation returns bounded preview and writes compact metadata only",async
 const applyDiff=operations=>({operations,counts:{added:operations.filter(v=>v.type==="ADD").length,updated:operations.filter(v=>v.type==="UPDATE").length,unchanged:0,inactivated:operations.filter(v=>v.type==="INACTIVE").length,aliasAdded:operations.filter(v=>v.type==="ALIAS_ADD").length,aliasUpdated:operations.filter(v=>v.type==="ALIAS_UPDATE").length,aliasInactivated:operations.filter(v=>v.type==="ALIAS_INACTIVE").length,error:0},baseMasterFingerprint:"base-a",previewHash:"preview-a"});
 const location=(id,overrides={})=>({id,siteId:"site-a",parentId:null,locationType:"ROOM",canonicalKey:`key-${id}`,displayName:id,sortOrder:0,source:"IMPORT",isActive:1,...overrides});
 const alias=(id,locationId,overrides={})=>({id,siteId:"site-a",locationId,aliasText:id,normalizedAlias:id.toLowerCase(),aliasType:"FIELD_NAME",source:"IMPORT",isActive:1,...overrides});
+
+test("exact typed legacy hierarchy is adopted as IMPORT without changing IDs or creating duplicates",()=>{
+  const current={locations:[
+    location("legacy-building",{locationType:"BUILDING",canonicalKey:"legacy/building",displayName:"201동",source:"LEGACY"}),
+    location("legacy-floor",{parentId:"legacy-building",locationType:"FLOOR",canonicalKey:"legacy/floor",displayName:"16층",source:"LEGACY"})
+  ]};
+  const normalized={locations:[
+    location("incoming-building",{locationType:"BUILDING",canonicalKey:"building/201",displayName:" 201동 ",source:"IMPORT"}),
+    location("incoming-floor",{parentId:"incoming-building",locationType:"FLOOR",canonicalKey:"building/201/floor/16",displayName:"16층",source:"IMPORT"})
+  ]};
+  const diff=buildLocationImportDiff({siteId:"site-a",normalized,current});
+  assert.equal(diff.counts.added,0);
+  assert.equal(diff.counts.updated,2);
+  assert.deepEqual(diff.operations.map(item=>item.id),["legacy-building","legacy-floor"]);
+  assert.deepEqual(diff.operations.map(item=>item.after.source),["IMPORT","IMPORT"]);
+  assert.equal(diff.operations.find(item=>item.id==="legacy-floor").after.parentId,"legacy-building");
+});
 function applyHarness({diff=applyDiff([]),row={},replayed=null,failAt=0}={}){
   const executed=[];let batchCalls=0,status="READY";
   const statement=(sql,args=[])=>({sql,args,bind(...values){return statement(sql,values)}});
@@ -313,6 +331,21 @@ const apiColumn=index=>{let value="";for(let n=index+1;n;n=Math.floor((n-1)/26))
 const apiWorksheet=rows=>`<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"><sheetData>${rows.map((row,rowIndex)=>`<row r="${rowIndex+1}">${row.map((value,columnIndex)=>`<c r="${apiColumn(columnIndex)}${rowIndex+1}" t="inlineStr"><is><t>${apiXmlEscape(value)}</t></is></c>`).join("")}</row>`).join("")}</sheetData></worksheet>`;
 function apiWorkbook({locations=[],locationHeaders=LOCATION_HEADERS,extraEntries={}}={}){const rows=[[["guide"]],[locationHeaders,...locations],[["review"]]],workbookXml=`<workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"><sheets>${TEMPLATE_SHEETS.map((name,index)=>`<sheet name="${name}" sheetId="${index+1}" r:id="rId${index+1}"/>`).join("")}</sheets></workbook>`,rels=`<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">${TEMPLATE_SHEETS.map((_,index)=>`<Relationship Id="rId${index+1}" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet${index+1}.xml"/>`).join("")}</Relationships>`;return zipSync({"xl/workbook.xml":strToU8(workbookXml),"xl/_rels/workbook.xml.rels":strToU8(rels),...Object.fromEntries(rows.map((value,index)=>[`xl/worksheets/sheet${index+1}.xml`,strToU8(apiWorksheet(value))])),...extraEntries})}
 const corruptDeclaredExpansion=(bytes,size)=>{const copy=new Uint8Array(bytes),view=new DataView(copy.buffer,copy.byteOffset,copy.byteLength);for(let offset=0;offset<=copy.length-46;offset++)if(view.getUint32(offset,true)===0x02014b50){view.setUint32(offset+24,size,true);copy[offset+46]^=0xff;break}return copy};
+
+test("production Apply adopts an exact LEGACY workbook path in place",async()=>{
+  const bytes=apiWorkbook({locations:[["201동","16층","",""]]}),value=await realEnv("MANAGE"),hash=crypto.createHash("sha256").update(bytes).digest("hex"),key="sites/site-a/location-imports/adopt/original.xlsx";
+  value.db.exec("INSERT INTO site_locations(id,site_id,parent_id,location_type,code,name,display_name,sort_order,is_active,canonical_key,source) VALUES('legacy-201','site-a',NULL,'BUILDING','LEGACY_201','201동','201동',1,1,'legacy/201','LEGACY'),('legacy-16','site-a','legacy-201','FLOOR','LEGACY_16','16층','16층',16,1,'legacy/201/16','LEGACY')");
+  value.db.prepare("INSERT INTO site_location_imports(id,site_id,file_name,file_hash,r2_object_key,template_version,status,created_by) VALUES('adopt','site-a','locations.xlsx',?,?,'v2','UPLOADED','user-a')").run(hash,key);value.objects.set(key,bytes);value.env.DB=transactionalD1(value.db);
+  let response=await worker.fetch(request("/api/v1/admin/site-locations/upload-sessions/adopt/validate",{method:"POST",headers:value.headers}),value.env),preview=await response.json();
+  assert.equal(response.status,200,JSON.stringify(preview));assert.equal(preview.counts.added,0);assert.equal(preview.counts.updated,2);
+  response=await worker.fetch(request("/api/v1/admin/site-locations/imports/adopt/apply",{method:"POST",body:{previewHash:preview.previewHash,baseMasterFingerprint:preview.baseMasterFingerprint},headers:{...value.headers,"idempotency-key":"adopt-apply"}}),value.env);
+  assert.equal(response.status,200,JSON.stringify(await response.clone().json()));
+  assert.deepEqual(value.db.prepare("SELECT id,parent_id,source,is_active FROM site_locations WHERE site_id='site-a' ORDER BY id").all().map(row=>({...row})),[
+    {id:"legacy-16",parent_id:"legacy-201",source:"IMPORT",is_active:1},
+    {id:"legacy-201",parent_id:null,source:"IMPORT",is_active:1}
+  ]);
+  value.db.close();
+});
 
 test("malformed and adversarial XLSX payloads return stable 4xx errors with zero master writes",async()=>{
   const valid=apiWorkbook({locations:[["202동","14층","1401호","거실"]]}),formula=repackTemplate(entries=>{const name=locationSheetEntry(entries),xml=Buffer.from(entries[name]).toString("utf8");entries[name]=strToU8(xml.replace("</c>","<f>1+1</f></c>"))}),external=apiWorkbook({extraEntries:{"xl/externalLinks/externalLink1.xml":strToU8("<externalLink/>")}}),shared=apiWorkbook({extraEntries:{"xl/sharedStrings.xml":strToU8(`<sst>${"<si><t>x</t></si>".repeat(LOCATION_IMPORT_LIMITS.sharedStrings+1)}</sst>`)}}),expanded=apiWorkbook({extraEntries:{"xl/unused.xml":strToU8("x".repeat(LOCATION_IMPORT_LIMITS.expandedXmlBytes+1))}}),control=apiWorkbook({locations:[["202동","14층","1401호","거\u0001실"]]}),controlData=(()=>{const entries=unzipSync(valid),name=locationSheetEntry(entries),xml=Buffer.from(entries[name]).toString("utf8");entries[name]=strToU8(xml.replace("202동","202&#x1;동"));return zipSync(entries)})(),overlong=apiWorkbook({locations:[["202동","14층","1401호","x".repeat(LOCATION_IMPORT_LIMITS.cellChars+1)]]}),corrupt=valid.slice(0,-12),central=corruptDeclaredExpansion(valid,LOCATION_IMPORT_LIMITS.expandedXmlBytes+1);

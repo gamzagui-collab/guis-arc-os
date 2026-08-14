@@ -7,6 +7,17 @@ const stable=value=>JSON.stringify(canonical(value));
 export {sha256};
 const ordered=items=>[...items].sort((a,b)=>String(a.id).localeCompare(String(b.id))||a.type.localeCompare(b.type));
 const same=(a,b,keys)=>keys.every(key=>a[key]===b[key]);
+const normalizedName=value=>String(value??"").normalize("NFKC").trim().replace(/\s+/g," ").toLocaleUpperCase("ko-KR");
+
+function adoptExactLegacyLocations(siteId,incoming,current){
+  const legacy=current.filter(row=>row.siteId===siteId&&row.source==="LEGACY"),idMap=new Map(),used=new Set(),out=[];
+  for(const row of incoming){
+    const parentId=row.parentId==null?null:(idMap.get(row.parentId)??row.parentId),matches=legacy.filter(candidate=>!used.has(candidate.id)&&candidate.locationType===row.locationType&&(candidate.parentId??null)===parentId&&normalizedName(candidate.displayName)===normalizedName(row.displayName));
+    if(matches.length===1){const match=matches[0];used.add(match.id);idMap.set(row.id,match.id);out.push({...row,id:match.id,parentId,source:"IMPORT",isActive:1})}
+    else out.push({...row,parentId});
+  }
+  return out;
+}
 
 export function fingerprintLocationMaster(siteId,current={}){return sha256(stable({locations:(current.locations??[]).map(cleanLocation).filter(row=>row.siteId===siteId).sort((a,b)=>a.id.localeCompare(b.id))}))}
 
@@ -31,9 +42,9 @@ function renameCandidates(operations){
 }
 
 export function buildLocationImportDiff({siteId,normalized,current={},renameDecisions}){
-  const currentLocations=(current.locations??[]).map(cleanLocation),locationById=new Map(currentLocations.map(row=>[row.id,row])),operations=[];let unchanged=0;
-  for(const incoming of normalized.locations??[]){const old=locationById.get(incoming.id);if(old&&old.siteId!==siteId)operations.push({type:"ERROR",id:incoming.id,code:"LOCATION_IMPORT_CROSS_SITE_REFERENCE"});else if(!old)operations.push({type:"ADD",id:incoming.id,after:{...incoming,source:"IMPORT",isActive:1}});else if(old.source!=="IMPORT")unchanged++;else{const after={...incoming,source:"IMPORT",isActive:1};if(same(old,after,["parentId","locationType","canonicalKey","displayName","sortOrder","isActive"]))unchanged++;else operations.push({type:"UPDATE",id:incoming.id,before:old,after})}}
-  const incomingIds=new Set((normalized.locations??[]).map(row=>row.id)),blocked=blockedLocationInactivationIds(siteId,incomingIds,currentLocations);
+  const currentLocations=(current.locations??[]).map(cleanLocation),incomingLocations=adoptExactLegacyLocations(siteId,normalized.locations??[],currentLocations),locationById=new Map(currentLocations.map(row=>[row.id,row])),operations=[];let unchanged=0;
+  for(const incoming of incomingLocations){const old=locationById.get(incoming.id);if(old&&old.siteId!==siteId)operations.push({type:"ERROR",id:incoming.id,code:"LOCATION_IMPORT_CROSS_SITE_REFERENCE"});else if(!old)operations.push({type:"ADD",id:incoming.id,after:{...incoming,source:"IMPORT",isActive:1}});else if(old.source!=="IMPORT"&&old.source!=="LEGACY")operations.push({type:"ERROR",id:incoming.id,code:"LOCATION_IMPORT_IDENTITY_CONFLICT"});else{const after={...incoming,source:"IMPORT",isActive:1};if(same(old,after,["parentId","locationType","canonicalKey","displayName","sortOrder","source","isActive"]))unchanged++;else operations.push({type:"UPDATE",id:incoming.id,before:old,after})}}
+  const incomingIds=new Set(incomingLocations.map(row=>row.id)),blocked=blockedLocationInactivationIds(siteId,incomingIds,currentLocations);
   for(const row of currentLocations)if(row.siteId===siteId&&row.source==="IMPORT"&&row.isActive===1&&!incomingIds.has(row.id))operations.push(blocked.has(row.id)?{type:"ERROR",id:row.id,code:"LOCATION_IMPORT_PARENT_HAS_RETAINED_CHILD"}:{type:"INACTIVE",id:row.id,before:row,after:{...row,isActive:0}});
   const baseOperations=operations.map(item=>({...item})),candidates=renameCandidates(baseOperations),basePreviewHash=sha256(stable(ordered([...baseOperations,...candidates]))),candidateById=new Map(candidates.map(item=>[item.id,item])),selected=new Set(),idMap=new Map();
   const preserve=(add,inactive,parentId=add.after.parentId)=>{add.skip=true;inactive.skip=true;idMap.set(add.id,inactive.id);operations.push({type:"UPDATE",id:inactive.id,before:inactive.before,after:{...add.after,id:inactive.id,parentId,canonicalKey:inactive.before.canonicalKey,source:"IMPORT",isActive:1}})};

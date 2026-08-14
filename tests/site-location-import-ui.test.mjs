@@ -18,8 +18,15 @@ const read=file=>fs.readFileSync(file,"utf8");
 test("admin route keeps its existing shell and loads the location import module",()=>{
   const app=read("apps/web/assets/app.js"),admin=read("apps/web/assets/integrated-admin.js"),html=read("apps/web/index.html");
   assert.match(app,/\/admin\/site-locations/);
-  assert.match(admin,/site-location-import\.js\?v=0\.27\.1-r24/);
-  assert.match(html,/site-location-import\.css\?v=0\.27\.1-r24/);
+  assert.match(admin,/site-location-import\.js\?v=0\.27\.1-r25/);
+  assert.match(html,/site-location-import\.css\?v=0\.27\.1-r25/);
+});
+
+test("admin navigation exposes the existing location information route",async()=>{
+  const {MODULES}=await import("../packages/permissions/modules.js");
+  const admin=MODULES.find(module=>module.code==="admin");
+  assert.ok(admin);
+  assert.deepEqual(admin.children.find(([,path])=>path==="/admin/site-locations"),["위치정보","/admin/site-locations"]);
 });
 
 test("state machine blocks duplicate requests and Apply needs a clean READY preview",()=>{
