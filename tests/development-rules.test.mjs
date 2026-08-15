@@ -1,17 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import fs from "node:fs";
-const read=(file)=>fs.readFileSync(file,"utf8");
-
-test("Codex startup files enforce minimal-scope work",()=>{
-  const agents=read("AGENTS.md"),rules=read("DEVELOPMENT_RULES.md"),version=read("VERSION.md");
-  for(const token of ["VERSION.md","AIOS/PROJECT_STATE.md","DEVELOPMENT_RULES.md","관련 파일만","Production"])assert.ok(agents.includes(token));
-  for(const token of ["최소 범위 수정","저장소 전체 분석","수동 파일 병합","외부 Skill 안전정책"])assert.ok(rules.includes(token));
- assert.match(version,/GUI_Arc_Integrated_v0\.27\.1_Integrated\.zip/);
- assert.match(version,/GUI_Arc_Integrated_v0\.27\.1_Integrated\.zip\.sha256/);
-});
-
-test("official package includes startup rule files",()=>{
-  const pack=read("scripts/package-integrated.mjs");
-  for(const file of ["AGENTS.md","DEVELOPMENT_RULES.md","VERSION.md"])assert.ok(pack.includes(file));
-});
+const read=file=>fs.readFileSync(file,"utf8");
+test("development rules encode lean error and risk contracts",()=>{const agents=read("AGENTS.md"),rules=read("DEVELOPMENT_RULES.md");for(const file of["AGENTS.md","VERSION.md","DEVELOPMENT_RULES.md"])assert.ok(agents.includes(file));for(const token of["재현 → 원인 확인 → 최소 수정 → 회귀 테스트 → 임시 규칙 폐기","위험도 기반 검증","static revision","Production","공식 release checkpoint"])assert.ok(rules.includes(token),token)});
+test("syntax naming exposes compatibility alias",()=>{const scripts=JSON.parse(read("package.json")).scripts;assert.equal(scripts["check:syntax"],"node scripts/check-syntax.mjs");assert.equal(scripts.typecheck,"npm run check:syntax")});

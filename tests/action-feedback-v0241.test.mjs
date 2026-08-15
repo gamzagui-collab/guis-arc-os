@@ -7,8 +7,8 @@ const feedback=await readFile(new URL("../apps/web/assets/action-feedback.js",im
 const issues=await readFile(new URL("../apps/web/assets/issues.js",import.meta.url),"utf8");
 const css=await readFile(new URL("../apps/web/assets/app.css",import.meta.url),"utf8");
 
-test("v0.24.1 formalizes pending success error retry and duplicate prevention",()=>{
- for(const text of ["사용자 액션 피드백 원칙","처리 중","성공","실패","Revision 충돌","Idempotency","aria-busy"])assert.match(rules,new RegExp(text));
+test("development rules preserve the shared action feedback contract",()=>{
+ for(const text of ["비동기 사용자 액션","처리 중·성공·실패","중복 실행 방지","입력과 선택을 보존","접근 가능한 피드백"])assert.match(rules,new RegExp(text));
 });
 
 test("common action feedback exposes accessible pending success and error states",()=>{

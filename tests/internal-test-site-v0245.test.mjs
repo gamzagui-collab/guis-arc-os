@@ -64,8 +64,9 @@ test("one common four digit PIN creates separate non-logged credentials for all 
  assert.equal(pinValidationError("5827"),null);
 });
 
-test("ChatGPT and Codex responsibilities have one canonical rule source",()=>{
- for(const token of["ChatGPT 기본 역할","Codex 기본 역할","공식 개발 흐름","ChatGPT 직접 구현 예외"])assert.ok(rules.includes(token),token);
- for(const token of["ChatGPT와 Codex 역할 요약","DEVELOPMENT_RULES.md","공식 코드·테스트·Migration·배포·Git·Integrated ZIP"])assert.ok(agents.includes(token),token);
- assert.ok(rules.length>agents.length);
+test("startup and development rules have one lean canonical source",()=>{
+ for(const token of["위험도 기반 검증","최소 변경","공식 release checkpoint","Production"])assert.ok(rules.includes(token),token);
+ for(const token of["AGENTS.md","VERSION.md","DEVELOPMENT_RULES.md","프로젝트 Skill"])assert.ok(agents.includes(token),token);
+ assert.ok(agents.split(/\r?\n/).length<=50);
+ assert.ok(rules.split(/\r?\n/).length<=80);
 });

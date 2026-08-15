@@ -19,12 +19,11 @@ function database() {
   return db;
 }
 
-test("Data Ownership and handoff agree Issue is implemented while runtime state is READY", () => {
-  const ownership = read("docs/03_DATA_OWNERSHIP.md"), matrix = JSON.parse(read("docs/08_VERSION_MATRIX.json")), handoff = read("docs/98_NEXT_CHAT_HANDOFF.md"), index = read("worker/index.js");
+test("Data Ownership and runtime agree Issue is implemented and READY", () => {
+  const ownership = read("docs/03_DATA_OWNERSHIP.md"), matrix = JSON.parse(read("docs/08_VERSION_MATRIX.json")), index = read("worker/index.js");
   assert.match(ownership, /Issue[^\n]*IMPLEMENTED/);
   assert.doesNotMatch(ownership, /Issue[^\n]*NOT_IMPLEMENTED/);
   assert.equal(matrix.modules.issue, "READY");
-  assert.match(handoff, /Issue[^\n]*IMPLEMENTED/);
   assert.match(index, /MODULE_IMPLEMENTATION/);
 });
 
